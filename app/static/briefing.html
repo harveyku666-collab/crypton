@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BitInfo - 市场简报</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --card: #161b22;
+    --border: #30363d;
+    --text: #e6edf3;
+    --text2: #8b949e;
+    --green: #3fb950;
+    --red: #f85149;
+    --blue: #58a6ff;
+    --orange: #d29922;
+    --accent: #1f6feb;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 20px;
+  }
+  .container { max-width: 900px; margin: 0 auto; }
+  .header {
+    text-align: center;
+    padding: 30px 0 20px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 24px;
+  }
+  .header h1 { font-size: 28px; font-weight: 700; }
+  .header .subtitle { color: var(--text2); margin-top: 8px; font-size: 14px; }
+  .controls {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    margin: 16px 0;
+    flex-wrap: wrap;
+  }
+  .controls select, .controls button {
+    padding: 8px 16px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--text);
+    font-size: 14px;
+    cursor: pointer;
+  }
+  .controls button {
+    background: var(--accent);
+    border-color: var(--accent);
+    font-weight: 600;
+  }
+  .controls button:hover { opacity: 0.9; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .card-title {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card-title .icon { font-size: 20px; }
+
+  /* Prices Table */
+  .price-table { width: 100%; border-collapse: collapse; }
+  .price-table th {
+    text-align: left;
+    color: var(--text2);
+    font-weight: 500;
+    font-size: 12px;
+    text-transform: uppercase;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .price-table td {
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 15px;
+  }
+  .price-table tr:last-child td { border-bottom: none; }
+  .price-table .symbol { font-weight: 700; }
+  .price-table .price { font-family: 'SF Mono', Monaco, monospace; }
+  .up { color: var(--green); }
+  .down { color: var(--red); }
+  .neutral-val { color: var(--text2); }
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .badge.up { background: rgba(63,185,80,0.15); }
+  .badge.down { background: rgba(248,81,73,0.15); }
+
+  /* Global stats */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+  }
+  .stat-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .stat-item:last-child { border-bottom: none; }
+  .stat-label { color: var(--text2); font-size: 14px; }
+  .stat-value { font-weight: 600; font-family: 'SF Mono', Monaco, monospace; }
+
+  /* Fear & Greed */
+  .fear-greed {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+  .fg-score {
+    font-size: 48px;
+    font-weight: 800;
+    line-height: 1;
+  }
+  .fg-label {
+    font-size: 18px;
+    font-weight: 600;
+  }
+  .fg-bar {
+    width: 100%;
+    height: 8px;
+    background: linear-gradient(to right, var(--red), var(--orange), var(--green));
+    border-radius: 4px;
+    position: relative;
+    margin-top: 12px;
+  }
+  .fg-indicator {
+    width: 16px;
+    height: 16px;
+    background: white;
+    border-radius: 50%;
+    position: absolute;
+    top: -4px;
+    box-shadow: 0 0 6px rgba(0,0,0,0.5);
+    transition: left 0.5s ease;
+  }
+
+  /* Trending */
+  .trending-list { list-style: none; }
+  .trending-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .trending-item:last-child { border-bottom: none; }
+  .trending-rank {
+    width: 24px;
+    height: 24px;
+    background: var(--border);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+    margin-right: 12px;
+    flex-shrink: 0;
+  }
+  .trending-info { flex: 1; }
+  .trending-symbol { font-weight: 700; }
+  .trending-price { font-family: 'SF Mono', Monaco, monospace; color: var(--text2); }
+
+  /* Technical Analysis */
+  .ta-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  @media (max-width: 600px) { .ta-grid { grid-template-columns: 1fr; } }
+  .ta-item { padding: 12px; background: var(--bg); border-radius: 8px; }
+  .ta-item .label { font-size: 12px; color: var(--text2); text-transform: uppercase; }
+  .ta-item .value { font-size: 20px; font-weight: 700; margin-top: 4px; }
+  .ta-item .sub { font-size: 12px; margin-top: 4px; }
+
+  /* MA bars */
+  .ma-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 0;
+  }
+  .ma-label { width: 60px; font-size: 13px; color: var(--text2); }
+  .ma-bar-bg {
+    flex: 1;
+    height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+    position: relative;
+  }
+  .ma-bar {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.5s ease;
+  }
+  .ma-pct { width: 60px; text-align: right; font-size: 13px; font-family: 'SF Mono', Monaco, monospace; }
+
+  /* DeFi */
+  .defi-table { width: 100%; border-collapse: collapse; }
+  .defi-table th {
+    text-align: left;
+    color: var(--text2);
+    font-weight: 500;
+    font-size: 12px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .defi-table td { padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
+  .defi-table tr:last-child td { border-bottom: none; }
+  .apy { color: var(--green); font-weight: 600; }
+
+  /* News */
+  .news-item {
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .news-item:last-child { border-bottom: none; }
+  .news-bullet { color: var(--blue); margin-right: 8px; }
+
+  /* Anomaly */
+  .anomaly {
+    background: rgba(210,153,34,0.1);
+    border: 1px solid var(--orange);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-bottom: 16px;
+    font-size: 14px;
+  }
+
+  .loading {
+    text-align: center;
+    padding: 60px;
+    color: var(--text2);
+    font-size: 16px;
+  }
+  .spinner {
+    width: 40px; height: 40px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 16px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .time { color: var(--text2); font-size: 12px; text-align: center; margin-top: 20px; padding-bottom: 40px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1 id="title">BitInfo 市场简报</h1>
+    <div class="subtitle" id="generated-at"></div>
+  </div>
+
+  <div class="controls">
+    <select id="lang">
+      <option value="zh">中文</option>
+      <option value="en">English</option>
+      <option value="ja">日本語</option>
+      <option value="ko">한국어</option>
+    </select>
+    <select id="period">
+      <option value="daily">每日</option>
+      <option value="weekly">每周</option>
+      <option value="monthly">每月</option>
+    </select>
+    <button onclick="loadBriefing()">刷新</button>
+    <button onclick="saveBriefing()" style="background:#238636;border-color:#238636;">保存到数据库</button>
+  </div>
+
+  <div id="content">
+    <div class="loading"><div class="spinner"></div>加载中...</div>
+  </div>
+
+  <div class="time" id="footer"></div>
+</div>
+
+<script>
+const API = '/api/v1/briefing';
+
+function fmt(n, dec=0) {
+  if (n == null) return 'N/A';
+  return Number(n).toLocaleString('en-US', {minimumFractionDigits: dec, maximumFractionDigits: dec});
+}
+function fmtPct(n) {
+  if (n == null) return '';
+  const v = Number(n);
+  return (v >= 0 ? '+' : '') + v.toFixed(1) + '%';
+}
+function cls(n) {
+  if (n == null) return 'neutral-val';
+  return Number(n) >= 0 ? 'up' : 'down';
+}
+function fgColor(score) {
+  if (score <= 25) return 'var(--red)';
+  if (score <= 50) return 'var(--orange)';
+  if (score <= 75) return 'var(--blue)';
+  return 'var(--green)';
+}
+
+function renderPrices(prices) {
+  if (!prices || !prices.length) return '';
+  let rows = prices.map(p => `
+    <tr>
+      <td class="symbol">${p.symbol}</td>
+      <td class="price">$${fmt(p.price, p.price > 100 ? 0 : 2)}</td>
+      <td><span class="badge ${cls(p.change_24h_pct)}">${fmtPct(p.change_24h_pct)}</span></td>
+      <td class="price">${p.market_cap ? '$' + fmt(p.market_cap / 1e9, 0) + 'B' : ''}</td>
+    </tr>
+  `).join('');
+  return `
+    <div class="card">
+      <div class="card-title"><span class="icon">💰</span>实时价格</div>
+      <table class="price-table">
+        <thead><tr><th>币种</th><th>价格</th><th>24h</th><th>市值</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderGlobal(gm) {
+  if (!gm || !Object.keys(gm).some(k => gm[k] != null)) return '';
+  let items = '';
+  if (gm.total_market_cap) items += `<div class="stat-item"><span class="stat-label">总市值</span><span class="stat-value ${cls(gm.market_cap_change_24h_pct)}">$${fmt(gm.total_market_cap/1e12, 2)}T ${gm.market_cap_change_24h_pct != null ? fmtPct(gm.market_cap_change_24h_pct) : ''}</span></div>`;
+  if (gm.total_volume_24h) items += `<div class="stat-item"><span class="stat-label">24h 成交量</span><span class="stat-value">$${fmt(gm.total_volume_24h/1e9, 1)}B</span></div>`;
+  if (gm.btc_dominance) items += `<div class="stat-item"><span class="stat-label">BTC 占比</span><span class="stat-value">${gm.btc_dominance}</span></div>`;
+  if (gm.eth_dominance) items += `<div class="stat-item"><span class="stat-label">ETH 占比</span><span class="stat-value">${gm.eth_dominance}</span></div>`;
+  if (gm.active_cryptocurrencies) items += `<div class="stat-item"><span class="stat-label">活跃币种</span><span class="stat-value">${fmt(gm.active_cryptocurrencies)}</span></div>`;
+  if (!items) return '';
+  return `<div class="card"><div class="card-title"><span class="icon">📊</span>全球市场</div>${items}</div>`;
+}
+
+function renderFearGreed(fg) {
+  if (!fg) return '';
+  const now = fg.now || fg;
+  const score = now.score || now.value;
+  const label = now.name || now.label || '';
+  if (!score) return '';
+  let histHtml = '';
+  const yesterday = fg.yesterday;
+  const lastWeek = fg.lastWeek;
+  const lastMonth = fg.lastMonth;
+  if (yesterday || lastWeek || lastMonth) {
+    histHtml = '<div style="margin-top:16px;display:flex;gap:16px;flex-wrap:wrap;">';
+    if (yesterday) histHtml += `<div style="text-align:center"><div style="font-size:11px;color:var(--text2)">昨日</div><div style="font-size:18px;font-weight:700;color:${fgColor(yesterday.score)}">${yesterday.score}</div><div style="font-size:11px;color:var(--text2)">${yesterday.name||''}</div></div>`;
+    if (lastWeek) histHtml += `<div style="text-align:center"><div style="font-size:11px;color:var(--text2)">上周</div><div style="font-size:18px;font-weight:700;color:${fgColor(lastWeek.score)}">${lastWeek.score}</div><div style="font-size:11px;color:var(--text2)">${lastWeek.name||''}</div></div>`;
+    if (lastMonth) histHtml += `<div style="text-align:center"><div style="font-size:11px;color:var(--text2)">上月</div><div style="font-size:18px;font-weight:700;color:${fgColor(lastMonth.score)}">${lastMonth.score}</div><div style="font-size:11px;color:var(--text2)">${lastMonth.name||''}</div></div>`;
+    histHtml += '</div>';
+  }
+  return `
+    <div class="card">
+      <div class="card-title"><span class="icon">😱</span>恐惧贪婪指数</div>
+      <div class="fear-greed">
+        <div>
+          <div class="fg-score" style="color:${fgColor(score)}">${score}</div>
+          <div class="fg-label">${label}</div>
+        </div>
+        <div style="flex:1;min-width:200px;">
+          <div class="fg-bar">
+            <div class="fg-indicator" style="left:calc(${score}% - 8px)"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:11px;color:var(--text2)">
+            <span>极度恐惧</span><span>恐惧</span><span>中性</span><span>贪婪</span><span>极度贪婪</span>
+          </div>
+        </div>
+      </div>
+      ${histHtml}
+    </div>
+  `;
+}
+
+function renderTrending(items) {
+  if (!items || !items.length) return '';
+  let rows = items.map((t, i) => {
+    const name = t.name || t.symbol || '';
+    const sym = t.symbol || '';
+    const price = t.price;
+    const change = t.change_24h_pct || t.change_pct;
+    const mc = t.market_cap;
+    let priceStr = '';
+    if (price != null) {
+      priceStr = price < 1 ? '$' + Number(price).toFixed(4) : '$' + fmt(price, 2);
+    }
+    let mcStr = '';
+    if (mc != null) {
+      mcStr = mc >= 1e9 ? '$' + fmt(mc/1e9, 1) + 'B' : '$' + fmt(mc/1e6, 0) + 'M';
+    }
+    return `
+    <div class="trending-item">
+      <span class="trending-rank">${i+1}</span>
+      <div class="trending-info">
+        <div><span class="trending-symbol">${name}</span> <span style="color:var(--text2);font-size:12px">${sym !== name ? sym : ''}</span></div>
+        ${mcStr ? `<div style="font-size:11px;color:var(--text2)">MC: ${mcStr}</div>` : ''}
+      </div>
+      <div style="text-align:right">
+        <div class="trending-price">${priceStr}</div>
+        ${change != null ? `<span class="badge ${cls(change)}" style="font-size:11px">${fmtPct(change)}</span>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+  return `<div class="card"><div class="card-title"><span class="icon">🔥</span>趋势币种</div><div class="trending-list">${rows}</div></div>`;
+}
+
+function renderTA(ta) {
+  if (!ta || ta.error) return '';
+  let rsiColor = ta.rsi > 70 ? 'var(--red)' : (ta.rsi < 30 ? 'var(--green)' : 'var(--text)');
+  let rsiLabel = ta.rsi_status === 'overbought' ? '超买' : (ta.rsi_status === 'oversold' ? '超卖' : '中性');
+  let trendLabel = {'strong_bullish':'强势上涨','bullish':'看涨','strong_bearish':'强势下跌','bearish':'看跌','sideways':'横盘'}[ta.trend] || ta.trend;
+  let trendColor = ta.trend.includes('bull') ? 'var(--green)' : (ta.trend.includes('bear') ? 'var(--red)' : 'var(--text2)');
+
+  let maHtml = '';
+  const ma = ta.moving_averages || {};
+  if (ma.golden_cross != null) {
+    let crossLabel = ma.golden_cross ? '🟢 金叉信号' : '🔴 死叉信号';
+    maHtml += `<div style="margin-bottom:12px;font-weight:600;">${crossLabel}</div>`;
+  }
+  ['ma7', 'ma14', 'ma30'].forEach(k => {
+    const pctKey = 'price_vs_' + k + '_pct';
+    if (ma[pctKey] != null) {
+      const v = ma[pctKey];
+      const w = Math.min(Math.abs(v) * 10, 100);
+      const c = v >= 0 ? 'var(--green)' : 'var(--red)';
+      maHtml += `<div class="ma-row"><span class="ma-label">${k.toUpperCase()}</span><div class="ma-bar-bg"><div class="ma-bar" style="width:${w}%;background:${c}"></div></div><span class="ma-pct ${cls(v)}">${fmtPct(v)}</span></div>`;
+    }
+  });
+
+  return `
+    <div class="card">
+      <div class="card-title"><span class="icon">📈</span>BTC 技术分析</div>
+      <div class="ta-grid">
+        <div class="ta-item">
+          <div class="label">RSI (14)</div>
+          <div class="value" style="color:${rsiColor}">${ta.rsi ? ta.rsi.toFixed(1) : 'N/A'}</div>
+          <div class="sub">${rsiLabel}</div>
+        </div>
+        <div class="ta-item">
+          <div class="label">趋势</div>
+          <div class="value" style="color:${trendColor}">${trendLabel}</div>
+          <div class="sub">信心度 ${ta.confidence ? ta.confidence.toFixed(1) + '%' : 'N/A'}</div>
+        </div>
+      </div>
+      <div style="margin-top:16px">
+        <div style="font-size:13px;color:var(--text2);margin-bottom:8px;">均线分析</div>
+        ${maHtml}
+      </div>
+    </div>
+  `;
+}
+
+function renderDefi(items) {
+  if (!items || !items.length) return '';
+  let rows = items.map((d, i) => `
+    <tr>
+      <td>${i+1}</td>
+      <td style="font-weight:600">${d.project}</td>
+      <td class="apy">${fmt(d.apy, 0)}%</td>
+      <td>${d.tvl ? '$' + fmt(d.tvl/1e6, 1) + 'M' : 'N/A'}</td>
+      <td>${d.chain || ''}</td>
+    </tr>
+  `).join('');
+  return `
+    <div class="card">
+      <div class="card-title"><span class="icon">🌾</span>DeFi 收益 Top 5</div>
+      <table class="defi-table">
+        <thead><tr><th>#</th><th>协议</th><th>APY</th><th>TVL</th><th>链</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderFunding(items) {
+  if (!items || !items.length) return '';
+  let rows = items.map((f, i) => `
+    <tr>
+      <td style="font-weight:600">${f.symbol}</td>
+      <td class="${f.rate >= 0 ? 'up' : 'down'}" style="font-family:'SF Mono',Monaco,monospace">${f.rate >= 0 ? '+' : ''}${f.rate.toFixed(4)}%</td>
+      <td style="font-family:'SF Mono',Monaco,monospace">$${fmt(f.price, 0)}</td>
+      <td><span class="badge ${f.signal === 'STRONG' ? 'down' : ''}" style="font-size:11px">${f.signal || ''}</span></td>
+    </tr>
+  `).join('');
+  return `
+    <div class="card">
+      <div class="card-title"><span class="icon">💸</span>资金费率 Top 5</div>
+      <table class="defi-table">
+        <thead><tr><th>币种</th><th>费率</th><th>价格</th><th>信号</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderNews(items) {
+  if (!items || !items.length) return '';
+  let rows = items.map(n => {
+    const s = n.sentiment || 'neutral';
+    const imp = n.importance || 'normal';
+    const sIcon = {bullish:'🟢', bearish:'🔴', neutral:'⚪'}[s] || '⚪';
+    const sLabel = {bullish:'看涨', bearish:'看跌', neutral:'中性'}[s] || '中性';
+    const sColor = {bullish:'var(--green)', bearish:'var(--red)', neutral:'var(--text2)'}[s] || 'var(--text2)';
+    const impBadge = imp === 'important' ? '<span style="background:rgba(210,153,34,0.2);color:var(--orange);padding:1px 6px;border-radius:3px;font-size:10px;margin-left:6px;font-weight:600">重要</span>' : '';
+    return `<div class="news-item" style="display:flex;align-items:flex-start;gap:8px">
+      <span style="font-size:12px;flex-shrink:0">${sIcon}</span>
+      <div style="flex:1">
+        <span style="font-size:11px;color:${sColor};margin-right:6px">[${sLabel}]</span>${n.title}${impBadge}
+      </div>
+    </div>`;
+  }).join('');
+  return `<div class="card"><div class="card-title"><span class="icon">📰</span>新闻摘要</div>${rows}</div>`;
+}
+
+function renderCycles(cycles) {
+  if (!cycles || !Object.keys(cycles).length) return '';
+  let html = '';
+  const cd = cycles.cycles || {};
+  const indicators = cycles.cycle_indicators || {};
+
+  if (cd.puellMultiple != null) {
+    html += `<div class="stat-item"><span class="stat-label">Puell Multiple</span><span class="stat-value">${Number(cd.puellMultiple).toFixed(4)}</span></div>`;
+  }
+  const pi = cd.piCycleTop || {};
+  if (pi.ma110) {
+    html += `<div class="stat-item"><span class="stat-label">Pi Cycle Top</span><span class="stat-value" style="font-size:13px">MA110: $${fmt(pi.ma110,0)} / MA350x2: $${fmt(pi.ma350mu2,0)}</span></div>`;
+  }
+  const lk = cd.likelihood || {};
+  if (lk.totalCount) {
+    html += `<div class="stat-item"><span class="stat-label">指标共识</span><span class="stat-value">${lk.holdCount}/${lk.totalCount} 持有, ${lk.sellCount}/${lk.totalCount} 卖出</span></div>`;
+  }
+
+  const indList = (indicators.indicators || []).slice(0, 5);
+  if (indList.length) {
+    html += '<div style="margin-top:12px;font-size:13px;color:var(--text2);margin-bottom:8px">关键指标</div>';
+    indList.forEach(ind => {
+      const change = ind.percentChange24h;
+      const changeStr = change != null ? ` <span class="${cls(change)}" style="font-size:11px">(${fmtPct(change)})</span>` : '';
+      html += `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px"><span>${ind.indicatorName}</span><span style="font-family:'SF Mono',Monaco,monospace">${ind.currentValue} / ${ind.targetValue}${changeStr}</span></div>`;
+    });
+  }
+
+  if (!html) return '';
+  return `<div class="card"><div class="card-title"><span class="icon">🔄</span>市场周期</div>${html}</div>`;
+}
+
+function render(data) {
+  document.getElementById('title').textContent = data.title || 'BitInfo 市场简报';
+  const at = data.generated_at ? new Date(data.generated_at).toLocaleString('zh-CN') : '';
+  document.getElementById('generated-at').textContent = at;
+
+  let html = '';
+  if (data.anomaly) html += `<div class="anomaly">${data.anomaly}</div>`;
+  html += renderPrices(data.prices);
+  html += renderGlobal(data.global_market);
+  html += renderFearGreed(data.fear_greed);
+  html += renderTrending(data.trending);
+  html += renderTA(data.btc_analysis);
+  html += renderFunding(data.funding_rates);
+  html += renderDefi(data.defi_top);
+  html += renderNews(data.news_highlights);
+  html += renderCycles(data.cycles);
+  document.getElementById('content').innerHTML = html;
+  document.getElementById('footer').textContent = `数据更新于 ${at}`;
+}
+
+async function loadBriefing() {
+  const lang = document.getElementById('lang').value;
+  const period = document.getElementById('period').value;
+  document.getElementById('content').innerHTML = '<div class="loading"><div class="spinner"></div>加载中...</div>';
+  try {
+    const res = await fetch(`${API}/live?language=${lang}&period=${period}`);
+    const data = await res.json();
+    render(data);
+  } catch (e) {
+    document.getElementById('content').innerHTML = `<div class="loading" style="color:var(--red)">加载失败: ${e.message}</div>`;
+  }
+}
+
+async function saveBriefing() {
+  const lang = document.getElementById('lang').value;
+  const period = document.getElementById('period').value;
+  try {
+    const res = await fetch(`${API}/generate?language=${lang}&period=${period}&save=true`, {method:'POST'});
+    const data = await res.json();
+    if (data.saved_to_db) {
+      alert('简报已保存到数据库！');
+      render(data);
+    } else {
+      alert('保存失败: ' + (data.db_error || '未知错误'));
+    }
+  } catch (e) {
+    alert('请求失败: ' + e.message);
+  }
+}
+
+loadBriefing();
+</script>
+</body>
+</html>

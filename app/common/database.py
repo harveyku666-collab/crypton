@@ -1,0 +1,82 @@
+"""SQLAlchemy async engine, session factory, and base model."""
+
+from __future__ import annotations
+
+from typing import AsyncGenerator
+
+from sqlalchemy import DateTime, func
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine, AsyncEngine
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+
+from datetime import datetime
+
+from app.config import settings
+
+
+class Base(DeclarativeBase):
+    pass
+
+
+class TimestampMixin:
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+_engine: AsyncEngine | None = None
+_session_factory: async_sessionmaker[AsyncSession] | None = None
+
+
+def get_engine() -> AsyncEngine:
+    global _engine
+    if _engine is None:
+        _engine = create_async_engine(settings.database_url, echo=settings.debug, pool_size=10)
+    return _engine
+
+
+def async_session() -> AsyncSession:
+    global _session_factory
+    if _session_factory is None:
+        _session_factory = async_sessionmaker(get_engine(), expire_on_commit=False)
+    return _session_factory()
+
+
+async def get_session() -> AsyncGenerator[AsyncSession, None]:
+    session = async_session()
+    try:
+        yield session
+    finally:
+        await session.close()
+
+
+async def init_db() -> None:
+    engine = get_engine()
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    await _run_migrations(engine)
+
+
+async def _run_migrations(engine: AsyncEngine) -> None:
+    """Add columns that may be missing from existing tables."""
+    from sqlalchemy import text
+    migrations = [
+        ("news_items", "sentiment", "VARCHAR(10) DEFAULT 'neutral'"),
+        ("news_items", "importance", "VARCHAR(10) DEFAULT 'normal'"),
+    ]
+    async with engine.begin() as conn:
+        for table, col, col_def in migrations:
+            try:
+                await conn.execute(
+                    text(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col} {col_def}")
+                )
+            except Exception:
+                pass
+
+
+async def close_db() -> None:
+    global _engine, _session_factory
+    if _engine:
+        await _engine.dispose()
+        _engine = None
+        _session_factory = None

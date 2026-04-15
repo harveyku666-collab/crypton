@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BitInfo - 技能简报</title>
+<style>
+:root{--bg:#0d1117;--surface:#161b22;--surface2:#1c2333;--border:#30363d;--text:#e6edf3;--text2:#8b949e;--accent:#58a6ff;--green:#3fb950;--orange:#d29922;--red:#f85149;--purple:#bc8cff}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:12px 24px;display:flex;align-items:center;gap:16px;position:sticky;top:0;z-index:100}
+.back-btn{color:var(--accent);text-decoration:none;font-size:14px}
+.back-btn:hover{text-decoration:underline}
+.topbar-title{font-size:15px;font-weight:600}
+.container{max-width:960px;margin:0 auto;padding:24px}
+.skill-header{display:flex;align-items:center;gap:16px;margin-bottom:20px}
+.skill-icon{font-size:40px;width:64px;height:64px;display:flex;align-items:center;justify-content:center;background:var(--surface);border-radius:14px;border:1px solid var(--border)}
+.skill-name{font-size:24px;font-weight:700}
+.skill-subname{font-size:13px;color:var(--text2);margin-top:4px}
+.meta-row{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap}
+.meta-tag{font-size:12px;padding:4px 12px;border-radius:6px;background:rgba(88,166,255,0.1);color:var(--accent)}
+.toolbar{display:flex;gap:12px;align-items:center;margin-bottom:16px;flex-wrap:wrap}
+.toolbar select,.toolbar button{padding:8px 16px;border-radius:8px;font-size:13px;border:1px solid var(--border);background:var(--surface);color:var(--text);cursor:pointer}
+.toolbar button:hover{border-color:var(--accent);color:var(--accent)}
+.btn-load{background:var(--accent)!important;color:#fff!important;border-color:var(--accent)!important;font-weight:600}
+.btn-load:hover{opacity:.85}
+.report-area{min-height:200px}
+.spinner{width:28px;height:28px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.report-placeholder{padding:60px 20px;text-align:center;color:var(--text2)}
+.b-section{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px}
+.b-section h3{font-size:16px;font-weight:600;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;padding:8px 10px;border-bottom:2px solid var(--border);color:var(--text2);font-weight:600;font-size:12px}
+td{padding:8px 10px;border-bottom:1px solid rgba(48,54,61,0.5)}
+.up{color:var(--green)}.down{color:var(--red)}.neutral-c{color:var(--text2)}
+.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600}
+.badge-safe{background:rgba(63,185,80,0.15);color:var(--green)}
+.badge-warn{background:rgba(210,153,34,0.15);color:var(--orange)}
+.badge-danger{background:rgba(248,81,73,0.15);color:var(--red)}
+.badge-bullish{background:rgba(63,185,80,0.15);color:var(--green)}
+.badge-bearish{background:rgba(248,81,73,0.15);color:var(--red)}
+.badge-neutral{background:rgba(139,148,158,0.15);color:var(--text2)}
+.badge-important{background:rgba(210,153,34,0.2);color:var(--orange)}
+.verdict-box{background:linear-gradient(135deg,rgba(88,166,255,0.08),rgba(188,140,255,0.08));border:1px solid rgba(88,166,255,0.3);border-radius:12px;padding:20px;margin-bottom:16px;font-size:14px;line-height:1.8}
+.verdict-box strong{color:var(--accent)}
+.fng-bar{height:8px;background:var(--surface2);border-radius:4px;margin-top:8px;overflow:hidden}
+.fng-fill{height:100%;border-radius:4px;transition:width .5s}
+.report-text{padding:20px;font-size:13px;line-height:1.8;white-space:pre-wrap;color:var(--text);max-height:70vh;overflow-y:auto;background:var(--surface);border:1px solid var(--border);border-radius:12px}
+.report-json{padding:20px;font-size:12px;line-height:1.6;white-space:pre-wrap;font-family:'SF Mono',Monaco,Consolas,monospace;color:var(--text2);max-height:70vh;overflow-y:auto;background:var(--surface);border:1px solid var(--border);border-radius:12px}
+.indicator-row td:nth-child(4){text-align:center}
+@media(max-width:768px){.skill-header{flex-direction:column;text-align:center}table{font-size:12px}}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <a class="back-btn" href="/">← 返回技能列表</a>
+  <span class="topbar-title" id="topbar-title"></span>
+</div>
+<div class="container">
+  <div id="skill-info"></div>
+  <div class="toolbar" id="toolbar" style="display:none">
+    <select id="sel-lang"><option value="zh">中文</option><option value="en">English</option></select>
+    <select id="sel-format"><option value="visual">可视化</option><option value="text">纯文本</option><option value="json">JSON</option></select>
+    <button class="btn-load" onclick="loadReport()">刷新简报</button>
+    <span id="load-time" style="font-size:12px;color:var(--text2)"></span>
+  </div>
+  <div id="report-area"><div class="report-placeholder">加载中...</div></div>
+</div>
+<script>
+const API='/api/v1';
+let skill=null;
+function getSkillId(){return new URLSearchParams(location.search).get('id')}
+
+async function init(){
+  const id=getSkillId();
+  if(!id){location.href='/';return}
+  try{
+    const r=await fetch(`${API}/skills/${id}`);
+    if(!r.ok){location.href='/';return}
+    skill=await r.json();
+    renderInfo();
+    loadReport();
+  }catch(e){document.getElementById('skill-info').innerHTML='<div style="color:var(--red);padding:40px;text-align:center">加载失败</div>'}
+}
+
+function renderInfo(){
+  const sl={active:'已上线',beta:'测试中',planned:'规划中'};
+  document.title=`BitInfo - ${skill.name_zh}`;
+  document.getElementById('topbar-title').textContent=skill.name_zh;
+  document.getElementById('skill-info').innerHTML=`
+    <div class="skill-header"><div class="skill-icon">${skill.icon}</div>
+    <div><div class="skill-name">${skill.name_zh}</div><div class="skill-subname">${skill.name}</div></div></div>
+    <div class="meta-row"><span class="meta-tag">${sl[skill.status]}</span>${skill.data_sources.map(d=>`<span class="meta-tag">${d}</span>`).join('')}</div>`;
+  document.getElementById('toolbar').style.display='flex';
+}
+
+async function loadReport(){
+  if(!skill)return;
+  const area=document.getElementById('report-area');
+  area.innerHTML='<div class="report-placeholder"><div class="spinner"></div>加载中...</div>';
+  const lang=document.getElementById('sel-lang').value;
+  const fmt=document.getElementById('sel-format').value;
+  const t0=Date.now();
+  try{
+    if(skill.id==='market-briefing'){
+      if(fmt==='visual'){
+        const r=await fetch(`${API}/briefing/live?language=${lang}`);
+        const d=await r.json();
+        document.getElementById('load-time').textContent=((Date.now()-t0)/1000).toFixed(1)+'s';
+        area.innerHTML=renderBriefingVisual(d);
+      }else if(fmt==='text'){
+        const r=await fetch(`${API}/briefing/live/text?language=${lang}`);
+        const t=await r.text();
+        document.getElementById('load-time').textContent=((Date.now()-t0)/1000).toFixed(1)+'s';
+        try{area.innerHTML=`<div class="report-text">${esc(JSON.parse(t))}</div>`}
+        catch{area.innerHTML=`<div class="report-text">${esc(t)}</div>`}
+      }else{
+        const r=await fetch(`${API}/briefing/live?language=${lang}`);
+        const d=await r.json();
+        document.getElementById('load-time').textContent=((Date.now()-t0)/1000).toFixed(1)+'s';
+        area.innerHTML=`<div class="report-json">${esc(JSON.stringify(d,null,2))}</div>`;
+      }
+    }else if(skill.id==='btc-quant-predictor'){
+      const sym=prompt('输入币种符号 (默认 BTC)','BTC')||'BTC';
+      const r=await fetch(`${API}/analysis/btc-predict?symbol=${sym}&interval=15m&limit=50`);
+      const d=await r.json();
+      document.getElementById('load-time').textContent=((Date.now()-t0)/1000).toFixed(1)+'s';
+      if(d.error){area.innerHTML=`<div class="report-placeholder" style="color:var(--red)">${esc(d.error)}</div>`;return}
+      if(fmt==='visual')area.innerHTML=renderBtcPredictVisual(d);
+      else if(fmt==='text')area.innerHTML=`<div class="report-text">${renderBtcPredictText(d)}</div>`;
+      else area.innerHTML=`<div class="report-json">${esc(JSON.stringify(d,null,2))}</div>`;
+    }else if(skill.id==='news-sentiment'){
+      const r=await fetch(`${API}/news/history?language=${lang}&limit=30`);
+      const d=await r.json();
+      document.getElementById('load-time').textContent=((Date.now()-t0)/1000).toFixed(1)+'s';
+      if(fmt==='visual')area.innerHTML=renderNewsVisual(d);
+      else area.innerHTML=`<div class="report-json">${esc(JSON.stringify(d,null,2))}</div>`;
+    }else{
+      const r=await fetch(skill.api_endpoint);
+      const d=await r.json();
+      document.getElementById('load-time').textContent=((Date.now()-t0)/1000).toFixed(1)+'s';
+      area.innerHTML=`<div class="report-json">${esc(JSON.stringify(d,null,2))}</div>`;
+    }
+  }catch(e){area.innerHTML=`<div class="report-placeholder" style="color:var(--red)">加载失败: ${e.message}</div>`}
+}
+
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function fmt$(v){if(v==null||v===''||isNaN(Number(v)))return'—';const n=Number(v);if(n>=1e12)return'$'+(n/1e12).toFixed(2)+'T';if(n>=1e9)return'$'+(n/1e9).toFixed(2)+'B';if(n>=1e6)return'$'+(n/1e6).toFixed(2)+'M';if(n>=1e3)return'$'+n.toLocaleString(undefined,{maximumFractionDigits:0});return'$'+n.toLocaleString(undefined,{maximumFractionDigits:n<1?6:2})}
+function fmtPct(v){if(v==null||v===''||isNaN(Number(v)))return'—';const n=Number(v);const s=n>=0?'+':'';return`<span class="${n>=0?'up':'down'}">${s}${n.toFixed(2)}%</span>`}
+function fmtNum(v,d=2){if(v==null||v===''||isNaN(Number(v)))return'—';return Number(v).toLocaleString(undefined,{maximumFractionDigits:d})}
+
+function renderBriefingVisual(d){
+  let h='';
+  const now=new Date().toLocaleString('zh-CN',{timeZone:'Asia/Shanghai'});
+  h+=`<div class="b-section" style="text-align:center;padding:14px"><strong>📊 加密货币市场实时简报</strong> — ${now}</div>`;
+
+  // 1. Prices
+  const prices=d.prices||[];
+  if(prices.length){
+    h+=`<div class="b-section"><h3>💰 核心价格</h3><table><tr><th>币种</th><th>价格</th><th>24h涨跌</th><th>市值</th><th>24h高/低</th></tr>`;
+    prices.forEach(p=>{
+      h+=`<tr><td><strong>${p.symbol}</strong></td><td>${fmt$(p.price)}</td><td>${fmtPct(p.change_24h_pct)}</td><td>${fmt$(p.market_cap)}</td><td style="font-size:11px;color:var(--text2)">${fmt$(p.high_24h)} / ${fmt$(p.low_24h)}</td></tr>`;
+    });
+    h+=`</table></div>`;
+  }
+
+  // 2. Fear & Greed — 仪表盘可视化
+  const fg=d.fear_greed||{};
+  const fgNow=fg.now||fg;
+  const fgScore=fgNow.score!==undefined?Number(fgNow.score):(fg.value!==undefined?Number(fg.value):null);
+  if(fgScore!==null){
+    const v=fgScore;
+    const color=v<=25?'#f85149':v<=45?'#f0883e':v<=55?'#8b949e':v<=75?'#3fb950':'#2ea043';
+    const label=v<=25?'极度恐惧':v<=45?'恐惧':v<=55?'中性':v<=75?'贪婪':'极度贪婪';
+    const fgName=fgNow.name||label;
+
+    h+=`<div class="b-section"><h3>😱 市场情绪 — 恐惧贪婪指数</h3>`;
+
+    // Score + Label
+    h+=`<div style="text-align:center;margin-bottom:20px">
+      <div style="font-size:56px;font-weight:800;line-height:1;color:${color}">${v}</div>
+      <div style="font-size:18px;font-weight:600;margin-top:6px;color:${color}">${fgName}</div>
+    </div>`;
+
+    // Gradient bar with indicator
+    h+=`<div style="position:relative;margin:0 auto 8px;max-width:480px">
+      <div style="height:12px;border-radius:6px;background:linear-gradient(to right,#f85149,#f0883e,#d29922,#8b949e,#3fb950,#2ea043)"></div>
+      <div style="position:absolute;top:-4px;left:${v}%;transform:translateX(-50%);width:20px;height:20px;border-radius:50%;background:#fff;border:3px solid ${color};box-shadow:0 0 6px rgba(0,0,0,0.4)"></div>
+    </div>`;
+
+    // Bar labels
+    h+=`<div style="display:flex;justify-content:space-between;max-width:480px;margin:0 auto 20px;font-size:11px;color:var(--text2)">
+      <span>极度恐惧</span><span>恐惧</span><span>中性</span><span>贪婪</span><span>极度贪婪</span>
+    </div>`;
+
+    // Historical data grid
+    const histItems=[];
+    if(fg.yesterday){const s=fg.yesterday.score;histItems.push({label:'昨日',score:s,name:fg.yesterday.name||'',diff:v-Number(s)})}
+    if(fg.lastWeek){const s=fg.lastWeek.score;histItems.push({label:'上周',score:s,name:fg.lastWeek.name||'',diff:v-Number(s)})}
+    if(fg.lastMonth){const s=fg.lastMonth.score;histItems.push({label:'上月',score:s,name:fg.lastMonth.name||'',diff:v-Number(s)})}
+    if(fg.yearlyHigh){histItems.push({label:'年度最高',score:fg.yearlyHigh.score,name:fg.yearlyHigh.name||'',diff:null})}
+    if(fg.yearlyLow){histItems.push({label:'年度最低',score:fg.yearlyLow.score,name:fg.yearlyLow.name||'',diff:null})}
+
+    if(histItems.length){
+      h+=`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px">`;
+      histItems.forEach(item=>{
+        const sc=Number(item.score);
+        const ic=sc<=25?'#f85149':sc<=45?'#f0883e':sc<=55?'#8b949e':sc<=75?'#3fb950':'#2ea043';
+        let diffHtml='';
+        if(item.diff!==null){
+          const d=item.diff;
+          diffHtml=d>0?`<span style="color:var(--green);font-size:11px">↑+${d}</span>`:d<0?`<span style="color:var(--red);font-size:11px">↓${d}</span>`:`<span style="font-size:11px;color:var(--text2)">持平</span>`;
+        }
+        h+=`<div style="background:var(--surface2);padding:12px;border-radius:8px;text-align:center">
+          <div style="font-size:11px;color:var(--text2)">${item.label}</div>
+          <div style="font-size:22px;font-weight:700;color:${ic};margin:4px 0">${item.score}</div>
+          <div style="font-size:11px;color:var(--text2)">${item.name} ${diffHtml}</div>
+        </div>`;
+      });
+      h+=`</div>`;
+    }
+    h+=`</div>`;
+  }
+
+  // 3. Global market
+  const gm=d.global_market||{};
+  if(Object.keys(gm).length){
+    h+=`<div class="b-section"><h3>🌍 全球市场</h3><table><tr><th>指标</th><th>数值</th></tr>`;
+    if(gm.total_market_cap)h+=`<tr><td>总市值</td><td><strong>${fmt$(gm.total_market_cap)}</strong></td></tr>`;
+    if(gm.total_volume_24h)h+=`<tr><td>24h交易量</td><td>${fmt$(gm.total_volume_24h)}</td></tr>`;
+    if(gm.btc_dominance)h+=`<tr><td>BTC 市占率</td><td><strong>${gm.btc_dominance}</strong></td></tr>`;
+    if(gm.eth_dominance)h+=`<tr><td>ETH 市占率</td><td>${gm.eth_dominance}</td></tr>`;
+    if(gm.active_cryptocurrencies)h+=`<tr><td>活跃币种</td><td>${fmtNum(gm.active_cryptocurrencies,0)}</td></tr>`;
+    if(gm.market_cap_change_24h_pct!=null)h+=`<tr><td>市值24h变化</td><td>${fmtPct(gm.market_cap_change_24h_pct)}</td></tr>`;
+    h+=`</table></div>`;
+  }
+
+  // 4. Trending
+  const trending=d.trending||[];
+  if(trending.length){
+    h+=`<div class="b-section"><h3>🔥 趋势币种 Top ${trending.length}</h3><table><tr><th>#</th><th>币种</th><th>价格</th><th>24h</th><th>市值</th><th>排名</th></tr>`;
+    trending.forEach((t,i)=>{
+      h+=`<tr><td>${i+1}</td><td><strong>${t.name||''}</strong> <span style="color:var(--text2);font-size:11px">${t.symbol||''}</span></td>`;
+      h+=`<td>${fmt$(t.price)}</td><td>${fmtPct(t.change_24h_pct)}</td><td>${fmt$(t.market_cap)}</td>`;
+      h+=`<td style="color:var(--text2)">#${t.market_cap_rank||'—'}</td></tr>`;
+    });
+    h+=`</table></div>`;
+  }
+
+  // 5. BTC Analysis
+  const btc=d.btc_analysis||{};
+  if(Object.keys(btc).length){
+    h+=`<div class="b-section"><h3>📈 BTC 技术分析 (4H)</h3><table><tr><th>指标</th><th>数值</th><th>信号</th></tr>`;
+    h+=`<tr><td>当前价格</td><td><strong>${fmt$(btc.price)}</strong></td><td></td></tr>`;
+    if(btc.rsi!=null){
+      const rsi=Number(btc.rsi);
+      const sig=rsi>70?'超买':rsi<30?'超卖':'正常';
+      const cls=rsi>70?'down':rsi<30?'up':'neutral-c';
+      h+=`<tr><td>RSI(14)</td><td>${fmtNum(rsi,1)}</td><td class="${cls}">${sig}</td></tr>`;
+    }
+    const macd=btc.macd||{};
+    if(typeof macd==='object'&&macd.macd!=null){
+      h+=`<tr><td>MACD</td><td>${fmtNum(macd.macd,2)}</td><td>${Number(macd.macd)>0?'<span class="up">多头</span>':'<span class="down">空头</span>'}</td></tr>`;
+      h+=`<tr><td>MACD Signal</td><td>${fmtNum(macd.signal,2)}</td><td></td></tr>`;
+      h+=`<tr><td>MACD Histogram</td><td>${fmtNum(macd.histogram,2)}</td><td>${Number(macd.histogram)>0?'<span class="up">多头动能</span>':'<span class="down">空头动能</span>'}</td></tr>`;
+    }
+    const bb=btc.bollinger||{};
+    if(bb.upper){
+      h+=`<tr><td>布林带上轨</td><td>${fmt$(bb.upper)}</td><td></td></tr>`;
+      h+=`<tr><td>布林带中轨</td><td>${fmt$(bb.middle)}</td><td></td></tr>`;
+      h+=`<tr><td>布林带下轨</td><td>${fmt$(bb.lower)}</td><td></td></tr>`;
+    }
+    const ma=btc.moving_averages||{};
+    if(ma.ma7)h+=`<tr><td>MA7</td><td>${fmt$(ma.ma7)}</td><td>${ma.price_vs_ma7_pct!=null?fmtPct(ma.price_vs_ma7_pct):''}</td></tr>`;
+    if(ma.ma14)h+=`<tr><td>MA14</td><td>${fmt$(ma.ma14)}</td><td>${ma.price_vs_ma14_pct!=null?fmtPct(ma.price_vs_ma14_pct):''}</td></tr>`;
+    if(ma.ma30)h+=`<tr><td>MA30</td><td>${fmt$(ma.ma30)}</td><td>${ma.price_vs_ma30_pct!=null?fmtPct(ma.price_vs_ma30_pct):''}</td></tr>`;
+    if(ma.golden_cross!=null)h+=`<tr><td>金叉</td><td></td><td>${ma.golden_cross?'<span class="badge badge-safe">✅ 金叉</span>':'<span class="badge badge-danger">❌ 死叉</span>'}</td></tr>`;
+    if(btc.trend)h+=`<tr><td>趋势</td><td></td><td><strong>${btc.trend==='bullish'?'<span class="up">看涨</span>':btc.trend==='bearish'?'<span class="down">看跌</span>':'中性'}</strong></td></tr>`;
+    if(btc.confidence!=null)h+=`<tr><td>信号置信度</td><td>${fmtNum(btc.confidence,1)}%</td><td>多空比 ${btc.bull_score||0}:${btc.bear_score||0}</td></tr>`;
+    h+=`</table></div>`;
+  }
+
+  // 5.5. BTC 15分钟量化预测 — 带可视化仪表
+  const sp=d.btc_short_prediction||{};
+  if(sp.direction){
+    const spDirColor={UP:'#3fb950',DOWN:'#f85149',NEUTRAL:'#8b949e'};
+    const spDirIcon={UP:'📈',DOWN:'📉',NEUTRAL:'➡️'};
+    const spDir=sp.direction;
+    const conf=Number(sp.confidence)||50;
+    const bullPct=sp.total_score>0?Math.round(sp.bull_score/(sp.bull_score+sp.bear_score)*100):50;
+    const confColor=conf>=70?'#3fb950':conf>=50?'#d29922':'#f85149';
+
+    h+=`<div class="b-section">
+      <h3>🎯 BTC 15分钟量化预测</h3>`;
+
+    // Direction gauge
+    h+=`<div style="text-align:center;margin-bottom:20px">
+      <div style="font-size:48px;margin-bottom:4px">${spDirIcon[spDir]||'➡️'}</div>
+      <div style="font-size:36px;font-weight:800;color:${spDirColor[spDir]}">${sp.direction_zh||spDir}</div>
+    </div>`;
+
+    // Confidence gauge bar
+    h+=`<div style="max-width:400px;margin:0 auto 8px">
+      <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text2);margin-bottom:4px">
+        <span>置信度</span><span style="color:${confColor};font-weight:700">${conf}% — ${sp.confidence_label||''}</span>
+      </div>
+      <div style="position:relative;height:10px;border-radius:5px;background:var(--surface2)">
+        <div style="height:100%;width:${conf}%;border-radius:5px;background:linear-gradient(to right,${spDirColor[spDir]}88,${spDirColor[spDir]});transition:width .5s"></div>
+        <div style="position:absolute;top:-3px;left:${conf}%;transform:translateX(-50%);width:16px;height:16px;border-radius:50%;background:#fff;border:3px solid ${confColor};box-shadow:0 0 4px rgba(0,0,0,0.3)"></div>
+      </div>
+    </div>`;
+
+    // Bull vs Bear bar
+    h+=`<div style="max-width:400px;margin:12px auto 20px">
+      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
+        <span style="color:var(--green)">🐂 牛分 ${sp.bull_score}</span>
+        <span style="color:var(--red)">🐻 熊分 ${sp.bear_score}</span>
+      </div>
+      <div style="display:flex;height:8px;border-radius:4px;overflow:hidden">
+        <div style="width:${bullPct}%;background:var(--green)"></div>
+        <div style="flex:1;background:var(--red)"></div>
+      </div>
+    </div>`;
+
+    // Signals table
+    h+=`<table><tr><th>指标</th><th>数值</th><th>信号</th><th>方向</th></tr>`;
+    (sp.signals||[]).forEach(s=>{
+      const icon=s.bullish===true?'✅':s.bullish===false?'❌':'➖';
+      h+=`<tr><td><strong>${esc(s.indicator)}</strong></td><td style="font-family:monospace">${esc(s.display)}</td><td style="font-size:12px">${esc(s.signal)}</td><td>${icon}</td></tr>`;
+    });
+    h+=`</table>`;
+
+    // Trade plan cards
+    const tp=sp.trade_plan||{};
+    if(tp.action && spDir!=='NEUTRAL'){
+      h+=`<div style="margin-top:16px;display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px">
+        <div style="background:${spDirColor[spDir]}15;padding:12px;border-radius:8px;text-align:center">
+          <div style="font-size:11px;color:var(--text2)">操作方向</div>
+          <div style="font-size:16px;font-weight:700;margin-top:4px;color:${spDirColor[spDir]}">${esc(tp.action)}</div>
+        </div>
+        <div style="background:rgba(248,81,73,0.06);padding:12px;border-radius:8px;text-align:center">
+          <div style="font-size:11px;color:var(--text2)">⛔ 止损</div>
+          <div style="font-size:14px;font-weight:700;margin-top:4px;color:var(--red)">${fmt$(tp.stop_loss)}</div>
+        </div>
+        <div style="background:rgba(63,185,80,0.06);padding:12px;border-radius:8px;text-align:center">
+          <div style="font-size:11px;color:var(--text2)">🎯 止盈 1</div>
+          <div style="font-size:14px;font-weight:700;margin-top:4px;color:var(--green)">${fmt$(tp.take_profit_1)}</div>
+        </div>
+        <div style="background:rgba(63,185,80,0.06);padding:12px;border-radius:8px;text-align:center">
+          <div style="font-size:11px;color:var(--text2)">🎯 止盈 2</div>
+          <div style="font-size:14px;font-weight:700;margin-top:4px;color:var(--green)">${fmt$(tp.take_profit_2)}</div>
+        </div>
+        <div style="background:rgba(63,185,80,0.06);padding:12px;border-radius:8px;text-align:center">
+          <div style="font-size:11px;color:var(--text2)">🎯 止盈 3</div>
+          <div style="font-size:14px;font-weight:700;margin-top:4px;color:var(--green)">${fmt$(tp.take_profit_3)}</div>
+        </div>`;
+      if(tp.risk_reward)h+=`<div style="background:rgba(88,166,255,0.06);padding:12px;border-radius:8px;text-align:center">
+          <div style="font-size:11px;color:var(--text2)">风险收益比</div>
+          <div style="font-size:16px;font-weight:700;margin-top:4px;color:var(--accent)">1:${tp.risk_reward}</div>
+        </div>`;
+      h+=`</div>`;
+    }
+
+    // Meta
+    h+=`<div style="margin-top:14px;font-size:11px;color:var(--text2);line-height:2">
+      <div>📅 预测时段: ${esc(sp.period||'')} | 📊 K线周期: ${esc(sp.interval||'15m')} | K线数量: 50 根</div>
+      <div>⚠️ ${esc(sp.leverage_warning||'')}</div>
+      <div>${esc(sp.confidence_note||'')}</div>
+    </div>`;
+
+    h+=`</div>`;
+  }
+
+  // 6. Market Cycles (from d.cycles)
+  const cyc=d.cycles||d.market_cycles||{};
+  const cycCore=cyc.cycles||{};
+  const cycInd=cyc.cycle_indicators||{};
+  const cycAlt=cyc.altcoin_season||{};
+
+  if(Object.keys(cycCore).length||Object.keys(cycInd).length){
+    h+=`<div class="b-section"><h3>📊 BTC 周期综合分析</h3><table><tr><th>指标</th><th>数值</th><th>状态</th></tr>`;
+    if(cycCore.puellMultiple!=null)h+=`<tr><td>Puell Multiple</td><td>${fmtNum(cycCore.puellMultiple,2)}</td><td><span class="badge ${Number(cycCore.puellMultiple)<1?'badge-safe':'badge-warn'}">${Number(cycCore.puellMultiple)<0.5?'极度低估':Number(cycCore.puellMultiple)<1?'低估':'正常'}</span></td></tr>`;
+    const pi=cycCore.piCycleTop||{};
+    if(pi.ma110)h+=`<tr><td>Pi Cycle: 111DMA</td><td>${fmt$(pi.ma110)}</td><td></td></tr>`;
+    if(pi.ma350mu2)h+=`<tr><td>Pi Cycle: 2×350DMA</td><td>${fmt$(pi.ma350mu2)}</td><td></td></tr>`;
+    if(pi.ma110&&pi.ma350mu2){
+      const crossed=Number(pi.ma110)>=Number(pi.ma350mu2);
+      h+=`<tr><td>Pi Cycle 交叉</td><td></td><td><span class="badge ${crossed?'badge-danger':'badge-safe'}">${crossed?'⚠️ 已交叉':'✅ 未交叉'}</span></td></tr>`;
+    }
+    const lk=cycCore.likelihood||{};
+    if(lk.totalCount)h+=`<tr><td>持有信号</td><td><strong>${lk.holdCount}/${lk.totalCount}</strong></td><td><span class="badge badge-safe">🟢 建议持有</span></td></tr>`;
+    if(lk.sellCount!=null)h+=`<tr><td>卖出信号</td><td>${lk.sellCount}/${lk.totalCount||30}</td><td></td></tr>`;
+    h+=`</table></div>`;
+
+    // 30 indicators table
+    const indicators=(cycInd.indicators||[]);
+    if(indicators.length){
+      const hitCount=cycInd.triggeredCount||0;
+      const total=cycInd.totalHitCount||indicators.length;
+      h+=`<div class="b-section"><h3>📋 BTC ${indicators.length} 项周期指标 <span style="font-weight:400;font-size:13px;color:var(--text2)">(${hitCount}/${total} 触发顶部)</span></h3>`;
+      h+=`<table><tr><th>#</th><th>指标</th><th>当前值</th><th>顶部阈值</th><th>状态</th></tr>`;
+      indicators.forEach(ind=>{
+        const hit=ind.hitStatus;
+        h+=`<tr class="indicator-row"><td style="color:var(--text2)">${ind.index}</td><td>${esc(ind.indicatorName)}</td><td>${ind.currentValue}</td><td>${ind.comparisonType} ${ind.targetValue}</td>`;
+        h+=`<td><span class="badge ${hit?'badge-danger':'badge-safe'}">${hit?'🔴 触发':'✅ 安全'}</span></td></tr>`;
+      });
+      h+=`</table></div>`;
+    }
+  }
+
+  // 7. Altcoin Season
+  const altPts=cycAlt.points||[];
+  if(altPts.length){
+    const latest=altPts[altPts.length-1];
+    const altIdx=Number(latest.altcoinIndex||0);
+    const altLabel=altIdx>75?'山寨季':altIdx<25?'比特币季':'中性市场';
+    h+=`<div class="b-section"><h3>🪙 山寨季指数</h3><table><tr><th>指标</th><th>数值</th><th>状态</th></tr>`;
+    h+=`<tr><td><strong>山寨季指数</strong></td><td style="font-weight:700;font-size:18px">${altIdx}</td><td>${altLabel}</td></tr>`;
+    if(latest.altcoinMarketcap)h+=`<tr><td>山寨币总市值</td><td>${fmt$(latest.altcoinMarketcap)}</td><td></td></tr>`;
+    h+=`</table></div>`;
+  }
+
+  // 8. DeFi yields
+  const defi=d.defi_top||[];
+  if(defi.length){
+    h+=`<div class="b-section"><h3>🌾 DeFi 收益机会 Top ${defi.length}</h3><table><tr><th>协议</th><th>池</th><th>链</th><th>APY</th><th>TVL</th></tr>`;
+    defi.forEach(y=>{
+      h+=`<tr><td><strong>${y.project||''}</strong></td><td>${y.symbol||''}</td><td>${y.chain||''}</td>`;
+      h+=`<td class="up">${fmtNum(y.apy,0)}%</td><td>${fmt$(y.tvlUsd||y.tvl)}</td></tr>`;
+    });
+    h+=`</table></div>`;
+  }
+
+  // 9. Funding rates
+  const fr=d.funding_rates||[];
+  if(fr.length){
+    h+=`<div class="b-section"><h3>💰 资金费率异常</h3><table><tr><th>交易对</th><th>费率</th><th>年化</th></tr>`;
+    fr.forEach(f=>{
+      const rate=Number(f.rate||0);
+      const annual=(rate*3*365*100).toFixed(2);
+      h+=`<tr><td>${f.symbol}</td><td class="${rate>=0?'up':'down'}">${(rate*100).toFixed(4)}%</td><td>${annual}%</td></tr>`;
+    });
+    h+=`</table></div>`;
+  }
+
+  // 10. News
+  const news=d.news_highlights||[];
+  if(news.length){
+    h+=`<div class="b-section"><h3>📰 新闻摘要 Top ${news.length}</h3><table><tr><th style="width:36px">#</th><th>标题</th><th>情绪</th><th>重要性</th></tr>`;
+    news.forEach((n,i)=>{
+      const sIcon={bullish:'🟢',bearish:'🔴',neutral:'⚪'}[n.sentiment]||'⚪';
+      const sLbl={bullish:'看涨',bearish:'看跌',neutral:'中性'}[n.sentiment]||'中性';
+      const sCls={bullish:'badge-bullish',bearish:'badge-bearish',neutral:'badge-neutral'}[n.sentiment]||'badge-neutral';
+      const imp=n.importance==='important'?'<span class="badge badge-important">⭐ 重要</span>':'普通';
+      h+=`<tr><td>${i+1}</td><td>${esc(n.title)}</td><td><span class="badge ${sCls}">${sIcon} ${sLbl}</span></td><td>${imp}</td></tr>`;
+    });
+    h+=`</table></div>`;
+  }
+
+  // 11. Verdict
+  const lk2=cycCore.likelihood||{};
+  const fgV=fgScore||0;
+  const pm=cycCore.puellMultiple;
+  const gmBtcDom=gm.btc_dominance;
+  h+=`<div class="verdict-box"><strong>📌 综合研判</strong><br><br>`;
+  if(lk2.holdCount&&lk2.totalCount)h+=`<strong>周期信号：</strong>${lk2.holdCount}/${lk2.totalCount} 项指标建议持有，${lk2.sellCount||0} 项触发卖出<br>`;
+  if(pm!=null)h+=`<strong>Puell Multiple：</strong>${fmtNum(pm,2)} — ${Number(pm)<0.5?'极度低估，历史底部区间':Number(pm)<1?'低估区间，历史买入窗口':'正常范围'}<br>`;
+  h+=`<strong>恐惧贪婪：</strong>${fgV} — ${fgV<=25?'极度恐惧':fgV<=45?'恐惧':fgV<=55?'中性偏乐观':fgV<=75?'贪婪':'极度贪婪'}<br>`;
+  if(gmBtcDom)h+=`<strong>BTC 市占率：</strong>${gmBtcDom} — ${parseFloat(gmBtcDom)>55?'资金偏向BTC，防御模式':'资金分散，关注山寨机会'}<br>`;
+  const btcTrend=btc.trend;
+  if(btcTrend)h+=`<strong>技术面：</strong>${btcTrend==='bullish'?'看涨':btcTrend==='bearish'?'看跌':'中性'}（置信度 ${fmtNum(btc.confidence,1)}%）<br>`;
+  h+=`<br><strong>建议：</strong>`;
+  if(lk2.sellCount===0&&fgV<70)h+=`持有 / 逢低分批建仓`;
+  else if(lk2.sellCount>5)h+=`注意风险，考虑减仓`;
+  else h+=`观望为主，等待信号`;
+  h+=`</div>`;
+
+  return h;
+}
+
+function renderBtcPredictVisual(d){
+  const dirColor={UP:'var(--green)',DOWN:'var(--red)',NEUTRAL:'var(--text2)'};
+  const dirIcon={UP:'📈',DOWN:'📉',NEUTRAL:'➡️'};
+  const dirBg={UP:'rgba(63,185,80,0.08)',DOWN:'rgba(248,81,73,0.08)',NEUTRAL:'rgba(139,148,158,0.08)'};
+  const dir=d.direction||'NEUTRAL';
+  let h='';
+
+  // Header
+  h+=`<div class="b-section" style="text-align:center;background:${dirBg[dir]};border-color:${dirColor[dir]}40;padding:28px">
+    <div style="font-size:14px;color:var(--text2);margin-bottom:8px">🎯 ${d.symbol} 量化短线预测</div>
+    <div style="font-size:56px;margin:8px 0">${dirIcon[dir]}</div>
+    <div style="font-size:32px;font-weight:800;color:${dirColor[dir]}">${d.direction_zh}</div>
+    <div style="margin-top:8px">
+      <span style="font-size:14px;color:var(--text2)">置信度</span>
+      <span style="font-size:24px;font-weight:700;margin-left:8px;color:${dirColor[dir]}">${d.confidence}%</span>
+      <span class="badge ${d.confidence>=70?'badge-safe':d.confidence>=50?'badge-warn':'badge-danger'}" style="margin-left:8px">${d.confidence_label}</span>
+    </div>
+    <div style="margin-top:6px;font-size:12px;color:var(--text2)">${d.confidence_note}</div>
+    <div style="margin-top:12px;display:flex;justify-content:center;gap:24px;font-size:14px">
+      <span style="color:var(--green)">🐂 牛分 ${d.bull_score}</span>
+      <span style="color:var(--red)">🐻 熊分 ${d.bear_score}</span>
+    </div>
+  </div>`;
+
+  // Price context
+  h+=`<div class="b-section"><h3>💰 价格信息</h3>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px">
+      <div style="background:var(--surface2);padding:14px;border-radius:8px;text-align:center">
+        <div style="font-size:12px;color:var(--text2)">当前价格</div>
+        <div style="font-size:22px;font-weight:700;margin-top:4px">${fmt$(d.current_price)}</div>
+      </div>`;
+  if(d.ticker_24h){
+    const t=d.ticker_24h;
+    h+=`<div style="background:var(--surface2);padding:14px;border-radius:8px;text-align:center">
+        <div style="font-size:12px;color:var(--text2)">24h 涨跌</div>
+        <div style="font-size:22px;font-weight:700;margin-top:4px">${fmtPct(t.change_pct_24h)}</div>
+      </div>
+      <div style="background:var(--surface2);padding:14px;border-radius:8px;text-align:center">
+        <div style="font-size:12px;color:var(--text2)">24h 最高</div>
+        <div style="font-size:16px;font-weight:600;margin-top:4px;color:var(--green)">${fmt$(t.high_24h)}</div>
+      </div>
+      <div style="background:var(--surface2);padding:14px;border-radius:8px;text-align:center">
+        <div style="font-size:12px;color:var(--text2)">24h 最低</div>
+        <div style="font-size:16px;font-weight:600;margin-top:4px;color:var(--red)">${fmt$(t.low_24h)}</div>
+      </div>`;
+  }
+  h+=`</div></div>`;
+
+  // Signals table
+  const sigs=d.signals||[];
+  if(sigs.length){
+    h+=`<div class="b-section"><h3>📊 技术指标信号</h3><table class="indicator-row">
+      <tr><th>指标</th><th>数值</th><th>信号</th><th>方向</th><th>权重</th></tr>`;
+    sigs.forEach(s=>{
+      const icon=s.bullish===true?'✅':s.bullish===false?'❌':'➖';
+      const cls=s.bullish===true?'up':s.bullish===false?'down':'neutral-c';
+      h+=`<tr>
+        <td><strong>${esc(s.indicator)}</strong></td>
+        <td style="font-family:monospace">${esc(s.display)}</td>
+        <td style="font-size:12px">${esc(s.signal)}</td>
+        <td>${icon}</td>
+        <td style="text-align:center"><span class="${cls}">${s.weight>0?'+'+s.weight:'—'}</span></td>
+      </tr>`;
+    });
+    h+=`</table></div>`;
+  }
+
+  // Trade plan
+  const tp=d.trade_plan||{};
+  if(tp.action && dir!=='NEUTRAL'){
+    h+=`<div class="b-section" style="border-color:${dirColor[dir]}40"><h3>💡 交易建议</h3>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px">
+        <div style="background:${dirBg[dir]};padding:14px;border-radius:8px;text-align:center">
+          <div style="font-size:12px;color:var(--text2)">操作方向</div>
+          <div style="font-size:18px;font-weight:700;margin-top:4px;color:${dirColor[dir]}">${esc(tp.action)}</div>
+        </div>
+        <div style="background:rgba(248,81,73,0.06);padding:14px;border-radius:8px;text-align:center">
+          <div style="font-size:12px;color:var(--text2)">⛔ 止损</div>
+          <div style="font-size:16px;font-weight:700;margin-top:4px;color:var(--red)">${fmt$(tp.stop_loss)}</div>
+        </div>
+        <div style="background:rgba(63,185,80,0.06);padding:14px;border-radius:8px;text-align:center">
+          <div style="font-size:12px;color:var(--text2)">🎯 止盈 1</div>
+          <div style="font-size:16px;font-weight:700;margin-top:4px;color:var(--green)">${fmt$(tp.take_profit_1)}</div>
+        </div>
+        <div style="background:rgba(63,185,80,0.06);padding:14px;border-radius:8px;text-align:center">
+          <div style="font-size:12px;color:var(--text2)">🎯 止盈 2</div>
+          <div style="font-size:16px;font-weight:700;margin-top:4px;color:var(--green)">${fmt$(tp.take_profit_2)}</div>
+        </div>
+        <div style="background:rgba(63,185,80,0.06);padding:14px;border-radius:8px;text-align:center">
+          <div style="font-size:12px;color:var(--text2)">🎯 止盈 3</div>
+          <div style="font-size:16px;font-weight:700;margin-top:4px;color:var(--green)">${fmt$(tp.take_profit_3)}</div>
+        </div>`;
+    if(tp.risk_reward)h+=`<div style="background:var(--surface2);padding:14px;border-radius:8px;text-align:center">
+          <div style="font-size:12px;color:var(--text2)">风险收益比</div>
+          <div style="font-size:18px;font-weight:700;margin-top:4px;color:var(--accent)">1:${tp.risk_reward}</div>
+        </div>`;
+    h+=`</div></div>`;
+  }
+
+  // Meta info
+  h+=`<div class="b-section" style="font-size:12px;color:var(--text2);line-height:2">
+    <div>📅 预测时段: ${esc(d.period||'')}</div>
+    <div>📊 K线周期: ${esc(d.interval||'15m')} | K线数量: 50 根</div>
+    <div>⚠️ ${esc(d.leverage_warning||'')}</div>
+    <div>${esc(d.disclaimer||'')}</div>
+  </div>`;
+
+  return h;
+}
+
+function renderBtcPredictText(d){
+  const dirText={UP:'涨 📈',DOWN:'跌 📉',NEUTRAL:'震荡 ➡️'};
+  let lines=[];
+  lines.push('═'.repeat(50));
+  lines.push(`🎯 ${d.symbol} 量化短线预测`);
+  lines.push('═'.repeat(50));
+  lines.push('');
+  lines.push(`当前价格: ${fmt$(d.current_price)}`);
+  lines.push(`预测时段: ${d.period||''}`);
+  lines.push('');
+  lines.push(`预测方向: ${dirText[d.direction]||d.direction}`);
+  lines.push(`置信度: ${d.confidence}% (${d.confidence_label})`);
+  lines.push(`牛分: ${d.bull_score} | 熊分: ${d.bear_score}`);
+  lines.push('');
+  lines.push('技术指标:');
+  (d.signals||[]).forEach(s=>{
+    const icon=s.bullish===true?'✅':s.bullish===false?'❌':'➖';
+    lines.push(`  ${icon} ${s.indicator}(${s.display}) → ${s.signal}`);
+  });
+  if(d.trade_plan && d.direction!=='NEUTRAL'){
+    const tp=d.trade_plan;
+    lines.push('');
+    lines.push('交易建议:');
+    lines.push(`  方向: ${tp.action}`);
+    lines.push(`  止损: ${fmt$(tp.stop_loss)}`);
+    lines.push(`  止盈1: ${fmt$(tp.take_profit_1)}`);
+    lines.push(`  止盈2: ${fmt$(tp.take_profit_2)}`);
+    lines.push(`  止盈3: ${fmt$(tp.take_profit_3)}`);
+    if(tp.risk_reward)lines.push(`  风险收益比: 1:${tp.risk_reward}`);
+  }
+  if(d.ticker_24h){
+    const t=d.ticker_24h;
+    lines.push('');
+    lines.push(`24h: 高 ${fmt$(t.high_24h)} | 低 ${fmt$(t.low_24h)} | 涨跌 ${t.change_pct_24h>=0?'+':''}${Number(t.change_pct_24h).toFixed(2)}%`);
+  }
+  lines.push('');
+  lines.push(d.disclaimer||'');
+  lines.push('═'.repeat(50));
+  return esc(lines.join('\n'));
+}
+
+function renderNewsVisual(items){
+  if(!items||!items.length||items[0]&&items[0].error)return`<div class="report-placeholder">暂无数据</div>`;
+  let h=`<div class="b-section"><h3>📰 新闻快讯 (${items.length}条)</h3><table><tr><th>#</th><th>标题</th><th>情绪</th><th>重要性</th><th>时间</th></tr>`;
+  items.forEach((n,i)=>{
+    const sIcon={bullish:'🟢',bearish:'🔴',neutral:'⚪'}[n.sentiment]||'⚪';
+    const sLbl={bullish:'看涨',bearish:'看跌',neutral:'中性'}[n.sentiment]||'中性';
+    const sCls={bullish:'badge-bullish',bearish:'badge-bearish',neutral:'badge-neutral'}[n.sentiment]||'badge-neutral';
+    const imp=n.importance==='important'?'<span class="badge badge-important">⭐ 重要</span>':'普通';
+    const time=n.stored_at?new Date(n.stored_at).toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}):'';
+    h+=`<tr><td>${i+1}</td><td>${esc(n.title)}</td><td><span class="badge ${sCls}">${sIcon} ${sLbl}</span></td><td>${imp}</td><td style="color:var(--text2);font-size:12px">${time}</td></tr>`;
+  });
+  h+=`</table></div>`;
+  return h;
+}
+
+document.addEventListener('keydown',e=>{if(e.key==='Escape')history.back()});
+init();
+</script>
+</body>
+</html>
