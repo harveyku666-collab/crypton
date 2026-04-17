@@ -381,6 +381,38 @@ SKILLS: list[Skill] = [
     ),
 
     Skill(
+        id="okx-intelligence",
+        name="OKX Market Intelligence Desk",
+        name_zh="OKX 市场情报台",
+        description="Unified OKX market + Orbit news dashboard for price structure, orderbook, funding, OI, technical indicators, coin news, and sentiment ranking.",
+        description_zh="把 OKX 行情结构与 Orbit 新闻情绪整合到一个工作台：价格、订单簿、Funding、OI、技术指标、币种新闻与情绪排行一页看完。",
+        icon="🛰️",
+        category="analysis",
+        status="active",
+        api_endpoint="/okx-intelligence",
+        requires_credits=False,
+        features=[
+            "Unified OKX market intelligence overview",
+            "Price, orderbook, trades, mark price, and price limit",
+            "Funding rate + open interest + price/OI regime analysis",
+            "RSI / MACD / Bollinger indicator snapshots",
+            "Orbit coin news + important news stream",
+            "Coin sentiment trend + hotness ranking",
+            "AJAX refresh with silent auto-sync",
+        ],
+        features_zh=[
+            "OKX 行情与新闻一体工作台",
+            "价格、订单簿、逐笔成交、标记价和价格限制",
+            "Funding + OI + 价格/OI 共振诊断",
+            "RSI / MACD / 布林带指标快照",
+            "Orbit 币种新闻流 + 重要快讯",
+            "币种情绪趋势 + 热度排行",
+            "AJAX 原位刷新 + 静默自动同步",
+        ],
+        data_sources=["OKX Market", "OKX Orbit News"],
+    ),
+
+    Skill(
         id="open-interest",
         name="Open Interest & Derivatives",
         name_zh="持仓量与衍生品数据",

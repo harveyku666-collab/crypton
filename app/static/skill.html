@@ -58,6 +58,14 @@ td{padding:8px 10px;border-bottom:1px solid rgba(48,54,61,0.5)}
 .mini-tags{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
 .mini-tags button{font-size:11px;padding:4px 10px;border-radius:999px;border:1px solid var(--border);background:var(--surface2);color:var(--text2);cursor:pointer}
 .mini-tags button:hover{border-color:var(--accent);color:var(--accent)}
+.page-btn{padding:10px 14px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer;font-size:13px}
+.page-btn:disabled{opacity:.45;cursor:not-allowed}
+.news-stack{display:flex;flex-direction:column;gap:12px}
+.news-card{background:linear-gradient(180deg,rgba(28,35,51,.85),rgba(22,27,34,.92));border:1px solid var(--border);border-radius:14px;padding:16px}
+.news-card-title{font-size:16px;font-weight:700;line-height:1.6}
+.news-card-meta{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.news-card-excerpt{margin-top:12px;font-size:13px;line-height:1.8;color:var(--text2)}
+.news-card-foot{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center;margin-top:14px;font-size:12px;color:var(--text2)}
 @media(max-width:768px){.skill-header{flex-direction:column;text-align:center}table{font-size:12px}}
 </style>
 </head>
@@ -218,6 +226,36 @@ async function init(){
       renderOISignalEntry();
       return;
     }
+    if(skill.id==='defi-yield-scanner'){
+      document.getElementById('toolbar').style.display='none';
+      renderDefiYieldEntry();
+      return;
+    }
+    if(skill.id==='technical-analysis'){
+      document.getElementById('toolbar').style.display='none';
+      renderTechnicalAnalysisEntry();
+      return;
+    }
+    if(skill.id==='btc-quant-predictor'){
+      document.getElementById('toolbar').style.display='none';
+      renderBtcQuantPredictorEntry();
+      return;
+    }
+    if(skill.id==='prediction-markets'){
+      document.getElementById('toolbar').style.display='none';
+      renderPredictionMarketsEntry();
+      return;
+    }
+    if(skill.id==='news-sentiment'){
+      document.getElementById('toolbar').style.display='none';
+      renderNewsIntelligenceEntry();
+      return;
+    }
+    if(skill.id==='okx-intelligence'){
+      document.getElementById('toolbar').style.display='none';
+      renderOkxIntelligenceEntry();
+      return;
+    }
     const features=SKILL_FEATURES[skill.id];
     if(features){
       document.getElementById('toolbar').style.display='none';
@@ -237,10 +275,173 @@ function sanitizeSymbol(value){
   return symbol.slice(0,20);
 }
 
+function sanitizeYieldKeyword(value){
+  if(!value)return'';
+  return String(value).trim().toUpperCase().replace(/\s+/g,'').replace(/[^A-Z0-9:/_-]/g,'').slice(0,32);
+}
+
 function openOISignal(rawSymbol,timeframe){
-  const symbol=sanitizeSymbol(rawSymbol??document.getElementById('oi-launch-symbol')?.value)||'BTC';
+  const symbol=sanitizeSymbol((rawSymbol ?? document.getElementById('oi-launch-symbol')?.value))||'BTC';
   const tf=timeframe||document.getElementById('oi-launch-timeframe')?.value||'1h';
   location.href=`${BASE}/oi-signal?symbol=${encodeURIComponent(symbol)}&timeframe=${encodeURIComponent(tf)}`;
+}
+
+function openDefiYieldScanner({chain='',symbol='',minApy='5',minTvl='10000000',limit='30'}={}){
+  const params = new URLSearchParams();
+  if(chain)params.set('chain', chain);
+  if(symbol)params.set('symbol', sanitizeYieldKeyword(symbol));
+  params.set('min_apy', String(Number(minApy||5)));
+  params.set('min_tvl', String(Number(minTvl||10000000)));
+  params.set('limit', String(Number(limit||30)));
+  location.href=`${BASE}/defi-yield-scanner?${params.toString()}`;
+}
+
+function getTechnicalStateFromUrl(){
+  const params=new URLSearchParams(location.search);
+  const symbol=sanitizeSymbol(params.get('symbol'))||'BTC';
+  const interval=params.get('interval')||'4h';
+  const limit=Math.max(30,Math.min(300,Number(params.get('limit')||120)));
+  return {symbol,interval,limit};
+}
+
+function syncTechnicalUrl({symbol,interval,limit}){
+  const params=new URLSearchParams(location.search);
+  params.set('id','technical-analysis');
+  params.set('symbol', symbol);
+  params.set('interval', interval);
+  params.set('limit', String(limit));
+  history.replaceState({},'',`${location.pathname}?${params.toString()}`);
+}
+
+function launchTechnicalAnalysis(rawSymbol,timeframe){
+  const symbol=sanitizeSymbol((rawSymbol ?? document.getElementById('ta-launch-symbol')?.value))||'BTC';
+  const interval=timeframe||document.getElementById('ta-launch-timeframe')?.value||'4h';
+  const params=new URLSearchParams();
+  params.set('id','technical-analysis');
+  params.set('symbol', symbol);
+  params.set('interval', interval);
+  params.set('limit', '120');
+  location.href=`${BASE}/skill?${params.toString()}`;
+}
+
+function getPredictionStateFromUrl(){
+  const params=new URLSearchParams(location.search);
+  const limit=Math.max(5,Math.min(50,Number(params.get('limit')||10)));
+  return {limit};
+}
+
+function syncPredictionUrl({limit}){
+  const params=new URLSearchParams(location.search);
+  params.set('id','prediction-markets');
+  params.set('limit', String(limit));
+  history.replaceState({},'',`${location.pathname}?${params.toString()}`);
+}
+
+function launchPredictionMarkets(limit='10'){
+  const params=new URLSearchParams();
+  params.set('id','prediction-markets');
+  params.set('limit', String(Number(limit||10)));
+  location.href=`${BASE}/skill?${params.toString()}`;
+}
+
+function launchPredictionAdvanced(limit='10'){
+  const params=new URLSearchParams();
+  params.set('limit', String(Number(limit||10)));
+  location.href=`${BASE}/prediction-advanced?${params.toString()}`;
+}
+
+function getOkxIntelligenceStateFromUrl(){
+  const params=new URLSearchParams(location.search);
+  const rawSymbol=String(params.get('symbol')||'BTC').trim().toUpperCase();
+  const symbol=rawSymbol||'BTC';
+  const marketType=params.get('marketType')==='SPOT'?'SPOT':'SWAP';
+  const timeframe=['1H','4H','1D'].includes(String(params.get('timeframe')||'1H').toUpperCase())
+    ? String(params.get('timeframe')||'1H').toUpperCase()
+    : '1H';
+  const language=params.get('language')==='en-US'?'en-US':'zh-CN';
+  return {symbol,marketType,timeframe,language};
+}
+
+function syncOkxIntelligenceUrl({symbol,marketType,timeframe,language='zh-CN'}){
+  const params=new URLSearchParams(location.search);
+  params.set('id','okx-intelligence');
+  params.set('symbol', symbol);
+  params.set('marketType', marketType);
+  params.set('timeframe', timeframe);
+  params.set('language', language);
+  history.replaceState({},'',`${location.pathname}?${params.toString()}`);
+}
+
+function launchOkxIntelligence(rawSymbol,marketType='SWAP',timeframe='1H',language='zh-CN'){
+  const raw=String(rawSymbol??document.getElementById('okx-intelligence-symbol')?.value??'').trim().toUpperCase();
+  const symbol=raw||'BTC';
+  const type=marketType==='SPOT'?'SPOT':'SWAP';
+  const tf=['1H','4H','1D'].includes(String(timeframe).toUpperCase())?String(timeframe).toUpperCase():'1H';
+  const lang=language==='en-US'?'en-US':'zh-CN';
+  const params=new URLSearchParams();
+  params.set('symbol', symbol);
+  params.set('marketType', type);
+  params.set('timeframe', tf);
+  params.set('language', lang);
+  location.href=`${BASE}/okx-intelligence?${params.toString()}`;
+}
+
+function getBtcPredictStateFromUrl(){
+  const params=new URLSearchParams(location.search);
+  const symbol=sanitizeSymbol(params.get('symbol'))||'BTC';
+  const interval=params.get('interval')||'15m';
+  const limit=Math.max(30,Math.min(200,Number(params.get('limit')||50)));
+  return {symbol,interval,limit};
+}
+
+function syncBtcPredictUrl({symbol,interval,limit}){
+  const params=new URLSearchParams(location.search);
+  params.set('id','btc-quant-predictor');
+  params.set('symbol', symbol);
+  params.set('interval', interval);
+  params.set('limit', String(limit));
+  history.replaceState({},'',`${location.pathname}?${params.toString()}`);
+}
+
+function launchBtcQuantPredictor(rawSymbol,timeframe){
+  const symbol=sanitizeSymbol((rawSymbol ?? document.getElementById('btc-predict-symbol')?.value))||'BTC';
+  const interval=timeframe||document.getElementById('btc-predict-interval')?.value||'15m';
+  const params=new URLSearchParams();
+  params.set('id','btc-quant-predictor');
+  params.set('symbol', symbol);
+  params.set('interval', interval);
+  params.set('limit', '50');
+  location.href=`${BASE}/skill?${params.toString()}`;
+}
+
+function sanitizeNewsKeyword(value){
+  if(!value)return'';
+  return String(value).replace(/\s+/g,' ').trim().slice(0,80);
+}
+
+function getNewsIntelligenceStateFromUrl(){
+  const params=new URLSearchParams(location.search);
+  const lang=['zh','en','ja','ko'].includes(params.get('lang'))?params.get('lang'):'zh';
+  const category=params.get('category')||'';
+  const sentiment=params.get('sentiment')||'';
+  const importance=params.get('importance')||'';
+  const q=sanitizeNewsKeyword(params.get('q')||'');
+  const page=Math.max(1,Number(params.get('page')||1));
+  const pageSize=Math.max(5,Math.min(20,Number(params.get('page_size')||10)));
+  return {lang,category,sentiment,importance,q,page,pageSize};
+}
+
+function syncNewsIntelligenceUrl({lang,category,sentiment,importance,q,page,pageSize}){
+  const params=new URLSearchParams(location.search);
+  params.set('id','news-sentiment');
+  params.set('lang',lang);
+  if(category)params.set('category',category);else params.delete('category');
+  if(sentiment)params.set('sentiment',sentiment);else params.delete('sentiment');
+  if(importance)params.set('importance',importance);else params.delete('importance');
+  if(q)params.set('q',q);else params.delete('q');
+  params.set('page',String(page));
+  params.set('page_size',String(pageSize));
+  history.replaceState({},'',`${location.pathname}?${params.toString()}`);
 }
 
 function renderOISignalEntry(){
@@ -279,6 +480,614 @@ function renderOISignalEntry(){
     </div>`;
 }
 
+function renderDefiYieldEntry(){
+  const area=document.getElementById('report-area');
+  area.innerHTML=`
+    <div class="quick-launch">
+      <div class="quick-launch-title">直接打开 DeFi 收益仪表盘</div>
+      <div class="quick-launch-sub">先筛链、最低 APY、最低 TVL 和 Token 关键字，再进入完整收益扫描页继续看机会面板和完整表格。</div>
+      <div class="quick-launch-row">
+        <select id="yield-launch-chain">
+          <option value="">All Chains</option>
+          <option value="Ethereum">Ethereum</option>
+          <option value="Arbitrum">Arbitrum</option>
+          <option value="Base">Base</option>
+          <option value="BNB Chain">BNB Chain</option>
+          <option value="Solana">Solana</option>
+        </select>
+        <input id="yield-launch-symbol" placeholder="ETH / USDC / BTC">
+        <input id="yield-launch-min-apy" type="number" min="0" step="0.1" value="5" placeholder="Min APY">
+        <button class="btn-load" onclick="openDefiYieldScanner({chain:document.getElementById('yield-launch-chain').value,symbol:document.getElementById('yield-launch-symbol').value,minApy:document.getElementById('yield-launch-min-apy').value})">立即分析</button>
+      </div>
+      <div class="mini-tags">
+        <button onclick="openDefiYieldScanner({chain:'Ethereum'})">Ethereum</button>
+        <button onclick="openDefiYieldScanner({chain:'Arbitrum'})">Arbitrum</button>
+        <button onclick="openDefiYieldScanner({chain:'Base'})">Base</button>
+        <button onclick="openDefiYieldScanner({symbol:'USDC'})">USDC</button>
+      </div>
+    </div>
+    <div class="b-section">
+      <h3>🌾 页面能力</h3>
+      <table>
+        <tr><th>模块</th><th>说明</th></tr>
+        <tr><td>收益机会面板</td><td>把高 APY 池子做成卡片，拆开基础收益和奖励收益</td></tr>
+        <tr><td>链分布</td><td>按当前筛选结果看 TVL 在不同链上的集中度</td></tr>
+        <tr><td>风险备注</td><td>提醒哪些池子更依赖奖励补贴，避免只盯总 APY</td></tr>
+        <tr><td>完整结果表</td><td>查看协议、池子、链、APY、基础收益、奖励收益和 TVL</td></tr>
+      </table>
+    </div>`;
+}
+
+function renderBtcQuantPredictorEntry(){
+  const area=document.getElementById('report-area');
+  const state=getBtcPredictStateFromUrl();
+  area.innerHTML=`
+    <div class="quick-launch">
+      <div class="quick-launch-title">直接分析短线方向，不再弹系统输入框</div>
+      <div class="quick-launch-sub">输入币种和周期后会在当前页直接刷新量化预测结果，支持多币种、快捷标签和 URL 状态保留。</div>
+      <div class="quick-launch-row">
+        <input id="btc-predict-symbol" value="${state.symbol}" placeholder="BTC / ETH / SOL / DOGE / AAVE">
+        <select id="btc-predict-interval">
+          <option value="5m"${state.interval==='5m'?' selected':''}>5m</option>
+          <option value="15m"${state.interval==='15m'?' selected':''}>15m</option>
+          <option value="1h"${state.interval==='1h'?' selected':''}>1h</option>
+          <option value="4h"${state.interval==='4h'?' selected':''}>4h</option>
+        </select>
+        <button class="btn-load" onclick="loadBtcQuantPredictor()">开始预测</button>
+      </div>
+      <div class="mini-tags">
+        <button onclick="launchBtcQuantPredictor('BTC','15m')">BTC</button>
+        <button onclick="launchBtcQuantPredictor('ETH','15m')">ETH</button>
+        <button onclick="launchBtcQuantPredictor('SOL','15m')">SOL</button>
+        <button onclick="launchBtcQuantPredictor('AAVE','1h')">AAVE</button>
+      </div>
+      <div id="btc-predict-status" style="font-size:12px;color:var(--text2);margin-top:12px"></div>
+    </div>
+    <div id="btc-predict-result"><div class="report-placeholder"><div class="spinner"></div>加载短线预测中...</div></div>`;
+
+  document.getElementById('btc-predict-symbol').addEventListener('keydown',e=>{
+    if(e.key==='Enter')loadBtcQuantPredictor();
+  });
+  loadBtcQuantPredictor();
+}
+
+async function loadBtcQuantPredictor(){
+  const result=document.getElementById('btc-predict-result');
+  const status=document.getElementById('btc-predict-status');
+  if(!result||!status)return;
+  const state=getBtcPredictStateFromUrl();
+  const symbol=sanitizeSymbol(document.getElementById('btc-predict-symbol')?.value)||state.symbol||'BTC';
+  const interval=document.getElementById('btc-predict-interval')?.value||state.interval||'15m';
+  const limit=state.limit||50;
+  syncBtcPredictUrl({symbol,interval,limit});
+  status.textContent=`正在预测 ${symbol} · ${interval}`;
+  result.innerHTML='<div class="report-placeholder"><div class="spinner"></div>加载短线预测中...</div>';
+  const t0=Date.now();
+  try{
+    const r=await fetch(`${API}/analysis/btc-predict?symbol=${encodeURIComponent(symbol)}&interval=${encodeURIComponent(interval)}&limit=${limit}`);
+    const d=await r.json();
+    if(!r.ok||d.error)throw new Error(d.error||`HTTP ${r.status}`);
+    status.textContent=`${symbol} · ${interval} 预测完成，用时 ${((Date.now()-t0)/1000).toFixed(1)}s`;
+    result.innerHTML=renderBtcPredictVisual(d);
+  }catch(e){
+    status.textContent=`${symbol} · ${interval} 预测失败`;
+    result.innerHTML=`<div class="report-placeholder" style="color:var(--red)">加载失败: ${esc(e.message)}</div>`;
+  }
+}
+
+function renderTechnicalAnalysisEntry(){
+  const area=document.getElementById('report-area');
+  const state=getTechnicalStateFromUrl();
+  area.innerHTML=`
+    <div class="quick-launch">
+      <div class="quick-launch-title">直接分析币种技术面</div>
+      <div class="quick-launch-sub">基于 Binance K 线即时计算 RSI、MACD、布林带、动量、量能和均线结构，并补充 15m / 1h / 4h / 1d 多周期摘要。</div>
+      <div class="quick-launch-row">
+        <input id="ta-launch-symbol" value="${state.symbol}" placeholder="BTC / ETH / SOL / AAVE">
+        <select id="ta-launch-timeframe">
+          <option value="15m"${state.interval==='15m'?' selected':''}>15m</option>
+          <option value="1h"${state.interval==='1h'?' selected':''}>1h</option>
+          <option value="4h"${state.interval==='4h'?' selected':''}>4h</option>
+          <option value="1d"${state.interval==='1d'?' selected':''}>1d</option>
+        </select>
+        <button class="btn-load" onclick="loadTechnicalAnalysis()">开始分析</button>
+      </div>
+      <div class="mini-tags">
+        <button onclick="launchTechnicalAnalysis('BTC','4h')">BTC</button>
+        <button onclick="launchTechnicalAnalysis('ETH','4h')">ETH</button>
+        <button onclick="launchTechnicalAnalysis('SOL','4h')">SOL</button>
+        <button onclick="launchTechnicalAnalysis('AAVE','1h')">AAVE</button>
+      </div>
+      <div id="ta-status" style="font-size:12px;color:var(--text2);margin-top:12px"></div>
+    </div>
+    <div id="ta-result"><div class="report-placeholder"><div class="spinner"></div>加载技术分析中...</div></div>`;
+
+  document.getElementById('ta-launch-symbol').addEventListener('keydown',e=>{
+    if(e.key==='Enter')loadTechnicalAnalysis();
+  });
+  loadTechnicalAnalysis();
+}
+
+async function loadTechnicalAnalysis(){
+  const result=document.getElementById('ta-result');
+  const status=document.getElementById('ta-status');
+  if(!result||!status)return;
+  const state=getTechnicalStateFromUrl();
+  const symbol=sanitizeSymbol(document.getElementById('ta-launch-symbol')?.value)||state.symbol||'BTC';
+  const interval=document.getElementById('ta-launch-timeframe')?.value||state.interval||'4h';
+  const limit=state.limit||120;
+  syncTechnicalUrl({symbol,interval,limit});
+  result.innerHTML='<div class="report-placeholder"><div class="spinner"></div>加载技术分析中...</div>';
+  status.textContent=`正在分析 ${symbol} · ${interval}`;
+  const t0=Date.now();
+  try{
+    const r=await fetch(`${API}/analysis/indicators?symbol=${encodeURIComponent(symbol)}&interval=${encodeURIComponent(interval)}&limit=${limit}&include_multi_timeframes=true`);
+    const d=await r.json();
+    if(!r.ok||d.error)throw new Error(d.error||`HTTP ${r.status}`);
+    status.textContent=`${symbol} · ${interval} 分析完成，用时 ${((Date.now()-t0)/1000).toFixed(1)}s`;
+    result.innerHTML=renderTechnicalAnalysisVisual(d);
+  }catch(e){
+    status.textContent=`${symbol} · ${interval} 加载失败`;
+    result.innerHTML=`<div class="report-placeholder" style="color:var(--red)">加载失败: ${esc(e.message)}</div>`;
+  }
+}
+
+function renderTechnicalAnalysisVisual(d){
+  const dirMap={UP:'看涨',DOWN:'看跌',NEUTRAL:'中性'};
+  const dirColor={UP:'var(--green)',DOWN:'var(--red)',NEUTRAL:'var(--text2)'};
+  const trendMap={
+    strong_bullish:'强势上涨',
+    bullish:'看涨',
+    strong_bearish:'强势下跌',
+    bearish:'看跌',
+    sideways:'横盘',
+  };
+  const rsiStatusMap={overbought:'超买',oversold:'超卖',neutral:'正常'};
+  const multi=d.multi_timeframes||{};
+  const ma=d.moving_averages||{};
+  const macd=d.macd||{};
+  const bb=d.bollinger||{};
+  const strategy=d.strategy||{};
+  let h='';
+
+  h+=`<div class="verdict-box">
+    <strong>${esc(d.symbol||'BTC')} ${esc(d.interval||'4h')}</strong> 当前价格 <strong>${fmt$(d.price)}</strong>，
+    方向判断为 <strong style="color:${dirColor[d.direction]||'var(--text)'}">${dirMap[d.direction]||d.direction||'中性'}</strong>，
+    趋势标签为 <strong>${trendMap[d.trend]||d.trend||'横盘'}</strong>，
+    置信度 <strong>${fmtNum(d.confidence,1)}%</strong>。
+    ${strategy.action?`当前策略评分 <strong>${fmtNum(strategy.score,1)}</strong>，建议 <strong>${esc(strategy.action)}</strong>。`:''}
+    ${strategy.note?`<br><span style="color:var(--text2)">${esc(strategy.note)}</span>`:''}
+  </div>`;
+
+  if(Object.keys(multi).length){
+    h+=`<div class="b-section"><h3>⏱ 多周期摘要</h3><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px">`;
+    Object.entries(multi).forEach(([tf,item])=>{
+      const direction=item.direction||'NEUTRAL';
+      const trend=item.trend||'sideways';
+      h+=`<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <strong>${esc(tf)}</strong>
+          <span style="font-size:11px;color:${dirColor[direction]||'var(--text2)'}">${dirMap[direction]||direction}</span>
+        </div>
+        <div style="font-size:12px;color:var(--text2);line-height:1.8">
+          <div>趋势: ${trendMap[trend]||trend}</div>
+          <div>RSI: ${item.rsi!=null?fmtNum(item.rsi,1):'—'} ${item.rsi_status?rsiStatusMap[item.rsi_status]||item.rsi_status:''}</div>
+          <div>量能: ${item.volume_ratio!=null?fmtNum(item.volume_ratio,2):'—'}x</div>
+          <div>置信度: ${item.confidence!=null?fmtNum(item.confidence,1)+'%':'—'}</div>
+        </div>
+      </div>`;
+    });
+    h+=`</div></div>`;
+  }
+
+  h+=`<div class="b-section"><h3>📊 指标概览</h3><table>
+    <tr><th>指标</th><th>数值</th><th>说明</th></tr>
+    <tr><td>当前价格</td><td><strong>${fmt$(d.price)}</strong></td><td>${fmtPct(d.price_change_pct)}</td></tr>`;
+
+  if(d.rsi!=null){
+    const rsiCls=d.rsi_status==='oversold'?'up':d.rsi_status==='overbought'?'down':'neutral-c';
+    h+=`<tr><td>RSI(14)</td><td>${fmtNum(d.rsi,1)}</td><td class="${rsiCls}">${rsiStatusMap[d.rsi_status]||d.rsi_status||'正常'}</td></tr>`;
+  }
+  if(d.momentum!=null)h+=`<tr><td>动量</td><td>${fmtNum(d.momentum,2)}%</td><td>${Number(d.momentum)>=0?'<span class="up">偏强</span>':'<span class="down">偏弱</span>'}</td></tr>`;
+  if(d.volume_ratio!=null)h+=`<tr><td>量能比</td><td>${fmtNum(d.volume_ratio,2)}x</td><td>${Number(d.volume_ratio)>=1.5?'<span class="up">放量</span>':Number(d.volume_ratio)<=0.7?'<span class="down">缩量</span>':'<span class="neutral-c">正常</span>'}</td></tr>`;
+  if(macd.macd!=null)h+=`<tr><td>MACD</td><td>${fmtNum(macd.macd,4)}</td><td>${Number(macd.macd)>=Number(macd.signal||0)?'<span class="up">快线领先</span>':'<span class="down">快线走弱</span>'}</td></tr>`;
+  if(macd.signal!=null)h+=`<tr><td>MACD Signal</td><td>${fmtNum(macd.signal,4)}</td><td></td></tr>`;
+  if(macd.histogram!=null)h+=`<tr><td>MACD Histogram</td><td>${fmtNum(macd.histogram,4)}</td><td>${Number(macd.histogram)>=0?'<span class="up">多头动能</span>':'<span class="down">空头动能</span>'}</td></tr>`;
+  if(bb.upper!=null)h+=`<tr><td>布林带</td><td>${fmt$(bb.lower)} / ${fmt$(bb.middle)} / ${fmt$(bb.upper)}</td><td>${Number(d.price)>=Number(bb.upper)?'<span class="down">贴近上轨</span>':Number(d.price)<=Number(bb.lower)?'<span class="up">贴近下轨</span>':'<span class="neutral-c">区间内</span>'}</td></tr>`;
+  h+=`</table></div>`;
+
+  h+=`<div class="b-section"><h3>📐 均线结构</h3><table>
+    <tr><th>均线</th><th>数值</th><th>价格偏离</th></tr>`;
+  if(ma.ma7!=null)h+=`<tr><td>MA7</td><td>${fmt$(ma.ma7)}</td><td>${ma.price_vs_ma7_pct!=null?fmtPct(ma.price_vs_ma7_pct):'—'}</td></tr>`;
+  if(ma.ma14!=null)h+=`<tr><td>MA14</td><td>${fmt$(ma.ma14)}</td><td>${ma.price_vs_ma14_pct!=null?fmtPct(ma.price_vs_ma14_pct):'—'}</td></tr>`;
+  if(ma.ma30!=null)h+=`<tr><td>MA30</td><td>${fmt$(ma.ma30)}</td><td>${ma.price_vs_ma30_pct!=null?fmtPct(ma.price_vs_ma30_pct):'—'}</td></tr>`;
+  if(ma.golden_cross!=null)h+=`<tr><td>MA7 vs MA14</td><td></td><td>${ma.golden_cross?'<span class="badge badge-safe">✅ 金叉</span>':'<span class="badge badge-danger">❌ 死叉</span>'}</td></tr>`;
+  h+=`</table></div>`;
+
+  h+=`<div class="b-section" style="font-size:12px;color:var(--text2);line-height:1.9">
+    <div>数据源：${esc(d.source||'Binance')} · 交易对：${esc(d.pair||'')}</div>
+    <div>K线数量：${fmtNum(d.candle_count||0,0)} · 主周期：${esc(d.interval||'4h')}</div>
+    <div>多空分数：${fmtNum(d.bull_score||0,0)} : ${fmtNum(d.bear_score||0,0)}</div>
+  </div>`;
+  return h;
+}
+
+function renderPredictionMarketsEntry(){
+  const area=document.getElementById('report-area');
+  const state=getPredictionStateFromUrl();
+  area.innerHTML=`
+    <div class="quick-launch">
+      <div class="quick-launch-title">Polymarket 热门事件雷达</div>
+      <div class="quick-launch-sub">按 24h 成交量抓取活跃事件，直接看 Yes 概率、流动性、事件分类和到期时间，适合先做热点扫描。</div>
+      <div class="quick-launch-row">
+        <select id="prediction-limit">
+          <option value="5"${state.limit===5?' selected':''}>Top 5</option>
+          <option value="10"${state.limit===10?' selected':''}>Top 10</option>
+          <option value="20"${state.limit===20?' selected':''}>Top 20</option>
+          <option value="30"${state.limit===30?' selected':''}>Top 30</option>
+        </select>
+        <button class="btn-load" onclick="loadPredictionMarkets()">刷新事件</button>
+      </div>
+      <div class="mini-tags">
+        <button onclick="launchPredictionMarkets(5)">Top 5</button>
+        <button onclick="launchPredictionMarkets(10)">Top 10</button>
+        <button onclick="launchPredictionMarkets(20)">Top 20</button>
+      </div>
+      <div id="prediction-status" style="font-size:12px;color:var(--text2);margin-top:12px"></div>
+    </div>
+    <div id="prediction-result"><div class="report-placeholder"><div class="spinner"></div>加载预测市场中...</div></div>`;
+  loadPredictionMarkets();
+}
+
+async function loadPredictionMarkets(){
+  const status=document.getElementById('prediction-status');
+  const result=document.getElementById('prediction-result');
+  if(!status||!result)return;
+  const limit=Math.max(5,Math.min(50,Number(document.getElementById('prediction-limit')?.value||getPredictionStateFromUrl().limit||10)));
+  syncPredictionUrl({limit});
+  status.textContent=`正在加载 Top ${limit} 预测事件`;
+  result.innerHTML='<div class="report-placeholder"><div class="spinner"></div>加载预测市场中...</div>';
+  const t0=Date.now();
+  try{
+    const r=await fetch(`${API}/market/prediction/polymarket?limit=${limit}`);
+    const d=await r.json();
+    if(!r.ok)throw new Error(`HTTP ${r.status}`);
+    if(!Array.isArray(d))throw new Error('Invalid prediction market payload');
+    status.textContent=`已返回 ${d.length} 个事件，用时 ${((Date.now()-t0)/1000).toFixed(1)}s`;
+    result.innerHTML=renderPredictionMarketsVisual(d, limit);
+  }catch(e){
+    status.textContent=`Top ${limit} 事件加载失败`;
+    result.innerHTML=`<div class="report-placeholder" style="color:var(--red)">加载失败: ${esc(e.message)}</div>`;
+  }
+}
+
+function fmtPredictionProb(value){
+  if(value==null||value===''||isNaN(Number(value)))return'—';
+  const n=Number(value);
+  const pct=n<=1? n*100 : n;
+  return `${pct.toFixed(pct>=10?1:2)}%`;
+}
+
+function fmtDateShort(value){
+  if(!value)return'—';
+  try{
+    return new Date(value).toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
+  }catch{
+    return String(value);
+  }
+}
+
+function renderPredictionMarketsVisual(items, limit){
+  if(!items.length)return'<div class="report-placeholder">当前没有拿到活跃预测事件</div>';
+  const totalVolume24h=items.reduce((sum,item)=>sum+Number(item.volume_24h||0),0);
+  const totalLiquidity=items.reduce((sum,item)=>sum+Number(item.liquidity||0),0);
+  const avgYes=items.filter(item=>item.yes_price!=null).reduce((sum,item)=>sum+Number(item.yes_price||0),0)/(items.filter(item=>item.yes_price!=null).length||1);
+  const top=items[0]||{};
+  let h='';
+
+  h+=`<div class="verdict-box">
+    <strong>Top ${limit}</strong> 事件近 24h 累计成交额 <strong>${fmt$(totalVolume24h)}</strong>，
+    总流动性 <strong>${fmt$(totalLiquidity)}</strong>，
+    平均 Yes 概率 <strong>${fmtPredictionProb(avgYes)}</strong>。
+    当前成交最活跃的是 <strong>${esc(top.title||'—')}</strong>，
+    Yes 概率 <strong>${fmtPredictionProb(top.yes_price)}</strong>。
+  </div>`;
+
+  h+=`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin-bottom:16px">`;
+  items.slice(0,6).forEach((item,index)=>{
+    const yes=Number(item.yes_price||0);
+    const bar=Math.max(0,Math.min(100,(yes<=1?yes*100:yes)));
+    const link=item.slug?`https://polymarket.com/event/${encodeURIComponent(item.slug)}`:'';
+    h+=`<div class="b-section" style="margin-bottom:0;background:linear-gradient(180deg,rgba(28,35,51,.9),rgba(22,27,34,.96))">
+      <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;margin-bottom:8px">
+        <div style="font-size:12px;color:var(--text2)">#${index+1} · ${esc(item.category||'General')}</div>
+        <div class="badge ${bar>=60?'badge-safe':bar<=40?'badge-danger':'badge-warn'}">${fmtPredictionProb(item.yes_price)}</div>
+      </div>
+      <div style="font-size:15px;font-weight:700;line-height:1.5">${esc(item.title||'Untitled event')}</div>
+      <div style="margin-top:10px;height:8px;border-radius:999px;background:var(--surface2);overflow:hidden">
+        <div style="height:100%;width:${bar}%;background:linear-gradient(90deg,var(--accent),var(--green))"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px;font-size:12px;color:var(--text2)">
+        <div><div>24h 成交额</div><strong style="display:block;color:var(--text);margin-top:4px">${fmt$(item.volume_24h)}</strong></div>
+        <div><div>流动性</div><strong style="display:block;color:var(--text);margin-top:4px">${fmt$(item.liquidity)}</strong></div>
+        <div><div>市场数</div><strong style="display:block;color:var(--text);margin-top:4px">${fmtNum(item.market_count||0,0)}</strong></div>
+        <div><div>到期</div><strong style="display:block;color:var(--text);margin-top:4px">${fmtDateShort(item.end_date)}</strong></div>
+      </div>
+      ${link?`<div style="margin-top:12px"><a href="${link}" target="_blank" rel="noreferrer" style="font-size:12px;color:var(--accent);text-decoration:none">打开 Polymarket ↗</a></div>`:''}
+    </div>`;
+  });
+  h+=`</div>`;
+
+  h+=`<div class="b-section"><h3>🔮 活跃事件列表</h3><table>
+    <tr><th>#</th><th>事件</th><th>分类</th><th>Yes</th><th>24h成交额</th><th>流动性</th><th>市场数</th><th>到期</th></tr>`;
+  items.forEach((item,index)=>{
+    h+=`<tr>
+      <td>${index+1}</td>
+      <td style="max-width:320px"><strong>${esc(item.title||'')}</strong><div style="font-size:11px;color:var(--text2);margin-top:4px">${esc(item.slug||'')}</div></td>
+      <td>${esc(item.category||'—')}</td>
+      <td>${fmtPredictionProb(item.yes_price)}</td>
+      <td>${fmt$(item.volume_24h)}</td>
+      <td>${fmt$(item.liquidity)}</td>
+      <td>${fmtNum(item.market_count||0,0)}</td>
+      <td style="font-size:12px;color:var(--text2)">${fmtDateShort(item.end_date)}</td>
+    </tr>`;
+  });
+  h+=`</table></div>`;
+  return h;
+}
+
+function renderNewsIntelligenceEntry(){
+  const area=document.getElementById('report-area');
+  const state=getNewsIntelligenceStateFromUrl();
+  area.innerHTML=`
+    <div class="quick-launch">
+      <div class="quick-launch-title">新闻情报流</div>
+      <div class="quick-launch-sub">支持关键词搜索、情绪筛选、重要性筛选和分页浏览。数据库可用时走历史库，没库时会自动回退到 Desk3 实时流。</div>
+      <div class="quick-launch-row">
+        <input id="news-q" value="${esc(state.q)}" placeholder="搜索 ETF / 监管 / 比特币 / Trump">
+        <select id="news-lang">
+          <option value="zh"${state.lang==='zh'?' selected':''}>中文</option>
+          <option value="en"${state.lang==='en'?' selected':''}>English</option>
+          <option value="ja"${state.lang==='ja'?' selected':''}>日本語</option>
+          <option value="ko"${state.lang==='ko'?' selected':''}>한국어</option>
+        </select>
+        <select id="news-category">
+          <option value=""${!state.category?' selected':''}>全部分类</option>
+          <option value="flash"${state.category==='flash'?' selected':''}>快讯</option>
+          <option value="crypto"${state.category==='crypto'?' selected':''}>Crypto</option>
+          <option value="policy"${state.category==='policy'?' selected':''}>政策</option>
+          <option value="headlines"${state.category==='headlines'?' selected':''}>头条</option>
+        </select>
+        <select id="news-sentiment">
+          <option value=""${!state.sentiment?' selected':''}>全部情绪</option>
+          <option value="bullish"${state.sentiment==='bullish'?' selected':''}>看涨</option>
+          <option value="bearish"${state.sentiment==='bearish'?' selected':''}>看跌</option>
+          <option value="neutral"${state.sentiment==='neutral'?' selected':''}>中性</option>
+        </select>
+        <select id="news-importance">
+          <option value=""${!state.importance?' selected':''}>全部重要性</option>
+          <option value="important"${state.importance==='important'?' selected':''}>重要</option>
+          <option value="normal"${state.importance==='normal'?' selected':''}>普通</option>
+        </select>
+        <select id="news-page-size">
+          <option value="5"${state.pageSize===5?' selected':''}>5 / 页</option>
+          <option value="10"${state.pageSize===10?' selected':''}>10 / 页</option>
+          <option value="15"${state.pageSize===15?' selected':''}>15 / 页</option>
+          <option value="20"${state.pageSize===20?' selected':''}>20 / 页</option>
+        </select>
+        <button class="btn-load" onclick="loadNewsIntelligence({resetPage:true})">搜索新闻</button>
+      </div>
+      <div class="mini-tags">
+        <button onclick="applyNewsQuickFilter({category:'flash'})">快讯</button>
+        <button onclick="applyNewsQuickFilter({category:'policy'})">监管</button>
+        <button onclick="applyNewsQuickFilter({q:'ETF'})">ETF</button>
+        <button onclick="applyNewsQuickFilter({q:'Bitcoin'})">Bitcoin</button>
+        <button onclick="applyNewsQuickFilter({q:'比特币',lang:'zh'})">比特币</button>
+      </div>
+      <div class="quick-launch-row" style="margin-top:12px;align-items:center">
+        <button class="page-btn" id="news-prev-btn" onclick="changeNewsPage(-1)">上一页</button>
+        <button class="page-btn" id="news-next-btn" onclick="changeNewsPage(1)">下一页</button>
+        <span id="news-page-meta" style="font-size:12px;color:var(--text2)">第 ${state.page} 页</span>
+      </div>
+      <div id="news-status" style="font-size:12px;color:var(--text2);margin-top:12px"></div>
+    </div>
+    <div id="news-result"><div class="report-placeholder"><div class="spinner"></div>加载新闻情报中...</div></div>`;
+
+  document.getElementById('news-q').addEventListener('keydown',e=>{
+    if(e.key==='Enter')loadNewsIntelligence({resetPage:true});
+  });
+  ['news-lang','news-category','news-sentiment','news-importance','news-page-size'].forEach(id=>{
+    document.getElementById(id)?.addEventListener('change',()=>loadNewsIntelligence({resetPage:true}));
+  });
+  loadNewsIntelligence();
+}
+
+function renderOkxIntelligenceEntry(){
+  const area=document.getElementById('report-area');
+  const state=getOkxIntelligenceStateFromUrl();
+  area.innerHTML=`
+    <div class="quick-launch">
+      <div class="quick-launch-title">直接进入 OKX 市场情报台</div>
+      <div class="quick-launch-sub">把 OKX 行情结构、Funding、OI、技术指标，与 Orbit 新闻和情绪排行放到一个实时仪表盘里，适合先做单币种情报总览。</div>
+      <div class="quick-launch-row">
+        <input id="okx-intelligence-symbol" value="${state.symbol}" placeholder="BTC / ETH / DOGE / AAPL-USDT-SWAP">
+        <select id="okx-intelligence-market-type">
+          <option value="SWAP"${state.marketType==='SWAP'?' selected':''}>永续合约</option>
+          <option value="SPOT"${state.marketType==='SPOT'?' selected':''}>现货</option>
+        </select>
+        <select id="okx-intelligence-timeframe">
+          <option value="1H"${state.timeframe==='1H'?' selected':''}>1H</option>
+          <option value="4H"${state.timeframe==='4H'?' selected':''}>4H</option>
+          <option value="1D"${state.timeframe==='1D'?' selected':''}>1D</option>
+        </select>
+        <select id="okx-intelligence-language">
+          <option value="zh-CN"${state.language==='zh-CN'?' selected':''}>中文</option>
+          <option value="en-US"${state.language==='en-US'?' selected':''}>English</option>
+        </select>
+        <button class="btn-load" onclick="openOkxIntelligence()">打开情报台</button>
+      </div>
+      <div class="mini-tags">
+        <button onclick="launchOkxIntelligence('BTC','SWAP','1H')">BTC</button>
+        <button onclick="launchOkxIntelligence('ETH','SWAP','4H')">ETH</button>
+        <button onclick="launchOkxIntelligence('DOGE','SWAP','1H')">DOGE</button>
+        <button onclick="launchOkxIntelligence('AAPL-USDT-SWAP','SWAP','1D')">AAPL</button>
+      </div>
+    </div>
+    <div class="b-section">
+      <h3>🛰️ 页面能力</h3>
+      <table>
+        <tr><th>模块</th><th>说明</th></tr>
+        <tr><td>市场脉冲</td><td>把价格、订单簿、Funding、OI、价格/OI 结构和技术指标放到一张面板里</td></tr>
+        <tr><td>Orbit 新闻雷达</td><td>看币种相关新闻、关键词搜索和重要快讯，点击即可展开详情</td></tr>
+        <tr><td>情绪与热度</td><td>查看币种情绪快照、Bullish Ratio 趋势和全市场热度排行</td></tr>
+        <tr><td>静默同步</td><td>页面支持 AJAX 原位刷新和后台自动同步，不会整页跳转</td></tr>
+      </table>
+    </div>`;
+
+  const openOkxIntelligence=()=>{
+    const symbol=document.getElementById('okx-intelligence-symbol')?.value||state.symbol;
+    const marketType=document.getElementById('okx-intelligence-market-type')?.value||state.marketType;
+    const timeframe=document.getElementById('okx-intelligence-timeframe')?.value||state.timeframe;
+    const language=document.getElementById('okx-intelligence-language')?.value||state.language;
+    syncOkxIntelligenceUrl({symbol:String(symbol).trim().toUpperCase()||'BTC',marketType,timeframe,language});
+    launchOkxIntelligence(symbol,marketType,timeframe,language);
+  };
+  window.openOkxIntelligence=openOkxIntelligence;
+
+  document.getElementById('okx-intelligence-symbol')?.addEventListener('keydown',e=>{
+    if(e.key==='Enter')openOkxIntelligence();
+  });
+}
+
+function applyNewsQuickFilter({q='',category='',lang=''}={}){
+  if(q!==undefined)document.getElementById('news-q').value=q;
+  if(category!==undefined)document.getElementById('news-category').value=category;
+  if(lang)document.getElementById('news-lang').value=lang;
+  loadNewsIntelligence({resetPage:true});
+}
+
+function setNewsPagerState(pagination={}){
+  const prevBtn=document.getElementById('news-prev-btn');
+  const nextBtn=document.getElementById('news-next-btn');
+  const meta=document.getElementById('news-page-meta');
+  if(prevBtn)prevBtn.disabled=!pagination.has_prev;
+  if(nextBtn)nextBtn.disabled=!pagination.has_next;
+  if(meta){
+    const total=pagination.total;
+    const totalPages=pagination.total_pages;
+    meta.textContent=(typeof totalPages==='number'&&totalPages>0)
+      ? `第 ${pagination.page||1} / ${totalPages} 页 · 共 ${total||0} 条`
+      : `第 ${pagination.page||1} 页${typeof total==='number'&&total>0?` · 当前窗口 ${total} 条`:''}`;
+  }
+}
+
+async function loadNewsIntelligence({resetPage=false,page=null}={}){
+  const result=document.getElementById('news-result');
+  const status=document.getElementById('news-status');
+  if(!result||!status)return;
+  const state=getNewsIntelligenceStateFromUrl();
+  const nextState={
+    lang:document.getElementById('news-lang')?.value||state.lang||'zh',
+    category:document.getElementById('news-category')?.value||'',
+    sentiment:document.getElementById('news-sentiment')?.value||'',
+    importance:document.getElementById('news-importance')?.value||'',
+    q:sanitizeNewsKeyword(document.getElementById('news-q')?.value||state.q||''),
+    page:page|| (resetPage?1:state.page||1),
+    pageSize:Math.max(5,Math.min(20,Number(document.getElementById('news-page-size')?.value||state.pageSize||10))),
+  };
+  syncNewsIntelligenceUrl(nextState);
+  setNewsPagerState({page:nextState.page,has_prev:false,has_next:false,total_pages:null,total:null});
+  result.innerHTML='<div class="report-placeholder"><div class="spinner"></div>加载新闻情报中...</div>';
+  status.textContent=`正在加载 ${nextState.lang.toUpperCase()} 新闻 · 第 ${nextState.page} 页`;
+  const t0=Date.now();
+  try{
+    const params=new URLSearchParams();
+    params.set('language',nextState.lang);
+    params.set('page',String(nextState.page));
+    params.set('page_size',String(nextState.pageSize));
+    if(nextState.category)params.set('category',nextState.category);
+    if(nextState.sentiment)params.set('sentiment',nextState.sentiment);
+    if(nextState.importance)params.set('importance',nextState.importance);
+    if(nextState.q)params.set('q',nextState.q);
+    const r=await fetch(`${API}/news/history?${params.toString()}`);
+    const d=await r.json();
+    if(!r.ok)throw new Error(d.error||`HTTP ${r.status}`);
+    const pagination=d.pagination||{page:nextState.page,page_size:nextState.pageSize,has_prev:false,has_next:false};
+    syncNewsIntelligenceUrl({
+      ...nextState,
+      page:pagination.page||nextState.page,
+      pageSize:pagination.page_size||nextState.pageSize,
+    });
+    setNewsPagerState(pagination);
+    const sourceLabel=d.source_mode==='database'?'历史库':'Desk3 实时流';
+    status.textContent=`${sourceLabel} 已更新，用时 ${((Date.now()-t0)/1000).toFixed(1)}s`;
+    result.innerHTML=renderNewsIntelligenceVisual(d);
+  }catch(e){
+    setNewsPagerState({page:nextState.page,has_prev:false,has_next:false,total_pages:null,total:null});
+    status.textContent=`新闻情报加载失败`;
+    result.innerHTML=`<div class="report-placeholder" style="color:var(--red)">加载失败: ${esc(e.message)}</div>`;
+  }
+}
+
+function changeNewsPage(delta){
+  const state=getNewsIntelligenceStateFromUrl();
+  const next=Math.max(1,(state.page||1)+delta);
+  if(next===state.page)return;
+  loadNewsIntelligence({page:next});
+}
+
+function renderNewsIntelligenceVisual(payload){
+  const items=Array.isArray(payload?.items)?payload.items:[];
+  const pagination=payload?.pagination||{};
+  const sourceMode=payload?.source_mode==='database'?'历史数据库':'Desk3 实时流';
+  const dbNote=payload?.db_available===false
+    ? '当前未连接数据库，已自动回退到实时新闻流；关键词和情绪筛选会基于当前抓取窗口生效。'
+    : '当前结果来自历史新闻库，可以做分页和全文检索。';
+  let h=`<div class="verdict-box">
+    <strong>${sourceMode}</strong> 当前返回 <strong>${items.length}</strong> 条新闻，
+    页码 <strong>${pagination.page||1}</strong>${typeof pagination.total_pages==='number'&&pagination.total_pages>0?` / <strong>${pagination.total_pages}</strong>`:''}。
+    ${payload?.warning?`<br><span style="color:var(--orange)">${esc(payload.warning)}</span>`:`<br><span style="color:var(--text2)">${esc(dbNote)}</span>`}
+  </div>`;
+
+  if(!items.length){
+    h+=`<div class="b-section"><div class="report-placeholder" style="padding:32px 16px">
+      <div style="font-size:16px;color:var(--text)">当前筛选下没有新闻结果</div>
+      <div style="font-size:12px;color:var(--text2);margin-top:8px">可以试试切换语言、分类或清空关键词。</div>
+    </div></div>`;
+    return h;
+  }
+
+  h+=`<div class="b-section"><h3>📰 新闻列表</h3><div class="news-stack">`;
+  items.forEach((item,idx)=>{
+    const sentiment=item.sentiment||'neutral';
+    const sIcon={bullish:'🟢',bearish:'🔴',neutral:'⚪'}[sentiment]||'⚪';
+    const sLbl={bullish:'看涨',bearish:'看跌',neutral:'中性'}[sentiment]||'中性';
+    const sCls={bullish:'badge-bullish',bearish:'badge-bearish',neutral:'badge-neutral'}[sentiment]||'badge-neutral';
+    const importance=item.importance==='important'
+      ? '<span class="badge badge-important">重要</span>'
+      : '<span class="badge badge-neutral">普通</span>';
+    const storedAt=item.stored_at||item.published_at;
+    const time=storedAt?new Date(storedAt).toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}):'—';
+    const excerpt=item.excerpt||item.content||'';
+    const sourceParts=[item.source||'desk3',item.category||'uncategorized',(item.language||'').toUpperCase()].filter(Boolean);
+    h+=`<article class="news-card">
+      <div class="news-card-meta">
+        <span class="badge badge-neutral">#${((pagination.page||1)-1)*(pagination.page_size||items.length)+idx+1}</span>
+        <span class="badge ${sCls}">${sIcon} ${sLbl}</span>
+        ${importance}
+      </div>
+      <div class="news-card-title" style="margin-top:12px">${esc(item.title||'Untitled')}</div>
+      ${excerpt?`<div class="news-card-excerpt">${esc(excerpt)}</div>`:''}
+      <div class="news-card-foot">
+        <div>${esc(sourceParts.join(' · '))} · ${esc(time)}</div>
+        ${item.url?`<a href="${esc(item.url)}" target="_blank" rel="noreferrer" style="color:var(--accent);text-decoration:none">查看原文 ↗</a>`:''}
+      </div>
+    </article>`;
+  });
+  h+=`</div></div>`;
+  return h;
+}
+
 async function initSurfPro(){
   try{
     const modsR=await fetch(`${API}/skills/surf-pro`);
@@ -307,6 +1116,9 @@ function renderSurfModules(mods){
   mods.forEach((m,i)=>{
     const freeTag=m.free_alt?`<div style="font-size:11px;color:var(--green);margin-top:6px">✅ ${m.free_alt}</div>`:'';
     const feats=m.features_zh||[];
+    const isPredictionAdvanced=m.id==='prediction-advanced';
+    const actionLabel=isPredictionAdvanced?'打开仪表盘 →':'查看功能详情 →';
+    const actionHandler=isPredictionAdvanced?`launchPredictionAdvanced(10)`: `openSurfFeature('${m.id}')`;
     h+=`<div class="b-section" style="cursor:pointer;transition:border-color .2s" onclick="this.querySelector('.mod-detail').style.display=this.querySelector('.mod-detail').style.display==='none'?'block':'none'" onmouseenter="this.style.borderColor='var(--purple)'" onmouseleave="this.style.borderColor='var(--border)'">
       <div style="display:flex;align-items:center;gap:12px;justify-content:space-between">
         <div style="display:flex;align-items:center;gap:12px">
@@ -325,7 +1137,7 @@ function renderSurfModules(mods){
         <div style="display:flex;flex-wrap:wrap;gap:8px">
           ${feats.map(f=>`<span style="font-size:12px;padding:4px 10px;border-radius:6px;background:var(--surface2);color:var(--text)">${f}</span>`).join('')}
         </div>
-        <div style="margin-top:10px"><button onclick="event.stopPropagation();openSurfFeature('${m.id}')" class="btn-load" style="padding:6px 16px;border-radius:8px;border:none;cursor:pointer;font-size:12px;font-weight:600">查看功能详情 →</button></div>
+        <div style="margin-top:10px"><button onclick="event.stopPropagation();${actionHandler}" class="btn-load" style="padding:6px 16px;border-radius:8px;border:none;cursor:pointer;font-size:12px;font-weight:600">${actionLabel}</button></div>
       </div>
     </div>`;
   });
@@ -333,6 +1145,10 @@ function renderSurfModules(mods){
 }
 
 function openSurfFeature(modId){
+  if(modId==='prediction-advanced'){
+    launchPredictionAdvanced(10);
+    return;
+  }
   const feats=SKILL_FEATURES[modId];
   if(feats){
     window._features=feats;
@@ -457,6 +1273,70 @@ function renderInfo(){
           <button class="btn-load" onclick="openOISignal(document.getElementById('oi-launch-inline-symbol').value,document.getElementById('oi-launch-inline-timeframe').value)">打开分析页</button>
         </div>
       </div>`
+    : skill.id==='btc-quant-predictor'
+    ? `<div class="quick-launch" style="margin-top:0">
+        <div class="quick-launch-title">短线预测页已改成页内交互</div>
+        <div class="quick-launch-sub">现在不会再弹浏览器原生输入框，直接在当前页输入币种和周期就能刷新结果。</div>
+        <div class="quick-launch-row">
+          <input id="btc-predict-inline-symbol" value="BTC" placeholder="BTC / ETH / SOL / AAVE">
+          <select id="btc-predict-inline-interval">
+            <option value="5m">5m</option>
+            <option value="15m" selected>15m</option>
+            <option value="1h">1h</option>
+            <option value="4h">4h</option>
+          </select>
+          <button class="btn-load" onclick="launchBtcQuantPredictor(document.getElementById('btc-predict-inline-symbol').value,document.getElementById('btc-predict-inline-interval').value)">打开预测页</button>
+        </div>
+      </div>`
+    : skill.id==='defi-yield-scanner'
+    ? `<div class="quick-launch" style="margin-top:0">
+        <div class="quick-launch-title">收益扫描器支持直接打开仪表盘</div>
+        <div class="quick-launch-sub">先选链和最低 APY，再跳到完整收益扫描页查看机会卡片、链分布和完整表格。</div>
+        <div class="quick-launch-row">
+          <select id="yield-launch-inline-chain">
+            <option value="">All Chains</option>
+            <option value="Ethereum">Ethereum</option>
+            <option value="Arbitrum">Arbitrum</option>
+            <option value="Base">Base</option>
+            <option value="BNB Chain">BNB Chain</option>
+            <option value="Solana">Solana</option>
+          </select>
+          <input id="yield-launch-inline-symbol" placeholder="ETH / USDC / BTC">
+          <input id="yield-launch-inline-min-apy" type="number" min="0" step="0.1" value="5" placeholder="Min APY">
+          <button class="btn-load" onclick="openDefiYieldScanner({chain:document.getElementById('yield-launch-inline-chain').value,symbol:document.getElementById('yield-launch-inline-symbol').value,minApy:document.getElementById('yield-launch-inline-min-apy').value})">打开分析页</button>
+        </div>
+      </div>`
+    : skill.id==='prediction-markets'
+    ? `<div class="quick-launch" style="margin-top:0">
+        <div class="quick-launch-title">预测市场支持事件热度扫描</div>
+        <div class="quick-launch-sub">按 24h 成交量查看 Polymarket 热门事件，快速判断当前最受关注的话题和隐含概率。</div>
+        <div class="quick-launch-row">
+          <select id="prediction-inline-limit">
+            <option value="5">Top 5</option>
+            <option value="10" selected>Top 10</option>
+            <option value="20">Top 20</option>
+          </select>
+          <button class="btn-load" onclick="launchPredictionMarkets(document.getElementById('prediction-inline-limit').value)">打开事件页</button>
+        </div>
+      </div>`
+    : skill.id==='okx-intelligence'
+    ? `<div class="quick-launch" style="margin-top:0">
+        <div class="quick-launch-title">OKX 情报台支持直接打开</div>
+        <div class="quick-launch-sub">输入币种、切换现货/永续和周期后，直接跳到 OKX 行情 + 新闻 + 情绪一体仪表盘。</div>
+        <div class="quick-launch-row">
+          <input id="okx-inline-symbol" value="BTC" placeholder="BTC / ETH / DOGE / AAPL-USDT-SWAP">
+          <select id="okx-inline-market-type">
+            <option value="SWAP" selected>永续</option>
+            <option value="SPOT">现货</option>
+          </select>
+          <select id="okx-inline-timeframe">
+            <option value="1H" selected>1H</option>
+            <option value="4H">4H</option>
+            <option value="1D">1D</option>
+          </select>
+          <button class="btn-load" onclick="launchOkxIntelligence(document.getElementById('okx-inline-symbol').value,document.getElementById('okx-inline-market-type').value,document.getElementById('okx-inline-timeframe').value)">打开情报台</button>
+        </div>
+      </div>`
     : '';
   document.getElementById('skill-info').innerHTML=`
     <div class="skill-header"><div class="skill-icon">${skill.icon}</div>
@@ -494,8 +1374,11 @@ async function loadReport(){
         area.innerHTML=`<div class="report-json">${esc(JSON.stringify(d,null,2))}</div>`;
       }
     }else if(skill.id==='btc-quant-predictor'){
-      const sym=prompt('输入币种符号 (默认 BTC)','BTC')||'BTC';
-      const r=await fetch(`${API}/analysis/btc-predict?symbol=${sym}&interval=15m&limit=50`);
+      const state=getBtcPredictStateFromUrl();
+      const sym=state.symbol||'BTC';
+      const interval=state.interval||'15m';
+      const limit=state.limit||50;
+      const r=await fetch(`${API}/analysis/btc-predict?symbol=${sym}&interval=${interval}&limit=${limit}`);
       const d=await r.json();
       document.getElementById('load-time').textContent=((Date.now()-t0)/1000).toFixed(1)+'s';
       if(d.error){area.innerHTML=`<div class="report-placeholder" style="color:var(--red)">${esc(d.error)}</div>`;return}
@@ -503,10 +1386,19 @@ async function loadReport(){
       else if(fmt==='text')area.innerHTML=`<div class="report-text">${renderBtcPredictText(d)}</div>`;
       else area.innerHTML=`<div class="report-json">${esc(JSON.stringify(d,null,2))}</div>`;
     }else if(skill.id==='news-sentiment'){
-      const r=await fetch(`${API}/news/history?language=${lang}&limit=30`);
+      const state=getNewsIntelligenceStateFromUrl();
+      const params=new URLSearchParams();
+      params.set('language',state.lang||lang);
+      params.set('page',String(state.page||1));
+      params.set('page_size',String(state.pageSize||10));
+      if(state.category)params.set('category',state.category);
+      if(state.sentiment)params.set('sentiment',state.sentiment);
+      if(state.importance)params.set('importance',state.importance);
+      if(state.q)params.set('q',state.q);
+      const r=await fetch(`${API}/news/history?${params.toString()}`);
       const d=await r.json();
       document.getElementById('load-time').textContent=((Date.now()-t0)/1000).toFixed(1)+'s';
-      if(fmt==='visual')area.innerHTML=renderNewsVisual(d);
+      if(fmt==='visual')area.innerHTML=Array.isArray(d)?renderNewsVisual(d):renderNewsIntelligenceVisual(d);
       else area.innerHTML=`<div class="report-json">${esc(JSON.stringify(d,null,2))}</div>`;
     }else{
       const r=await fetch(BASE+skill.api_endpoint);

@@ -95,3 +95,18 @@ async def briefing_page():
 @app.get("/oi-signal")
 async def oi_signal_page():
     return FileResponse(str(STATIC_DIR / "oi-signal.html"))
+
+
+@app.get("/defi-yield-scanner")
+async def defi_yield_scanner_page():
+    return FileResponse(str(STATIC_DIR / "defi-yield-scanner.html"))
+
+
+@app.get("/prediction-advanced")
+async def prediction_advanced_page():
+    return FileResponse(str(STATIC_DIR / "prediction-advanced.html"))
+
+
+@app.get("/okx-intelligence")
+async def okx_intelligence_page():
+    return FileResponse(str(STATIC_DIR / "okx-intelligence.html"))

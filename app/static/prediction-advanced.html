@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>预测市场高级版 - BitInfo</title>
+<style>
+:root{
+  --bg:#081018;
+  --panel:#111a24;
+  --panel-2:#182331;
+  --panel-3:#223247;
+  --line:#30465f;
+  --text:#edf5fb;
+  --muted:#8fa5b9;
+  --cyan:#61d9ff;
+  --green:#59d98c;
+  --amber:#ffcb68;
+  --orange:#ff9457;
+  --red:#ff6f78;
+  --violet:#9aa6ff;
+  --shadow:0 24px 50px rgba(0,0,0,.28);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;
+  color:var(--text);
+  font:14px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Helvetica Neue",sans-serif;
+  background:
+    radial-gradient(circle at 10% 10%, rgba(97,217,255,.12), transparent 18%),
+    radial-gradient(circle at 82% 8%, rgba(255,203,104,.11), transparent 20%),
+    linear-gradient(180deg, #071018 0%, #0a1320 44%, #0a121d 100%);
+}
+a{color:inherit}
+.page{max-width:1360px;margin:0 auto;padding:28px 20px 56px}
+.hero{
+  position:relative;
+  overflow:hidden;
+  border-radius:28px;
+  border:1px solid rgba(97,217,255,.16);
+  background:linear-gradient(135deg, rgba(11,19,27,.96), rgba(14,27,39,.92));
+  box-shadow:var(--shadow);
+  padding:28px;
+}
+.hero:before{
+  content:"";
+  position:absolute;
+  right:-70px;
+  top:-70px;
+  width:260px;
+  height:260px;
+  border-radius:50%;
+  background:radial-gradient(circle, rgba(97,217,255,.16), transparent 68%);
+  pointer-events:none;
+}
+.hero-grid{position:relative;display:grid;grid-template-columns:1.2fr .8fr;gap:20px}
+.back-link{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:8px 14px;
+  border-radius:999px;
+  text-decoration:none;
+  border:1px solid var(--line);
+  color:var(--muted);
+  background:rgba(255,255,255,.03);
+}
+.back-link:hover{color:var(--text);border-color:var(--cyan)}
+.eyebrow{
+  margin-top:14px;
+  font-size:12px;
+  letter-spacing:.18em;
+  text-transform:uppercase;
+  color:var(--cyan);
+}
+.hero h1{
+  margin:10px 0 10px;
+  font-size:40px;
+  line-height:1.02;
+  letter-spacing:-.04em;
+}
+.hero p{margin:0;max-width:760px;color:var(--muted);font-size:15px}
+.hero-pills{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}
+.pill{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:8px 12px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.08);
+  background:rgba(255,255,255,.03);
+  color:var(--muted);
+  font-size:12px;
+}
+.hero-side{display:grid;gap:12px}
+.hero-note{
+  border-radius:20px;
+  border:1px solid rgba(255,255,255,.06);
+  background:rgba(255,255,255,.03);
+  padding:18px;
+}
+.hero-note .title{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.hero-note .value{margin-top:10px;font-size:28px;font-weight:700;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.hero-note .sub{margin-top:8px;font-size:12px;line-height:1.7;color:var(--muted)}
+.dock{
+  display:grid;
+  grid-template-columns:1fr .9fr .9fr .9fr;
+  gap:16px;
+  margin-top:20px;
+}
+.dock-card{
+  border-radius:22px;
+  border:1px solid rgba(255,255,255,.06);
+  background:linear-gradient(180deg, rgba(17,26,36,.96), rgba(15,22,31,.94));
+  padding:16px 18px;
+  box-shadow:var(--shadow);
+}
+.dock-label{
+  color:var(--muted);
+  font-size:12px;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  margin-bottom:10px;
+}
+.filter-select,.button{
+  width:100%;
+  border-radius:14px;
+  border:1px solid var(--line);
+  background:rgba(255,255,255,.03);
+  color:var(--text);
+  padding:11px 12px;
+  font:inherit;
+}
+.button{
+  cursor:pointer;
+  transition:.2s ease;
+}
+.button.primary{
+  color:#081018;
+  font-weight:800;
+  border-color:transparent;
+  background:linear-gradient(135deg, var(--cyan), #7ebeff);
+  box-shadow:0 14px 28px rgba(97,217,255,.2);
+}
+.button:hover{transform:translateY(-1px)}
+.status{margin-top:10px;min-height:18px;font-size:12px;color:var(--muted)}
+.status.error{color:var(--orange)}
+.summary-grid{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:14px;
+  margin-top:18px;
+}
+.metric{
+  border-radius:18px;
+  border:1px solid rgba(255,255,255,.06);
+  background:linear-gradient(180deg, rgba(17,26,36,.96), rgba(15,22,31,.94));
+  padding:16px;
+  box-shadow:var(--shadow);
+}
+.metric-label{font-size:12px;color:var(--muted);margin-bottom:8px}
+.metric-value{font-size:30px;font-weight:700;line-height:1.05;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.metric-sub{margin-top:8px;font-size:12px;line-height:1.65;color:var(--muted)}
+.stack{display:grid;gap:18px;margin-top:18px}
+.panel{
+  border-radius:24px;
+  border:1px solid rgba(255,255,255,.06);
+  background:linear-gradient(180deg, rgba(17,26,36,.96), rgba(15,22,31,.94));
+  box-shadow:var(--shadow);
+}
+.panel-head{
+  display:flex;
+  justify-content:space-between;
+  gap:16px;
+  align-items:flex-start;
+  padding:20px 22px 0;
+}
+.panel-title{margin:0;font-size:16px;font-weight:700}
+.panel-sub{margin-top:6px;font-size:12px;color:var(--muted)}
+.panel-body{padding:18px 22px 22px}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.event-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.event-card{
+  position:relative;
+  overflow:hidden;
+  border-radius:20px;
+  border:1px solid rgba(255,255,255,.06);
+  background:linear-gradient(135deg, rgba(24,35,49,.98), rgba(16,25,34,.96));
+  padding:16px;
+}
+.event-card:before{
+  content:"";
+  position:absolute;
+  inset:auto -28px -40px auto;
+  width:140px;
+  height:140px;
+  border-radius:50%;
+  background:radial-gradient(circle, rgba(255,203,104,.12), transparent 68%);
+  pointer-events:none;
+}
+.card-top{
+  position:relative;
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  align-items:flex-start;
+}
+.card-title{font-size:16px;font-weight:700;line-height:1.45}
+.card-sub{margin-top:4px;font-size:12px;color:var(--muted)}
+.badge{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:6px 10px;
+  border-radius:999px;
+  font-size:11px;
+  border:1px solid rgba(255,255,255,.06);
+  background:rgba(255,255,255,.04);
+}
+.bar-wrap{margin-top:14px;height:10px;border-radius:999px;overflow:hidden;background:#223247}
+.bar{height:100%;border-radius:999px;background:linear-gradient(90deg,var(--cyan),var(--green))}
+.card-meta{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+  margin-top:14px;
+}
+.mini{
+  border-radius:16px;
+  border:1px solid rgba(255,255,255,.05);
+  background:rgba(255,255,255,.03);
+  padding:12px;
+}
+.mini .label{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.mini .value{margin-top:7px;font-size:18px;font-weight:700;font-variant-numeric:tabular-nums}
+.note-list{display:grid;gap:10px}
+.note{
+  border-left:3px solid var(--amber);
+  border-radius:0 12px 12px 0;
+  background:rgba(255,203,104,.08);
+  padding:10px 12px;
+  color:#ebf4f9;
+  font-size:13px;
+}
+.table-wrap{overflow:auto}
+table{width:100%;border-collapse:collapse}
+th,td{padding:12px 10px;text-align:left;font-size:13px;vertical-align:top}
+thead th{font-size:12px;color:var(--muted);font-weight:600;border-bottom:1px solid rgba(255,255,255,.08)}
+tbody tr{border-bottom:1px solid rgba(255,255,255,.05)}
+tbody tr:last-child{border-bottom:none}
+.mono{font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+.good{color:var(--green)}
+.warn{color:var(--amber)}
+.danger{color:var(--red)}
+.loading,.empty{
+  min-height:260px;
+  border-radius:22px;
+  border:1px dashed rgba(255,255,255,.08);
+  background:rgba(255,255,255,.02);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:var(--muted);
+}
+.footer-note{margin-top:20px;text-align:center;font-size:12px;color:var(--muted)}
+@media (max-width:1180px){
+  .hero-grid,.dock,.summary-grid,.event-grid,.grid-2{grid-template-columns:1fr 1fr}
+}
+@media (max-width:860px){
+  .hero-grid,.dock,.summary-grid,.event-grid,.grid-2{grid-template-columns:1fr}
+  .hero h1{font-size:34px}
+}
+</style>
+</head>
+<body>
+<div class="page">
+  <section class="hero">
+    <div class="hero-grid">
+      <div>
+        <a class="back-link" id="back-link" href="/skill?id=surf-pro">← 返回 Surf Pro 模块</a>
+        <div class="eyebrow">Prediction Advanced</div>
+        <h1>预测市场高级版仪表盘</h1>
+        <p>把 Polymarket、Kalshi、跨平台配对、聪明资金和市场分析聚到一个页面里。页面会并行加载多条 Surf 端点，哪怕部分数据暂时为空，也尽量把其余模块正常展示出来。</p>
+        <div class="hero-pills">
+          <span class="pill" id="updated-pill">等待加载</span>
+          <span class="pill" id="filter-pill">Top 10</span>
+          <span class="pill" id="coverage-pill">多平台覆盖</span>
+        </div>
+      </div>
+      <div class="hero-side">
+        <div class="hero-note">
+          <div class="title">当前聚焦</div>
+          <div class="value" id="focus-title">等待加载</div>
+          <div class="sub" id="focus-sub">先抓活跃事件，再看跨平台分歧和聪明资金是否在加码。</div>
+        </div>
+        <div class="hero-note">
+          <div class="title">页面说明</div>
+          <div class="sub">Polymarket 热门事件使用免费 Gamma API，Kalshi / 跨平台 / 聪明资金 / 分析部分来自 Surf CLI。如果某些卡片空白，通常意味着对应高级数据当前不可用，而不是整页失败。</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dock">
+      <div class="dock-card">
+        <div class="dock-label">样本规模</div>
+        <select class="filter-select" id="limit-input">
+          <option value="5">Top 5</option>
+          <option value="10" selected>Top 10</option>
+          <option value="20">Top 20</option>
+          <option value="30">Top 30</option>
+        </select>
+        <div class="status" id="status-line"></div>
+      </div>
+      <div class="dock-card">
+        <div class="dock-label">操作</div>
+        <button class="button primary" id="refresh-button">刷新仪表盘</button>
+      </div>
+      <div class="dock-card">
+        <div class="dock-label">模块状态</div>
+        <div class="status" id="module-line">等待抓取</div>
+      </div>
+      <div class="dock-card">
+        <div class="dock-label">来源</div>
+        <div class="status">Polymarket Gamma + Surf CLI</div>
+      </div>
+    </div>
+  </section>
+
+  <div id="app" class="stack">
+    <div class="loading">正在加载预测市场高级版仪表盘...</div>
+  </div>
+</div>
+
+<script>
+const BASE = location.pathname.replace(/\/(skill|daily|briefing|oi-signal|defi-yield-scanner|prediction-advanced)?\s*$/, '').replace(/\/+$/, '');
+const API = BASE + '/api/v1';
+
+let currentLimit = Math.max(5, Math.min(30, Number(new URLSearchParams(location.search).get('limit') || 10)));
+let latestRequestId = 0;
+
+document.getElementById('back-link').href = BASE + '/skill?id=surf-pro';
+
+function esc(value){
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function fmtUsd(value){
+  if (value == null || Number.isNaN(Number(value))) return '-';
+  const n = Number(value);
+  const abs = Math.abs(n);
+  if (abs >= 1e12) return '$' + (n / 1e12).toFixed(2) + 'T';
+  if (abs >= 1e9) return '$' + (n / 1e9).toFixed(2) + 'B';
+  if (abs >= 1e6) return '$' + (n / 1e6).toFixed(2) + 'M';
+  if (abs >= 1e3) return '$' + (n / 1e3).toFixed(2) + 'K';
+  return '$' + n.toLocaleString('en-US', {maximumFractionDigits: n < 1 ? 6 : 2});
+}
+
+function fmtNum(value, digits = 2){
+  if (value == null || Number.isNaN(Number(value))) return '-';
+  return Number(value).toLocaleString('en-US', {maximumFractionDigits: digits});
+}
+
+function fmtProb(value){
+  if (value == null || value === '' || Number.isNaN(Number(value))) return '-';
+  const numeric = Number(value);
+  const pct = numeric <= 1 ? numeric * 100 : numeric;
+  return pct.toFixed(pct >= 10 ? 1 : 2) + '%';
+}
+
+function fmtDate(value){
+  if (!value) return '-';
+  try {
+    return new Date(value).toLocaleString('zh-CN', {month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit'});
+  } catch {
+    return String(value);
+  }
+}
+
+function setStatus(message, error = false){
+  const line = document.getElementById('status-line');
+  line.textContent = message || '';
+  line.classList.toggle('error', Boolean(message && error));
+}
+
+function syncInputs(){
+  document.getElementById('limit-input').value = String(currentLimit);
+}
+
+function syncUrl(mode = 'replace'){
+  const params = new URLSearchParams(location.search);
+  params.set('limit', String(currentLimit));
+  const url = `${location.pathname}?${params.toString()}`;
+  if (mode === 'push' && url !== `${location.pathname}${location.search}`) {
+    history.pushState({limit: currentLimit}, '', url);
+  } else {
+    history.replaceState({limit: currentLimit}, '', url);
+  }
+}
+
+function pick(obj, keys, fallback = null){
+  if (!obj || typeof obj !== 'object') return fallback;
+  for (const key of keys) {
+    if (obj[key] != null && obj[key] !== '') return obj[key];
+  }
+  return fallback;
+}
+
+function pickNumber(obj, keys){
+  const value = pick(obj, keys, null);
+  return value == null || Number.isNaN(Number(value)) ? null : Number(value);
+}
+
+function extractTitle(item){
+  return pick(item, ['title', 'question', 'name', 'event_title', 'eventTitle', 'market', 'market_title', 'marketTitle', 'slug'], 'Untitled');
+}
+
+function extractSub(item){
+  return pick(item, ['slug', 'subtitle', 'description', 'market_id', 'event_id', 'ticker'], '');
+}
+
+function extractProbability(item){
+  return pickNumber(item, ['yes_price', 'yesPrice', 'probability', 'yes_probability', 'yesProbability', 'prob_yes', 'price', 'last_price']);
+}
+
+function extractVolume(item){
+  return pickNumber(item, ['volume_24h', 'volume24h', 'daily_volume', 'dailyVolume', 'volume', 'total_volume', 'totalVolume']);
+}
+
+function extractLiquidity(item){
+  return pickNumber(item, ['liquidity', 'liquidity_usd', 'liquidityUsd', 'open_interest', 'openInterest', 'oi']);
+}
+
+function extractDate(item){
+  return pick(item, ['end_date', 'endDate', 'close_date', 'closeDate', 'expiry', 'expiry_time', 'resolve_time', 'resolution_date'], null);
+}
+
+function extractCategory(item){
+  return pick(item, ['category', 'sector', 'theme', 'tag', 'market_type', 'marketType'], 'General');
+}
+
+function normalizePolymarketEvent(item){
+  return {
+    title: extractTitle(item),
+    subtitle: extractSub(item),
+    probability: extractProbability(item),
+    volume: extractVolume(item),
+    liquidity: extractLiquidity(item),
+    category: extractCategory(item),
+    date: extractDate(item),
+    count: pickNumber(item, ['market_count', 'marketCount']),
+    slug: pick(item, ['slug'], ''),
+  };
+}
+
+function normalizeKalshiEvent(item){
+  return {
+    title: extractTitle(item),
+    subtitle: extractSub(item),
+    probability: extractProbability(item),
+    volume: extractVolume(item),
+    liquidity: extractLiquidity(item),
+    category: extractCategory(item),
+    date: extractDate(item),
+    count: pickNumber(item, ['market_count', 'marketCount', 'markets_count']),
+    ticker: pick(item, ['ticker', 'market_ticker'], ''),
+  };
+}
+
+function normalizeSmartMoney(item){
+  return {
+    name: pick(item, ['name', 'wallet', 'address', 'trader', 'account'], 'Unknown'),
+    market: pick(item, ['market', 'question', 'title', 'event'], ''),
+    side: pick(item, ['side', 'position_side', 'bias', 'direction'], ''),
+    value: pickNumber(item, ['value', 'amount', 'size', 'notional', 'volume', 'pnl']),
+    change: pickNumber(item, ['change', 'delta', 'netflow', 'pnl_change', 'roi']),
+  };
+}
+
+function normalizePair(item){
+  return {
+    title: pick(item, ['title', 'question', 'market', 'event', 'pair_name'], 'Pair'),
+    polymarket: pick(item, ['polymarket', 'polymarket_title', 'polymarket_market', 'left_market'], ''),
+    kalshi: pick(item, ['kalshi', 'kalshi_title', 'kalshi_market', 'right_market'], ''),
+    spread: pickNumber(item, ['spread', 'edge', 'difference', 'diff', 'price_gap']),
+    score: pickNumber(item, ['score', 'confidence', 'match_score']),
+  };
+}
+
+function normalizeAnalytics(item){
+  return {
+    title: pick(item, ['title', 'name', 'metric', 'market', 'question'], 'Metric'),
+    primary: pick(item, ['summary', 'signal', 'view', 'note', 'description'], ''),
+    value: pickNumber(item, ['value', 'score', 'probability', 'change', 'correlation']),
+    extra: pick(item, ['category', 'timeframe', 'platform', 'asset'], ''),
+  };
+}
+
+function buildNotes(dataset){
+  const notes = [];
+  if (dataset.polymarket.length) {
+    const top = normalizePolymarketEvent(dataset.polymarket[0]);
+    notes.push(`Polymarket 当前最活跃事件是 ${top.title}，24h 成交额约 ${fmtUsd(top.volume)}。`);
+  }
+  if (dataset.kalshi.length) {
+    const top = normalizeKalshiEvent(dataset.kalshi[0]);
+    notes.push(`Kalshi 当前最活跃事件是 ${top.title}，流动性约 ${fmtUsd(top.liquidity)}。`);
+  }
+  if (dataset.pairs.length) {
+    const pair = normalizePair(dataset.pairs[0]);
+    notes.push(`跨平台配对里排在前面的项目是 ${pair.title}，适合继续查看平台间概率差。`);
+  }
+  if (dataset.smartMoney.length) {
+    notes.push(`聪明资金模块已返回 ${dataset.smartMoney.length} 条记录，可以继续沿着钱包或事件追踪。`);
+  }
+  if (!notes.length) {
+    notes.push('高级数据模块当前返回较少，常见原因是 Surf CLI 未安装、无授权或当下没有可用样本。');
+  }
+  return notes;
+}
+
+function renderEventCards(items, normalizer, emptyText, platformLabel){
+  if (!items.length) return `<div class="empty">${emptyText}</div>`;
+  return `<div class="event-grid">${items.slice(0, 6).map((raw, index) => {
+    const item = normalizer(raw);
+    const bar = item.probability == null ? 0 : Math.max(0, Math.min(100, item.probability <= 1 ? item.probability * 100 : item.probability));
+    const badgeClass = bar >= 60 ? 'good' : bar <= 40 ? 'danger' : 'warn';
+    const link = platformLabel === 'Polymarket' && item.slug ? `https://polymarket.com/event/${encodeURIComponent(item.slug)}` : '';
+    return `
+      <article class="event-card">
+        <div class="card-top">
+          <div>
+            <div class="card-sub">#${index + 1} · ${esc(platformLabel)} · ${esc(item.category || 'General')}</div>
+            <div class="card-title">${esc(item.title)}</div>
+            <div class="card-sub">${esc(item.subtitle || '')}</div>
+          </div>
+          <div class="badge ${badgeClass}">${fmtProb(item.probability)}</div>
+        </div>
+        <div class="bar-wrap"><div class="bar" style="width:${bar}%"></div></div>
+        <div class="card-meta">
+          <div class="mini"><div class="label">24h 成交额</div><div class="value">${fmtUsd(item.volume)}</div></div>
+          <div class="mini"><div class="label">流动性</div><div class="value">${fmtUsd(item.liquidity)}</div></div>
+          <div class="mini"><div class="label">市场数</div><div class="value">${fmtNum(item.count || 0, 0)}</div></div>
+          <div class="mini"><div class="label">到期</div><div class="value" style="font-size:15px">${fmtDate(item.date)}</div></div>
+        </div>
+        ${link ? `<div style="margin-top:12px"><a href="${link}" target="_blank" rel="noreferrer" style="font-size:12px;color:var(--cyan);text-decoration:none">打开 ${platformLabel} ↗</a></div>` : ''}
+      </article>
+    `;
+  }).join('')}</div>`;
+}
+
+function renderPairsTable(items){
+  if (!items.length) return '<div class="empty" style="min-height:180px">跨平台配对当前没有可用样本</div>';
+  return `
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>主题</th>
+            <th>Polymarket</th>
+            <th>Kalshi</th>
+            <th>差值</th>
+            <th>匹配分</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${items.slice(0, 10).map((raw, index) => {
+            const item = normalizePair(raw);
+            return `
+              <tr>
+                <td class="mono">${index + 1}</td>
+                <td><strong>${esc(item.title)}</strong></td>
+                <td>${esc(item.polymarket || '-')}</td>
+                <td>${esc(item.kalshi || '-')}</td>
+                <td class="mono">${item.spread == null ? '-' : fmtNum(item.spread, 2)}</td>
+                <td class="mono">${item.score == null ? '-' : fmtNum(item.score, 1)}</td>
+              </tr>
+            `;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderSmartMoney(items){
+  if (!items.length) return '<div class="empty" style="min-height:180px">聪明资金数据当前不可用</div>';
+  return `
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>账户 / 钱包</th>
+            <th>事件 / 市场</th>
+            <th>方向</th>
+            <th>金额</th>
+            <th>变化</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${items.slice(0, 12).map((raw, index) => {
+            const item = normalizeSmartMoney(raw);
+            return `
+              <tr>
+                <td class="mono">${index + 1}</td>
+                <td><strong>${esc(item.name)}</strong></td>
+                <td>${esc(item.market || '-')}</td>
+                <td>${esc(item.side || '-')}</td>
+                <td class="mono">${item.value == null ? '-' : fmtUsd(item.value)}</td>
+                <td class="mono">${item.change == null ? '-' : fmtNum(item.change, 2)}</td>
+              </tr>
+            `;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderAnalytics(items, emptyText){
+  if (!items.length) return `<div class="empty" style="min-height:180px">${emptyText}</div>`;
+  return `
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>指标 / 主题</th>
+            <th>主值</th>
+            <th>说明</th>
+            <th>标签</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${items.slice(0, 12).map((raw, index) => {
+            const item = normalizeAnalytics(raw);
+            return `
+              <tr>
+                <td class="mono">${index + 1}</td>
+                <td><strong>${esc(item.title)}</strong></td>
+                <td class="mono">${item.value == null ? '-' : fmtNum(item.value, 3)}</td>
+                <td>${esc(item.primary || '-')}</td>
+                <td>${esc(item.extra || '-')}</td>
+              </tr>
+            `;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderDashboard(dataset){
+  const polymarket = dataset.polymarket || [];
+  const kalshi = dataset.kalshi || [];
+  const pairs = dataset.pairs || [];
+  const smartMoney = dataset.smartMoney || [];
+  const analytics = dataset.analytics || [];
+  const correlations = dataset.correlations || [];
+
+  const polyNorm = polymarket.map(normalizePolymarketEvent);
+  const kalshiNorm = kalshi.map(normalizeKalshiEvent);
+  const totalPolyVolume = polyNorm.reduce((sum, item) => sum + Number(item.volume || 0), 0);
+  const totalKalshiVolume = kalshiNorm.reduce((sum, item) => sum + Number(item.volume || 0), 0);
+  const avgPolyProb = polyNorm.filter(item => item.probability != null).reduce((sum, item) => sum + Number(item.probability || 0), 0) / (polyNorm.filter(item => item.probability != null).length || 1);
+  const avgKalshiProb = kalshiNorm.filter(item => item.probability != null).reduce((sum, item) => sum + Number(item.probability || 0), 0) / (kalshiNorm.filter(item => item.probability != null).length || 1);
+  const topPoly = polyNorm[0];
+  const topKalshi = kalshiNorm[0];
+  const notes = buildNotes(dataset);
+
+  document.title = `预测市场高级版 - BitInfo`;
+  document.getElementById('updated-pill').textContent = `更新时间 ${new Date().toLocaleTimeString('zh-CN', {hour:'2-digit', minute:'2-digit', second:'2-digit'})}`;
+  document.getElementById('filter-pill').textContent = `Top ${currentLimit} 样本`;
+  document.getElementById('coverage-pill').textContent = `Poly ${polymarket.length} · Kalshi ${kalshi.length} · Pairs ${pairs.length}`;
+  document.getElementById('focus-title').textContent = topPoly ? topPoly.title : (topKalshi ? topKalshi.title : '暂无高活跃事件');
+  document.getElementById('focus-sub').textContent = topPoly
+    ? `Polymarket · Yes ${fmtProb(topPoly.probability)} · 24h ${fmtUsd(topPoly.volume)} · 流动性 ${fmtUsd(topPoly.liquidity)}`
+    : topKalshi
+      ? `Kalshi · Yes ${fmtProb(topKalshi.probability)} · 24h ${fmtUsd(topKalshi.volume)} · 流动性 ${fmtUsd(topKalshi.liquidity)}`
+      : '当前还没拿到足够事件样本。';
+
+  document.getElementById('module-line').textContent = `Polymarket ${polymarket.length} · Kalshi ${kalshi.length} · Smart ${smartMoney.length} · Analytics ${analytics.length}`;
+  setStatus('高级仪表盘已同步');
+
+  document.getElementById('app').innerHTML = `
+    <section class="summary-grid">
+      <div class="metric">
+        <div class="metric-label">Polymarket 24h 成交额</div>
+        <div class="metric-value">${fmtUsd(totalPolyVolume)}</div>
+        <div class="metric-sub">免费 Gamma API 返回的热门事件 24h 成交额合计。</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Kalshi 事件数</div>
+        <div class="metric-value">${fmtNum(kalshi.length, 0)}</div>
+        <div class="metric-sub">Surf 侧返回的 Kalshi 活跃事件样本数。</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">跨平台配对</div>
+        <div class="metric-value">${fmtNum(pairs.length, 0)}</div>
+        <div class="metric-sub">同主题市场对比，适合找平台间定价差。</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">聪明资金样本</div>
+        <div class="metric-value">${fmtNum(smartMoney.length, 0)}</div>
+        <div class="metric-sub">Polymarket 聪明资金视图当前返回的记录数。</div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <h2 class="panel-title">热点事件雷达</h2>
+          <div class="panel-sub">先看两边平台最活跃的事件，再判断热门话题是集中在政治、宏观还是加密资产本身。</div>
+        </div>
+      </div>
+      <div class="panel-body grid-2">
+        <div>
+          <div class="panel-title" style="font-size:13px;margin-bottom:10px">Polymarket 热门事件</div>
+          ${renderEventCards(polymarket, normalizePolymarketEvent, 'Polymarket 当前没有可用事件', 'Polymarket')}
+        </div>
+        <div>
+          <div class="panel-title" style="font-size:13px;margin-bottom:10px">Kalshi 热门事件</div>
+          ${renderEventCards(kalshi, normalizeKalshiEvent, 'Kalshi 当前没有可用事件', 'Kalshi')}
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <h2 class="panel-title">结构视图</h2>
+          <div class="panel-sub">跨平台对比看“同题不同价”，聪明资金看“谁在押注”。这两块通常最能帮助判断错价和跟随路径。</div>
+        </div>
+      </div>
+      <div class="panel-body grid-2">
+        <div>
+          <div class="panel-title" style="font-size:13px;margin-bottom:10px">跨平台配对</div>
+          ${renderPairsTable(pairs)}
+        </div>
+        <div>
+          <div class="panel-title" style="font-size:13px;margin-bottom:10px">Polymarket 聪明资金</div>
+          ${renderSmartMoney(smartMoney)}
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <h2 class="panel-title">高级分析</h2>
+          <div class="panel-sub">Surf 的分析和相关性结果字段可能随模块略有不同，所以这里按通用结构做了稳健展示。</div>
+        </div>
+      </div>
+      <div class="panel-body grid-2">
+        <div>
+          <div class="panel-title" style="font-size:13px;margin-bottom:10px">市场分析</div>
+          ${renderAnalytics(analytics, '预测市场分析当前没有样本')}
+        </div>
+        <div>
+          <div class="panel-title" style="font-size:13px;margin-bottom:10px">相关性</div>
+          ${renderAnalytics(correlations, '预测市场相关性当前没有样本')}
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <h2 class="panel-title">扫描备注</h2>
+          <div class="panel-sub">把页面当前最值得继续追的地方单独提出来，减少你在多个模块之间来回扫。</div>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div class="note-list">${notes.map(note => `<div class="note">${esc(note)}</div>`).join('')}</div>
+      </div>
+    </section>
+
+    <div class="footer-note">高级模块依赖 Surf CLI，本页会尽量在部分模块缺失时继续展示其余结果。若某块长期为空，优先检查 Surf CLI 和对应模块权限。</div>
+  `;
+}
+
+async function loadDashboard(){
+  const requestId = ++latestRequestId;
+  const app = document.getElementById('app');
+  setStatus(`正在同步 Top ${currentLimit} 高级预测市场数据...`);
+  document.getElementById('module-line').textContent = '并行加载中';
+  app.innerHTML = '<div class="loading">正在加载预测市场高级版仪表盘...</div>';
+
+  const endpoints = {
+    polymarket: `${API}/market/prediction/polymarket?limit=${currentLimit}`,
+    kalshi: `${API}/market/prediction/kalshi/events?limit=${currentLimit}`,
+    pairs: `${API}/market/prediction/cross-platform/pairs?limit=${currentLimit}`,
+    smartMoney: `${API}/market/prediction/polymarket/smart-money?limit=${Math.min(currentLimit, 10)}&view=overview`,
+    analytics: `${API}/market/prediction/analytics?limit=${currentLimit}`,
+    correlations: `${API}/market/prediction/correlations?limit=${currentLimit}`,
+  };
+
+  const entries = Object.entries(endpoints);
+  const settled = await Promise.allSettled(entries.map(async ([key, url]) => {
+    const response = await fetch(url);
+    const data = await response.json();
+    if (!response.ok) throw new Error(`${key}: HTTP ${response.status}`);
+    return [key, Array.isArray(data) ? data : []];
+  }));
+
+  if (requestId !== latestRequestId) return;
+
+  const dataset = {};
+  const failed = [];
+  settled.forEach((result, index) => {
+    const [key] = entries[index];
+    if (result.status === 'fulfilled') dataset[key] = result.value[1];
+    else {
+      dataset[key] = [];
+      failed.push(key);
+    }
+  });
+
+  if (failed.length) {
+    setStatus(`部分模块加载失败：${failed.join(' / ')}，其余数据已正常展示`, true);
+  } else {
+    setStatus(`高级预测市场数据已同步`);
+  }
+  renderDashboard(dataset);
+}
+
+function applyLimit(pushHistory = true){
+  currentLimit = Math.max(5, Math.min(30, Number(document.getElementById('limit-input').value || 10)));
+  syncInputs();
+  syncUrl(pushHistory ? 'push' : 'replace');
+  loadDashboard();
+}
+
+document.getElementById('refresh-button').addEventListener('click', () => applyLimit(true));
+document.getElementById('limit-input').addEventListener('change', () => applyLimit(true));
+
+window.addEventListener('popstate', () => {
+  currentLimit = Math.max(5, Math.min(30, Number(new URLSearchParams(location.search).get('limit') || 10)));
+  syncInputs();
+  loadDashboard();
+});
+
+syncInputs();
+syncUrl('replace');
+loadDashboard();
+</script>
+</body>
+</html>

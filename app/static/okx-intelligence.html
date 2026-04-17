@@ -1,0 +1,1210 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OKX 市场情报台 - BitInfo</title>
+<style>
+:root{
+  --bg:#071019;
+  --panel:#111b26;
+  --panel-2:#172433;
+  --panel-3:#1d3043;
+  --line:#2f465d;
+  --text:#ecf4fb;
+  --muted:#92a8bd;
+  --cyan:#61d9ff;
+  --teal:#4fd7be;
+  --lime:#75de8f;
+  --amber:#ffcd76;
+  --orange:#ff9c67;
+  --red:#ff737a;
+  --violet:#a8a8ff;
+  --shadow:0 24px 52px rgba(0,0,0,.32);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;
+  color:var(--text);
+  font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Helvetica Neue",sans-serif;
+  background:
+    radial-gradient(circle at 12% 10%, rgba(97,217,255,.10), transparent 20%),
+    radial-gradient(circle at 84% 7%, rgba(255,205,118,.12), transparent 20%),
+    linear-gradient(180deg,#06111a 0%,#091320 44%,#08111b 100%);
+}
+a{color:inherit}
+.page{max-width:1380px;margin:0 auto;padding:28px 20px 56px}
+.hero{
+  position:relative;
+  overflow:hidden;
+  border-radius:30px;
+  border:1px solid rgba(97,217,255,.16);
+  background:
+    linear-gradient(135deg, rgba(12,20,30,.97), rgba(15,28,40,.93)),
+    linear-gradient(90deg, rgba(255,255,255,.02) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(255,255,255,.02) 1px, transparent 1px);
+  background-size:auto, 24px 24px, 24px 24px;
+  box-shadow:var(--shadow);
+  padding:28px;
+}
+.hero:before{
+  content:"";
+  position:absolute;
+  right:-90px;
+  top:-90px;
+  width:340px;
+  height:340px;
+  border-radius:50%;
+  background:radial-gradient(circle, rgba(97,217,255,.15), transparent 68%);
+  pointer-events:none;
+}
+.hero-grid{
+  position:relative;
+  display:grid;
+  grid-template-columns:1.2fr .8fr;
+  gap:22px;
+}
+.back-link{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:8px 14px;
+  border-radius:999px;
+  border:1px solid var(--line);
+  color:var(--muted);
+  background:rgba(255,255,255,.03);
+  text-decoration:none;
+}
+.back-link:hover{color:var(--text);border-color:var(--cyan)}
+.eyebrow{
+  margin-top:14px;
+  color:var(--cyan);
+  font-size:12px;
+  letter-spacing:.18em;
+  text-transform:uppercase;
+}
+.hero h1{
+  margin:10px 0 12px;
+  font-size:42px;
+  line-height:1.02;
+  letter-spacing:-.04em;
+}
+.hero p{margin:0;max-width:760px;color:var(--muted);font-size:15px}
+.hero-pills{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}
+.pill{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:8px 12px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.08);
+  background:rgba(255,255,255,.03);
+  color:var(--muted);
+  font-size:12px;
+}
+.pill.live{color:var(--text);border-color:rgba(97,217,255,.28)}
+.pill.error{color:#ffd6d8;border-color:rgba(255,115,122,.32)}
+.hero-side{
+  display:grid;
+  gap:14px;
+}
+.hero-card{
+  border-radius:22px;
+  border:1px solid rgba(255,255,255,.06);
+  background:rgba(255,255,255,.035);
+  padding:18px;
+}
+.hero-card .label{
+  color:var(--muted);
+  font-size:12px;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
+.hero-card .value{
+  margin-top:10px;
+  font-size:28px;
+  font-weight:700;
+  letter-spacing:-.03em;
+  font-variant-numeric:tabular-nums;
+}
+.hero-card .sub{
+  margin-top:8px;
+  color:var(--muted);
+  font-size:12px;
+  line-height:1.7;
+}
+.toolbar{
+  display:grid;
+  grid-template-columns:1.2fr .8fr .8fr .8fr 1fr auto;
+  gap:16px;
+  margin-top:20px;
+}
+.tool{
+  border-radius:22px;
+  border:1px solid rgba(255,255,255,.06);
+  background:linear-gradient(180deg, rgba(17,27,38,.96), rgba(14,22,32,.94));
+  padding:16px 18px;
+  box-shadow:var(--shadow);
+}
+.tool .label{
+  margin-bottom:10px;
+  color:var(--muted);
+  font-size:12px;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
+.input,.select,.button{
+  width:100%;
+  border:1px solid var(--line);
+  border-radius:14px;
+  padding:12px 14px;
+  background:rgba(255,255,255,.03);
+  color:var(--text);
+  font:inherit;
+}
+.input::placeholder{color:var(--muted)}
+.button{
+  cursor:pointer;
+  transition:.2s ease;
+}
+.button:hover{transform:translateY(-1px)}
+.button.primary{
+  border-color:transparent;
+  color:#08111a;
+  font-weight:800;
+  background:linear-gradient(135deg, var(--cyan), #7dbfff);
+  box-shadow:0 14px 28px rgba(97,217,255,.2);
+}
+.hint{
+  margin-top:8px;
+  color:var(--muted);
+  font-size:12px;
+  line-height:1.7;
+}
+.quick-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.quick{
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:999px;
+  padding:7px 11px;
+  background:rgba(255,255,255,.03);
+  color:var(--muted);
+  cursor:pointer;
+  font-size:12px;
+  transition:.2s ease;
+}
+.quick:hover{color:var(--text);border-color:rgba(97,217,255,.3)}
+.summary-grid{
+  display:grid;
+  grid-template-columns:repeat(6,minmax(0,1fr));
+  gap:14px;
+  margin-top:20px;
+}
+.metric{
+  border-radius:20px;
+  border:1px solid rgba(255,255,255,.06);
+  background:linear-gradient(180deg, rgba(17,27,38,.97), rgba(14,22,32,.95));
+  padding:16px;
+  box-shadow:var(--shadow);
+}
+.metric .label{font-size:12px;color:var(--muted)}
+.metric .value{
+  margin-top:10px;
+  font-size:30px;
+  line-height:1.02;
+  font-weight:700;
+  letter-spacing:-.03em;
+  font-variant-numeric:tabular-nums;
+}
+.metric .sub{margin-top:8px;font-size:12px;color:var(--muted);line-height:1.7}
+.good{color:var(--lime)}
+.warn{color:var(--amber)}
+.danger{color:var(--red)}
+.neutral{color:var(--cyan)}
+.main-grid{
+  display:grid;
+  grid-template-columns:1.15fr .85fr;
+  gap:18px;
+  margin-top:18px;
+}
+.bottom-grid{
+  display:grid;
+  grid-template-columns:1fr .92fr;
+  gap:18px;
+  margin-top:18px;
+}
+.panel{
+  border-radius:26px;
+  border:1px solid rgba(255,255,255,.06);
+  background:linear-gradient(180deg, rgba(17,27,38,.97), rgba(14,22,32,.95));
+  box-shadow:var(--shadow);
+}
+.panel-head{
+  display:flex;
+  justify-content:space-between;
+  gap:16px;
+  align-items:flex-start;
+  padding:20px 22px 0;
+}
+.panel-title{margin:0;font-size:16px;font-weight:700}
+.panel-sub{margin-top:6px;font-size:12px;color:var(--muted)}
+.panel-body{padding:18px 22px 22px}
+.stack{display:grid;gap:16px}
+.signal-box{
+  border-radius:22px;
+  border:1px solid rgba(255,255,255,.06);
+  background:linear-gradient(135deg, rgba(29,48,67,.96), rgba(15,24,35,.96));
+  padding:18px;
+}
+.signal-title{font-size:13px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase}
+.signal-value{margin-top:10px;font-size:24px;font-weight:700;letter-spacing:-.03em}
+.signal-note{margin-top:10px;color:var(--muted);line-height:1.75}
+.mini-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.mini{
+  border-radius:18px;
+  border:1px solid rgba(255,255,255,.05);
+  background:rgba(255,255,255,.03);
+  padding:14px;
+}
+.mini .label{font-size:11px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase}
+.mini .value{margin-top:8px;font-size:18px;font-weight:700;font-variant-numeric:tabular-nums}
+.mini .sub{margin-top:6px;color:var(--muted);font-size:12px}
+.chart-box{
+  border-radius:20px;
+  border:1px solid rgba(255,255,255,.05);
+  background:rgba(255,255,255,.025);
+  padding:14px;
+}
+.chart-title{font-size:12px;color:var(--muted);margin-bottom:8px}
+.sparkline{
+  width:100%;
+  height:110px;
+  display:block;
+}
+.indicator-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.kv-list{display:grid;gap:8px;margin-top:8px}
+.kv{
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+  color:var(--muted);
+  font-size:12px;
+}
+.kv strong{color:var(--text);font-variant-numeric:tabular-nums}
+.depth-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.depth-box{
+  border-radius:20px;
+  border:1px solid rgba(255,255,255,.05);
+  background:rgba(255,255,255,.03);
+  padding:14px;
+}
+.depth-head{
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+  align-items:center;
+  margin-bottom:10px;
+}
+.depth-bar{
+  height:10px;
+  border-radius:999px;
+  overflow:hidden;
+  background:#233244;
+  margin:10px 0 14px;
+}
+.depth-bar > span{
+  display:block;
+  height:100%;
+  border-radius:999px;
+  background:linear-gradient(90deg,var(--teal),var(--cyan));
+}
+.level-list{display:grid;gap:8px}
+.level{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+  font-variant-numeric:tabular-nums;
+  font-size:13px;
+}
+.mono{font-variant-numeric:tabular-nums}
+.table-wrap{overflow:auto}
+table{width:100%;border-collapse:collapse}
+th,td{padding:12px 10px;text-align:left;vertical-align:top}
+thead th{
+  font-size:12px;
+  color:var(--muted);
+  font-weight:600;
+  border-bottom:1px solid rgba(255,255,255,.08);
+}
+tbody tr{border-bottom:1px solid rgba(255,255,255,.05)}
+tbody tr:last-child{border-bottom:none}
+.news-list{display:grid;gap:12px}
+.news-card{
+  position:relative;
+  overflow:hidden;
+  border-radius:20px;
+  border:1px solid rgba(255,255,255,.06);
+  background:linear-gradient(135deg, rgba(23,36,51,.98), rgba(15,23,33,.96));
+  padding:16px;
+  cursor:pointer;
+  transition:.2s ease;
+}
+.news-card:hover{transform:translateY(-2px);border-color:rgba(97,217,255,.22)}
+.news-card:before{
+  content:"";
+  position:absolute;
+  right:-28px;
+  bottom:-36px;
+  width:120px;
+  height:120px;
+  border-radius:50%;
+  background:radial-gradient(circle, rgba(255,205,118,.12), transparent 68%);
+  pointer-events:none;
+}
+.news-top{
+  position:relative;
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  align-items:flex-start;
+}
+.badge{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:6px 10px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.08);
+  background:rgba(255,255,255,.04);
+  color:var(--muted);
+  font-size:11px;
+}
+.badge.important{color:#1b1202;background:linear-gradient(135deg,var(--amber),#ffb768);border-color:transparent}
+.muted{color:var(--muted)}
+.news-title{font-size:16px;font-weight:700;line-height:1.5}
+.news-meta{margin-top:8px;display:flex;gap:8px;flex-wrap:wrap}
+.news-text{margin-top:10px;color:var(--muted);line-height:1.8}
+.side-notes{display:grid;gap:10px}
+.note{
+  border-left:3px solid var(--amber);
+  border-radius:0 14px 14px 0;
+  background:rgba(255,205,118,.08);
+  padding:10px 12px;
+  color:#edf4fb;
+  font-size:13px;
+}
+.sentiment-hero{
+  display:grid;
+  grid-template-columns:.72fr 1.28fr;
+  gap:16px;
+}
+.sentiment-card{
+  border-radius:22px;
+  border:1px solid rgba(255,255,255,.06);
+  background:linear-gradient(135deg, rgba(29,48,67,.98), rgba(15,23,33,.96));
+  padding:18px;
+}
+.ratio-grid{display:grid;gap:10px;margin-top:12px}
+.ratio{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  font-size:13px;
+  color:var(--muted);
+}
+.ratio strong{color:var(--text)}
+.detail-empty,.empty,.loading{
+  min-height:220px;
+  display:grid;
+  place-items:center;
+  text-align:center;
+  padding:18px;
+  border-radius:22px;
+  border:1px dashed rgba(255,255,255,.08);
+  color:var(--muted);
+}
+.detail-box{
+  border-radius:22px;
+  border:1px solid rgba(255,255,255,.06);
+  background:rgba(255,255,255,.03);
+  padding:18px;
+}
+.detail-title{font-size:24px;font-weight:700;line-height:1.4}
+.detail-meta{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap}
+.detail-text{
+  margin-top:16px;
+  color:#d7e4ef;
+  line-height:1.9;
+  white-space:pre-wrap;
+}
+.status-line{margin-top:10px;color:var(--muted);font-size:12px}
+@media (max-width:1180px){
+  .hero-grid,.main-grid,.bottom-grid{grid-template-columns:1fr}
+  .toolbar{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .summary-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@media (max-width:860px){
+  .page{padding:18px 14px 40px}
+  .hero{padding:22px}
+  .hero h1{font-size:34px}
+  .toolbar,.summary-grid,.mini-grid,.indicator-grid,.depth-grid,.sentiment-hero{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div class="page">
+  <section class="hero">
+    <div class="hero-grid">
+      <div>
+        <a class="back-link" href="/">← 返回首页</a>
+        <div class="eyebrow">OKX Market + Orbit News</div>
+        <h1>OKX 市场情报台</h1>
+        <p>把 OKX 的盘口、K 线、资金费率、OI、指标，与 Orbit 新闻、币种情绪和热度排行放进一个实时工作台。页面内刷新、静默同步，不打断你正在看盘。</p>
+        <div class="hero-pills">
+          <span class="pill live" id="hero-status">准备就绪</span>
+          <span class="pill" id="hero-inst">BTC-USDT-SWAP</span>
+          <span class="pill" id="hero-updated">等待首次加载</span>
+        </div>
+      </div>
+      <div class="hero-side">
+        <div class="hero-card">
+          <div class="label">当前模式</div>
+          <div class="value" id="hero-coin">BTC</div>
+          <div class="sub" id="hero-copy">默认聚焦永续合约，适合看 OI、Funding 和趋势共振。</div>
+        </div>
+        <div class="hero-card">
+          <div class="label">自动同步</div>
+          <div class="value">90s</div>
+          <div class="sub">后台静默刷新。你切换币种、周期或新闻关键词时，也都只走 AJAX 原位更新。</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="toolbar">
+    <div class="tool">
+      <div class="label">币种 / 标的</div>
+      <input id="symbol-input" class="input" placeholder="BTC、ETH、DOGE 或完整 instId">
+      <div class="quick-row">
+        <button class="quick" data-token="BTC">BTC</button>
+        <button class="quick" data-token="ETH">ETH</button>
+        <button class="quick" data-token="SOL">SOL</button>
+        <button class="quick" data-token="DOGE">DOGE</button>
+        <button class="quick" data-token="AAPL-USDT-SWAP">AAPL</button>
+      </div>
+      <div class="hint">输入 `BTC` 时会按市场类型自动解析成 `BTC-USDT-SWAP` 或 `BTC-USDT`。</div>
+    </div>
+    <div class="tool">
+      <div class="label">市场类型</div>
+      <select id="market-type" class="select">
+        <option value="SWAP">永续合约</option>
+        <option value="SPOT">现货</option>
+      </select>
+      <div class="hint">现货模式会保留价格、成交、订单簿和新闻，但不会显示 Funding / OI。</div>
+    </div>
+    <div class="tool">
+      <div class="label">分析周期</div>
+      <select id="timeframe" class="select">
+        <option value="1H">1H</option>
+        <option value="4H">4H</option>
+        <option value="1D">1D</option>
+      </select>
+      <div class="hint">周期会同时作用在 K 线、指标和 OI bar 上。</div>
+    </div>
+    <div class="tool">
+      <div class="label">新闻语言</div>
+      <select id="language" class="select">
+        <option value="zh-CN">中文</option>
+        <option value="en-US">English</option>
+      </select>
+      <div class="hint">Orbit 目前主要是中英双语。</div>
+    </div>
+    <div class="tool">
+      <div class="label">新闻关键词 / 来源</div>
+      <input id="keyword" class="input" placeholder="ETF、监管、meme、机构流入">
+      <select id="platform" class="select" style="margin-top:10px">
+        <option value="">全部来源</option>
+      </select>
+      <div class="hint">留空时默认显示该币种新闻；输入关键词后会自动切到 Orbit 搜索结果。</div>
+    </div>
+    <div class="tool">
+      <div class="label">操作</div>
+      <button id="refresh-btn" class="button primary">加载情报台</button>
+      <button id="clear-keyword-btn" class="button" style="margin-top:10px">清空关键词</button>
+      <div class="status-line" id="toolbar-status">等待数据</div>
+    </div>
+  </section>
+
+  <section class="summary-grid" id="summary-grid"></section>
+
+  <section class="main-grid">
+    <div class="panel">
+      <div class="panel-head">
+        <div>
+          <h2 class="panel-title">市场脉冲</h2>
+          <div class="panel-sub">把价格、OI、Funding、指标和盘口放到一个判断上下文里。</div>
+        </div>
+      </div>
+      <div class="panel-body" id="market-panel">
+        <div class="loading">正在等待市场数据...</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <div>
+          <h2 class="panel-title">Orbit 新闻雷达</h2>
+          <div class="panel-sub">币种相关新闻、关键词搜索、重要快讯都在这里，点卡片可展开全文。</div>
+        </div>
+      </div>
+      <div class="panel-body" id="news-panel">
+        <div class="loading">正在等待新闻数据...</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="bottom-grid">
+    <div class="panel">
+      <div class="panel-head">
+        <div>
+          <h2 class="panel-title">币种情绪与热度排行</h2>
+          <div class="panel-sub">情绪快照、提及次数和趋势线，用来校验市场动作有没有舆情共振。</div>
+        </div>
+      </div>
+      <div class="panel-body" id="sentiment-panel">
+        <div class="loading">正在等待情绪数据...</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <div>
+          <h2 class="panel-title">文章详情</h2>
+          <div class="panel-sub">点击左侧新闻卡片后，这里会拉取 Orbit 文章详情和原文摘要。</div>
+        </div>
+      </div>
+      <div class="panel-body" id="detail-panel">
+        <div class="detail-empty">先点一条新闻卡片，我会在这里展开详情。</div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+const BASE = location.pathname.replace(/\/(skill|daily|briefing|oi-signal|defi-yield-scanner|prediction-advanced|okx-intelligence)?\s*$/, '').replace(/\/+$/, '');
+const API = `${BASE}/api/v1`;
+const AUTO_REFRESH_MS = 90_000;
+
+const state = {
+  symbol: 'BTC',
+  marketType: 'SWAP',
+  timeframe: '1H',
+  language: 'zh-CN',
+  keyword: '',
+  platform: '',
+  payload: null,
+  searchPayload: null,
+  platformOptions: [],
+  activeArticle: null,
+  loading: false,
+  requestId: 0,
+  lastUpdatedAt: null,
+};
+
+const $ = (id) => document.getElementById(id);
+
+function readUrlState(){
+  const params = new URLSearchParams(location.search);
+  state.symbol = params.get('symbol') || 'BTC';
+  state.marketType = params.get('marketType') || 'SWAP';
+  state.timeframe = params.get('timeframe') || '1H';
+  state.language = params.get('language') || 'zh-CN';
+  state.keyword = params.get('keyword') || '';
+  state.platform = params.get('platform') || '';
+}
+
+function syncUrl(){
+  const params = new URLSearchParams();
+  params.set('symbol', state.symbol);
+  params.set('marketType', state.marketType);
+  params.set('timeframe', state.timeframe);
+  params.set('language', state.language);
+  if(state.keyword) params.set('keyword', state.keyword);
+  if(state.platform) params.set('platform', state.platform);
+  history.replaceState({}, '', `${BASE}/okx-intelligence?${params.toString()}`);
+}
+
+function applyControls(){
+  $('symbol-input').value = state.symbol;
+  $('market-type').value = state.marketType;
+  $('timeframe').value = state.timeframe;
+  $('language').value = state.language;
+  $('keyword').value = state.keyword;
+  if($('platform')) $('platform').value = state.platform;
+}
+
+function resolveInstId(symbol, marketType){
+  const raw = String(symbol || '').trim().toUpperCase();
+  if(!raw) return marketType === 'SPOT' ? 'BTC-USDT' : 'BTC-USDT-SWAP';
+  if(raw.includes('-')) return raw;
+  return marketType === 'SPOT' ? `${raw}-USDT` : `${raw}-USDT-SWAP`;
+}
+
+function extractBaseSymbol(instId){
+  return String(instId || 'BTC').split('-')[0].toUpperCase();
+}
+
+function timeframeToSentimentPeriod(timeframe){
+  if(timeframe === '1H') return '1h';
+  if(timeframe === '4H') return '4h';
+  return '24h';
+}
+
+function formatCompact(value){
+  if(value === null || value === undefined || Number.isNaN(Number(value))) return '—';
+  return new Intl.NumberFormat('en', {notation:'compact', maximumFractionDigits:2}).format(Number(value));
+}
+
+function formatUsd(value){
+  if(value === null || value === undefined || Number.isNaN(Number(value))) return '—';
+  const num = Number(value);
+  if(Math.abs(num) >= 1_000_000) return `$${formatCompact(num)}`;
+  return new Intl.NumberFormat('en-US', {style:'currency', currency:'USD', maximumFractionDigits:2}).format(num);
+}
+
+function formatPrice(value){
+  if(value === null || value === undefined || Number.isNaN(Number(value))) return '—';
+  const num = Number(value);
+  const abs = Math.abs(num);
+  let digits = 2;
+  if(abs < 100 && abs >= 1) digits = 4;
+  if(abs < 1 && abs >= 0.1) digits = 5;
+  if(abs < 0.1 && abs >= 0.01) digits = 6;
+  if(abs < 0.01 && abs >= 0.001) digits = 7;
+  if(abs < 0.001) digits = 8;
+  return `$${num.toLocaleString('en-US', {minimumFractionDigits: digits, maximumFractionDigits: digits})}`;
+}
+
+function formatPct(value){
+  if(value === null || value === undefined || Number.isNaN(Number(value))) return '—';
+  const num = Number(value);
+  const sign = num > 0 ? '+' : '';
+  return `${sign}${num.toFixed(2)}%`;
+}
+
+function formatRatio(value){
+  if(value === null || value === undefined || Number.isNaN(Number(value))) return '—';
+  return `${(Number(value) * 100).toFixed(1)}%`;
+}
+
+function formatTime(value){
+  if(!value) return '—';
+  const ts = Number(value);
+  if(Number.isNaN(ts)) return '—';
+  return new Date(ts).toLocaleString('zh-CN', {hour12:false});
+}
+
+function escapeHtml(value){
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+function toneClassFromNumber(value){
+  if(value === null || value === undefined || Number.isNaN(Number(value))) return 'neutral';
+  return Number(value) >= 0 ? 'good' : 'danger';
+}
+
+function statusTone(text){
+  const raw = String(text || '').toLowerCase();
+  if(raw.includes('error') || raw.includes('失败')) return 'pill error';
+  if(raw.includes('同步') || raw.includes('已加载') || raw.includes('刷新')) return 'pill live';
+  return 'pill';
+}
+
+function renderSparkline(values, color='#61d9ff'){
+  const points = values.filter(v => v !== null && v !== undefined && !Number.isNaN(Number(v))).map(Number);
+  if(points.length < 2){
+    return '<div class="empty">样本不足，等更多数据回来后会在这里画出走势。</div>';
+  }
+  const width = 640;
+  const height = 110;
+  const min = Math.min(...points);
+  const max = Math.max(...points);
+  const span = max - min || 1;
+  const step = width / Math.max(points.length - 1, 1);
+  const polyline = points.map((point, idx) => {
+    const x = (idx * step).toFixed(2);
+    const y = (height - ((point - min) / span) * (height - 12) - 6).toFixed(2);
+    return `${x},${y}`;
+  }).join(' ');
+  const area = `0,${height} ${polyline} ${width},${height}`;
+  return `
+    <svg class="sparkline" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-hidden="true">
+      <defs>
+        <linearGradient id="fill-${color.replace(/[^a-z0-9]/gi,'')}" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stop-color="${color}" stop-opacity=".28"></stop>
+          <stop offset="100%" stop-color="${color}" stop-opacity="0"></stop>
+        </linearGradient>
+      </defs>
+      <polygon points="${area}" fill="url(#fill-${color.replace(/[^a-z0-9]/gi,'')})"></polygon>
+      <polyline points="${polyline}" fill="none" stroke="${color}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></polyline>
+    </svg>
+  `;
+}
+
+async function fetchJson(url){
+  const response = await fetch(url);
+  const text = await response.text();
+  let data = null;
+  try{ data = text ? JSON.parse(text) : null; }catch{ data = {error: text || 'Invalid JSON response'}; }
+  if(!response.ok){
+    const message = data && data.error ? data.error : `HTTP ${response.status}`;
+    throw new Error(message);
+  }
+  return data;
+}
+
+async function loadPlatforms(){
+  try{
+    const data = await fetchJson(`${API}/news/okx/platforms`);
+    state.platformOptions = Array.isArray(data?.items) ? data.items : [];
+  }catch{
+    state.platformOptions = [];
+  }
+  const select = $('platform');
+  select.innerHTML = '<option value="">全部来源</option>' + state.platformOptions.map(item => `<option value="${escapeHtml(item)}">${escapeHtml(item)}</option>`).join('');
+  select.value = state.platform;
+}
+
+function collectStateFromControls(){
+  state.symbol = $('symbol-input').value.trim() || 'BTC';
+  state.marketType = $('market-type').value || 'SWAP';
+  state.timeframe = $('timeframe').value || '1H';
+  state.language = $('language').value || 'zh-CN';
+  state.keyword = $('keyword').value.trim();
+  state.platform = $('platform').value || '';
+}
+
+function setToolbarStatus(text){
+  $('toolbar-status').textContent = text;
+  $('hero-status').className = statusTone(text);
+  $('hero-status').textContent = text;
+}
+
+function renderHeroMeta(instId){
+  $('hero-inst').textContent = instId;
+  $('hero-coin').textContent = extractBaseSymbol(instId);
+  $('hero-copy').textContent = state.marketType === 'SPOT'
+    ? '现货模式优先看价格结构、订单簿和新闻情绪。'
+    : '永续模式会额外展示 Funding、OI 和价格/OI 共振。';
+  $('hero-updated').textContent = state.lastUpdatedAt
+    ? `最近更新 ${new Date(state.lastUpdatedAt).toLocaleTimeString('zh-CN', {hour12:false})}`
+    : '等待首次加载';
+}
+
+function metricCard(label, value, sub, cls='neutral'){
+  return `
+    <div class="metric">
+      <div class="label">${escapeHtml(label)}</div>
+      <div class="value ${cls}">${value}</div>
+      <div class="sub">${sub}</div>
+    </div>
+  `;
+}
+
+function renderSummary(payload){
+  const market = payload?.market;
+  const sentiment = payload?.coin_sentiment?.items?.[0] || null;
+  const snapshot = market?.snapshot || {};
+  const diagnosis = market?.diagnosis || {};
+  const orderbookBias = diagnosis.orderbook_bias || '—';
+  const fundingBias = diagnosis.funding_bias || '—';
+
+  $('summary-grid').innerHTML = [
+    metricCard('最新价格', formatPrice(snapshot.last), `标记价 ${formatPrice(snapshot.mark_price)}`, 'neutral'),
+    metricCard('24H 涨跌', formatPct(snapshot.price_change_pct_24h), `24H 成交额 ${formatUsd(snapshot.volume_24h_quote)}`, toneClassFromNumber(snapshot.price_change_pct_24h)),
+    metricCard('持仓 OI', snapshot.oi_usd != null ? formatUsd(snapshot.oi_usd) : '—', `OI 变化 ${formatPct(snapshot.oi_delta_pct)}`, toneClassFromNumber(snapshot.oi_delta_pct)),
+    metricCard('资金费率', snapshot.funding_rate != null ? formatPct(Number(snapshot.funding_rate) * 100) : '—', `拥挤方向 ${escapeHtml(fundingBias)}`, toneClassFromNumber(snapshot.funding_rate)),
+    metricCard('盘口偏向', escapeHtml(orderbookBias || '—'), `价格/OI 结构 ${escapeHtml(diagnosis.price_oi_regime || '—')}`, 'neutral'),
+    metricCard('新闻情绪', escapeHtml(sentiment?.label || '—'), `提及次数 ${sentiment?.mention_count ?? '—'}`, 'neutral'),
+  ].join('');
+}
+
+function renderMarketPanel(payload){
+  const market = payload?.market;
+  if(!market || market.error){
+    $('market-panel').innerHTML = `<div class="empty">${escapeHtml(market?.error || '市场数据暂时不可用')}</div>`;
+    return;
+  }
+  const snapshot = market.snapshot || {};
+  const candles = Array.isArray(market.candles) ? market.candles : [];
+  const closes = candles.slice().reverse().map(item => item?.close).filter(v => v != null);
+  const indicators = market.indicator_summary || {};
+  const orderbook = market.orderbook || {};
+  const trades = Array.isArray(market.recent_trades) ? market.recent_trades.slice(0, 7) : [];
+  const bidNotional = Number(orderbook.bid_depth_notional_top5 || 0);
+  const askNotional = Number(orderbook.ask_depth_notional_top5 || 0);
+  const totalDepth = bidNotional + askNotional || 1;
+  const bidWidth = Math.max(6, (bidNotional / totalDepth) * 100);
+  const askWidth = Math.max(6, (askNotional / totalDepth) * 100);
+
+  const indicatorCard = (label, item) => {
+    if(!item?.values){
+      return `
+        <div class="mini">
+          <div class="label">${escapeHtml(label)}</div>
+          <div class="sub">当前没有可解析的指标数据</div>
+        </div>
+      `;
+    }
+    const values = Object.entries(item.values).slice(0, 4).map(([key, value]) => `
+      <div class="kv"><span>${escapeHtml(key)}</span><strong>${escapeHtml(typeof value === 'number' ? value.toFixed(4) : value)}</strong></div>
+    `).join('');
+    return `
+      <div class="mini">
+        <div class="label">${escapeHtml(label)}</div>
+        <div class="sub">${formatTime(item.ts)}</div>
+        <div class="kv-list">${values}</div>
+      </div>
+    `;
+  };
+
+  const levelMarkup = (levels, side) => {
+    const safeLevels = Array.isArray(levels) ? levels.slice(0, 5) : [];
+    if(!safeLevels.length) return '<div class="empty">暂无深度数据</div>';
+    return safeLevels.map(level => `
+      <div class="level">
+        <div class="${side === 'bid' ? 'good' : 'danger'}">${formatPrice(level.price)}</div>
+        <div>${formatCompact(level.size)}</div>
+      </div>
+    `).join('');
+  };
+
+  $('market-panel').innerHTML = `
+    <div class="stack">
+      <div class="signal-box">
+        <div class="signal-title">结构诊断</div>
+        <div class="signal-value">${escapeHtml(market.diagnosis?.price_oi_regime || 'neutral')}</div>
+        <div class="signal-note">${escapeHtml(market.diagnosis?.price_oi_comment || '暂无诊断说明')}</div>
+      </div>
+
+      <div class="mini-grid">
+        <div class="mini">
+          <div class="label">24H 高低区间</div>
+          <div class="value">${formatPrice(snapshot.high24h)} / ${formatPrice(snapshot.low24h)}</div>
+          <div class="sub">开盘价 ${formatPrice(snapshot.open24h)}</div>
+        </div>
+        <div class="mini">
+          <div class="label">盘口价差</div>
+          <div class="value">${formatPrice(orderbook.spread)}</div>
+          <div class="sub">最佳买 ${formatPrice(orderbook.best_bid)} · 最佳卖 ${formatPrice(orderbook.best_ask)}</div>
+        </div>
+        <div class="mini">
+          <div class="label">价格限制</div>
+          <div class="value">${formatPrice(market.price_limit?.buyLmt)} / ${formatPrice(market.price_limit?.sellLmt)}</div>
+          <div class="sub">合约模式下可帮助判断订单是否接近拒单边界</div>
+        </div>
+      </div>
+
+      <div class="chart-box">
+        <div class="chart-title">价格样本走势（最近 ${closes.length || 0} 根）</div>
+        ${renderSparkline(closes, '#61d9ff')}
+      </div>
+
+      <div class="indicator-grid">
+        ${indicatorCard('RSI', indicators.rsi)}
+        ${indicatorCard('MACD', indicators.macd)}
+        ${indicatorCard('Bollinger', indicators.bb)}
+      </div>
+
+      <div class="depth-grid">
+        <div class="depth-box">
+          <div class="depth-head">
+            <strong>买盘深度</strong>
+            <span class="mono good">${formatUsd(bidNotional)}</span>
+          </div>
+          <div class="depth-bar"><span style="width:${bidWidth}%"></span></div>
+          <div class="level-list">${levelMarkup(orderbook.bids, 'bid')}</div>
+        </div>
+        <div class="depth-box">
+          <div class="depth-head">
+            <strong>卖盘深度</strong>
+            <span class="mono danger">${formatUsd(askNotional)}</span>
+          </div>
+          <div class="depth-bar"><span style="width:${askWidth}%;background:linear-gradient(90deg,#ffb275,var(--red))"></span></div>
+          <div class="level-list">${levelMarkup(orderbook.asks, 'ask')}</div>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>最近成交</th><th>方向</th><th>价格</th><th>数量</th><th>时间</th></tr>
+          </thead>
+          <tbody>
+            ${trades.length ? trades.map(trade => `
+              <tr>
+                <td class="mono">${escapeHtml(trade.tradeId || '—')}</td>
+                <td class="${String(trade.side || '').toLowerCase() === 'buy' ? 'good' : 'danger'}">${escapeHtml(trade.side || '—')}</td>
+                <td class="mono">${formatPrice(trade.px)}</td>
+                <td class="mono">${formatCompact(trade.sz)}</td>
+                <td class="mono">${formatTime(trade.ts)}</td>
+              </tr>
+            `).join('') : '<tr><td colspan="5" class="muted">暂无逐笔成交数据</td></tr>'}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+function renderNewsPanel(payload){
+  const searchData = state.keyword ? state.searchPayload : null;
+  const primary = searchData && !searchData.error ? searchData : payload?.coin_news;
+  const important = payload?.important_news;
+  const mainItems = Array.isArray(primary?.items) ? primary.items : [];
+  const importantItems = Array.isArray(important?.items) ? important.items.slice(0, 4) : [];
+
+  const articleCard = (item, compact=false) => `
+    <article class="news-card" data-article-id="${escapeHtml(item.id)}">
+      <div class="news-top">
+        <div class="news-title">${escapeHtml(item.title || '未命名文章')}</div>
+        ${item.importance === 'high' ? '<span class="badge important">重要</span>' : '<span class="badge">快讯</span>'}
+      </div>
+      <div class="news-meta">
+        <span class="badge">${escapeHtml((item.platforms || []).slice(0,2).join(', ') || 'OKX Orbit')}</span>
+        <span class="badge">${escapeHtml((item.coins || []).join(', ') || '市场')}</span>
+        <span class="badge">${formatTime(item.published_at)}</span>
+      </div>
+      <div class="news-text">${escapeHtml(compact ? (item.summary || item.excerpt || '').slice(0, 88) : (item.summary || item.excerpt || '暂无摘要').slice(0, 150))}</div>
+    </article>
+  `;
+
+  $('news-panel').innerHTML = `
+    <div class="stack">
+      <div class="side-notes">
+        <div class="note">${state.keyword ? `当前关键词搜索：${escapeHtml(state.keyword)}。如果结果太窄，可以清空关键词回到币种新闻流。` : `当前显示 ${escapeHtml(extractBaseSymbol(resolveInstId(state.symbol, state.marketType)))} 相关新闻流。你也可以输入主题关键词切到全文搜索。`}</div>
+        ${primary?.next_cursor ? `<div class="note">当前结果还有下一页游标，但这版页面先聚焦当前窗口，不自动翻页。游标：${escapeHtml(primary.next_cursor)}</div>` : ''}
+      </div>
+
+      <div class="news-list">
+        ${mainItems.length ? mainItems.map(item => articleCard(item)).join('') : `<div class="empty">${escapeHtml(primary?.error || '没有可展示的新闻结果')}</div>`}
+      </div>
+
+      <div class="panel-sub">重要快讯</div>
+      <div class="news-list">
+        ${importantItems.length ? importantItems.map(item => articleCard(item, true)).join('') : `<div class="empty">${escapeHtml(important?.error || '暂时拿不到重要快讯')}</div>`}
+      </div>
+    </div>
+  `;
+
+  $('news-panel').querySelectorAll('[data-article-id]').forEach(card => {
+    card.addEventListener('click', () => openArticle(card.dataset.articleId));
+  });
+}
+
+function renderSentimentPanel(payload){
+  const sentiment = payload?.coin_sentiment;
+  const ranking = payload?.sentiment_ranking;
+  const first = Array.isArray(sentiment?.items) ? sentiment.items[0] : null;
+  const trendValues = Array.isArray(first?.trend) ? first.trend.map(item => item.bullish_ratio).filter(v => v != null) : [];
+  const rows = Array.isArray(ranking?.items) ? ranking.items.slice(0, 8) : [];
+
+  if((!first || sentiment?.error) && (!rows.length || ranking?.error)){
+    $('sentiment-panel').innerHTML = `<div class="empty">${escapeHtml(sentiment?.error || ranking?.error || '暂无情绪数据')}</div>`;
+    return;
+  }
+
+  $('sentiment-panel').innerHTML = `
+    <div class="stack">
+      <div class="sentiment-hero">
+        <div class="sentiment-card">
+          <div class="label">币种快照</div>
+          <div class="value" style="margin-top:10px;font-size:28px;font-weight:700">${escapeHtml(first?.symbol || '—')}</div>
+          <div class="sub" style="margin-top:8px;color:var(--muted)">${escapeHtml(first?.label || '暂无标签')}</div>
+          <div class="ratio-grid">
+            <div class="ratio"><span>看涨占比</span><strong class="good">${formatRatio(first?.bullish_ratio)}</strong></div>
+            <div class="ratio"><span>看跌占比</span><strong class="danger">${formatRatio(first?.bearish_ratio)}</strong></div>
+            <div class="ratio"><span>提及次数</span><strong>${first?.mention_count ?? '—'}</strong></div>
+          </div>
+        </div>
+        <div class="chart-box">
+          <div class="chart-title">情绪趋势（Bullish Ratio）</div>
+          ${trendValues.length ? renderSparkline(trendValues, '#75de8f') : '<div class="empty">当前没有趋势样本，快照模式仍然可用。</div>'}
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>排名</th><th>币种</th><th>标签</th><th>看涨</th><th>看跌</th><th>提及</th></tr>
+          </thead>
+          <tbody>
+            ${rows.length ? rows.map((item, idx) => `
+              <tr>
+                <td class="mono">${idx + 1}</td>
+                <td>${escapeHtml(item.symbol || '—')}</td>
+                <td>${escapeHtml(item.label || '—')}</td>
+                <td class="good mono">${formatRatio(item.bullish_ratio)}</td>
+                <td class="danger mono">${formatRatio(item.bearish_ratio)}</td>
+                <td class="mono">${item.mention_count ?? '—'}</td>
+              </tr>
+            `).join('') : `<tr><td colspan="6" class="muted">${escapeHtml(ranking?.error || '暂无排行数据')}</td></tr>`}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+async function openArticle(articleId){
+  if(!articleId) return;
+  $('detail-panel').innerHTML = '<div class="loading">正在拉取文章详情...</div>';
+  try{
+    const detail = await fetchJson(`${API}/news/okx/detail/${encodeURIComponent(articleId)}?language=${encodeURIComponent(state.language)}`);
+    const item = detail?.item;
+    if(!item){
+      $('detail-panel').innerHTML = `<div class="detail-empty">${escapeHtml(detail?.error || '拿不到文章详情')}</div>`;
+      return;
+    }
+    state.activeArticle = item;
+    $('detail-panel').innerHTML = `
+      <div class="detail-box">
+        <div class="detail-title">${escapeHtml(item.title || '未命名文章')}</div>
+        <div class="detail-meta">
+          <span class="badge">${escapeHtml((item.platforms || []).join(', ') || 'OKX Orbit')}</span>
+          <span class="badge">${escapeHtml((item.coins || []).join(', ') || '市场')}</span>
+          <span class="badge">${formatTime(item.published_at)}</span>
+          ${item.importance === 'high' ? '<span class="badge important">重要</span>' : ''}
+        </div>
+        <div class="detail-text">${escapeHtml(item.content || item.summary || item.excerpt || '暂无正文')}</div>
+        ${item.source_url ? `<div class="status-line"><a href="${escapeHtml(item.source_url)}" target="_blank" rel="noopener noreferrer">打开源链接</a></div>` : ''}
+      </div>
+    `;
+  }catch(error){
+    $('detail-panel').innerHTML = `<div class="detail-empty">${escapeHtml(error.message || '文章详情加载失败')}</div>`;
+  }
+}
+
+async function loadDashboard({silent=false} = {}){
+  const requestId = ++state.requestId;
+  collectStateFromControls();
+  syncUrl();
+
+  const instId = resolveInstId(state.symbol, state.marketType);
+  renderHeroMeta(instId);
+
+  if(!silent){
+    state.loading = true;
+    $('refresh-btn').disabled = true;
+    setToolbarStatus('正在拉取行情与新闻...');
+  }
+
+  const overviewParams = new URLSearchParams({
+    inst_id: instId,
+    candle_bar: state.timeframe,
+    oi_bar: state.timeframe,
+    language: state.language,
+    detail_lvl: 'summary',
+    news_limit: '6',
+    important_limit: '4',
+    sentiment_period: timeframeToSentimentPeriod(state.timeframe),
+    trend_points: '12',
+    ranking_limit: '8',
+  });
+  const searchParams = new URLSearchParams({
+    keyword: state.keyword,
+    coins: extractBaseSymbol(instId),
+    language: state.language,
+    detail_lvl: 'summary',
+    limit: '6',
+    sort_by: 'latest',
+  });
+  if(state.platform){
+    overviewParams.set('platform', state.platform);
+    searchParams.set('platform', state.platform);
+  }
+
+  const [overviewResult, searchResult] = await Promise.allSettled([
+    fetchJson(`${API}/analysis/okx/overview?${overviewParams.toString()}`),
+    state.keyword ? fetchJson(`${API}/news/okx/search?${searchParams.toString()}`) : Promise.resolve(null),
+  ]);
+
+  if(requestId !== state.requestId) return;
+
+  state.payload = overviewResult.status === 'fulfilled'
+    ? overviewResult.value
+    : {market:{error:overviewResult.reason?.message || '概览接口失败'}};
+
+  state.searchPayload = searchResult.status === 'fulfilled'
+    ? searchResult.value
+    : (state.keyword ? {error: searchResult.reason?.message || '搜索失败', items: []} : null);
+
+  state.lastUpdatedAt = Date.now();
+  renderHeroMeta(instId);
+  renderSummary(state.payload);
+  renderMarketPanel(state.payload);
+  renderNewsPanel(state.payload);
+  renderSentimentPanel(state.payload);
+
+  if(!silent){
+    state.loading = false;
+    $('refresh-btn').disabled = false;
+    setToolbarStatus('已加载，自动同步已开启');
+  }
+}
+
+function attachEvents(){
+  $('refresh-btn').addEventListener('click', () => loadDashboard());
+  $('clear-keyword-btn').addEventListener('click', () => {
+    $('keyword').value = '';
+    state.keyword = '';
+    loadDashboard();
+  });
+  $('symbol-input').addEventListener('keydown', (event) => {
+    if(event.key === 'Enter') loadDashboard();
+  });
+  $('keyword').addEventListener('keydown', (event) => {
+    if(event.key === 'Enter') loadDashboard();
+  });
+  ['market-type','timeframe','language','platform'].forEach(id => {
+    $(id).addEventListener('change', () => loadDashboard());
+  });
+  document.querySelectorAll('[data-token]').forEach(button => {
+    button.addEventListener('click', () => {
+      $('symbol-input').value = button.dataset.token || 'BTC';
+      loadDashboard();
+    });
+  });
+  window.addEventListener('popstate', () => {
+    readUrlState();
+    applyControls();
+    loadDashboard({silent:true});
+  });
+}
+
+function renderBootState(){
+  const instId = resolveInstId(state.symbol, state.marketType);
+  renderHeroMeta(instId);
+  $('summary-grid').innerHTML = Array.from({length:6}).map(() => metricCard('等待数据', '—', '第一次加载后会填充')).join('');
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  readUrlState();
+  renderBootState();
+  await loadPlatforms();
+  applyControls();
+  attachEvents();
+  await loadDashboard();
+  setInterval(() => {
+    if(document.hidden) return;
+    loadDashboard({silent:true});
+  }, AUTO_REFRESH_MS);
+});
+</script>
+</body>
+</html>

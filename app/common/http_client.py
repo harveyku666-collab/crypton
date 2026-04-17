@@ -3,7 +3,7 @@
 Security:
   - All outbound requests are checked against ALLOWED_HOSTS from endpoints.py
   - Requests to unknown hosts are blocked and logged as security events
-  - Only GET requests go through fetch_json; no user data is sent via query params
+  - JSON requests go through the same host whitelist, timeout, retry, and proxy rules
 
 Proxy:
   - Set PROXY_URL env var (e.g. socks5://127.0.0.1:7890 or http://proxy:8080)
@@ -102,16 +102,16 @@ async def close_client() -> None:
         _proxy_client = None
 
 
-async def fetch_json(
+async def _request_json(
+    method: str,
     url: str,
     *,
     params: dict[str, Any] | None = None,
+    json_body: dict[str, Any] | list[Any] | None = None,
     headers: dict[str, str] | None = None,
     retries: int = MAX_RETRIES,
 ) -> Any:
-    """GET JSON from url. Host must be registered in endpoints.py.
-    Automatically routes through proxy for geographically restricted hosts.
-    """
+    """Request JSON from url with shared whitelist, retry, timeout, and proxy rules."""
     _check_host_allowed(url)
 
     use_proxy = _needs_proxy(url)
@@ -126,13 +126,43 @@ async def fetch_json(
     last_exc: Exception | None = None
     for attempt in range(retries):
         try:
-            resp = await client.get(url, params=params, headers=headers)
+            resp = await client.request(method, url, params=params, json=json_body, headers=headers)
             resp.raise_for_status()
             return resp.json()
         except (httpx.HTTPStatusError, httpx.ConnectError, httpx.ReadTimeout) as exc:
             last_exc = exc
             if attempt < retries - 1:
                 wait = BACKOFF_BASE * (2 ** attempt)
-                logger.warning("Retry %d for %s: %s (wait %.1fs)", attempt + 1, url, exc, wait)
+                logger.warning("Retry %d for %s %s: %s (wait %.1fs)", attempt + 1, method, url, exc, wait)
                 await asyncio.sleep(wait)
     raise last_exc  # type: ignore[misc]
+
+
+async def fetch_json(
+    url: str,
+    *,
+    params: dict[str, Any] | None = None,
+    headers: dict[str, str] | None = None,
+    retries: int = MAX_RETRIES,
+) -> Any:
+    """GET JSON from url. Host must be registered in endpoints.py."""
+    return await _request_json("GET", url, params=params, headers=headers, retries=retries)
+
+
+async def fetch_json_post(
+    url: str,
+    *,
+    params: dict[str, Any] | None = None,
+    json_body: dict[str, Any] | list[Any] | None = None,
+    headers: dict[str, str] | None = None,
+    retries: int = MAX_RETRIES,
+) -> Any:
+    """POST JSON to url. Host must be registered in endpoints.py."""
+    return await _request_json(
+        "POST",
+        url,
+        params=params,
+        json_body=json_body,
+        headers=headers,
+        retries=retries,
+    )

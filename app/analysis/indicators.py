@@ -9,6 +9,8 @@ from __future__ import annotations
 import math
 from typing import Any
 
+from app.market.sources import binance
+
 
 def compute_rsi(closes: list[float], period: int = 14) -> float | None:
     if len(closes) < period + 1:
@@ -159,3 +161,96 @@ def analyze_klines(klines: list[list]) -> dict[str, Any]:
             "volume_ratio": round(vol_ratio, 2),
         },
     }
+
+
+def compute_moving_averages(closes: list[float]) -> dict[str, Any]:
+    if not closes:
+        return {}
+
+    current = closes[-1]
+    ma7 = sum(closes[-7:]) / 7 if len(closes) >= 7 else None
+    ma14 = sum(closes[-14:]) / 14 if len(closes) >= 14 else None
+    ma30 = sum(closes[-30:]) / 30 if len(closes) >= 30 else None
+
+    ma_analysis: dict[str, Any] = {}
+    if ma7 is not None:
+        ma_analysis["ma7"] = round(ma7, 2)
+        ma_analysis["price_vs_ma7_pct"] = round((current - ma7) / ma7 * 100, 2)
+    if ma14 is not None:
+        ma_analysis["ma14"] = round(ma14, 2)
+        ma_analysis["price_vs_ma14_pct"] = round((current - ma14) / ma14 * 100, 2)
+    if ma30 is not None:
+        ma_analysis["ma30"] = round(ma30, 2)
+        ma_analysis["price_vs_ma30_pct"] = round((current - ma30) / ma30 * 100, 2)
+    if ma7 is not None and ma14 is not None:
+        ma_analysis["golden_cross"] = ma7 > ma14
+    return ma_analysis
+
+
+def build_technical_snapshot(
+    symbol: str,
+    interval: str,
+    klines: list[list],
+    analysis: dict[str, Any],
+) -> dict[str, Any]:
+    closes = [float(k[4]) for k in klines]
+    current = closes[-1]
+    price_change_pct = round((closes[-1] - closes[-2]) / closes[-2] * 100, 2) if len(closes) >= 2 else 0.0
+    indicators = analysis.get("indicators", {})
+    rsi = indicators.get("rsi")
+    direction = analysis.get("direction", "NEUTRAL")
+    confidence = analysis.get("confidence", 0.0)
+
+    trend = "sideways"
+    if direction == "UP":
+        trend = "strong_bullish" if confidence > 70 else "bullish"
+    elif direction == "DOWN":
+        trend = "strong_bearish" if confidence > 70 else "bearish"
+
+    rsi_status = "neutral"
+    if rsi is not None and rsi > 70:
+        rsi_status = "overbought"
+    elif rsi is not None and rsi < 30:
+        rsi_status = "oversold"
+
+    pair = f"{symbol}USDT"
+    return {
+        "symbol": symbol,
+        "pair": pair,
+        "interval": interval,
+        "source": "Binance",
+        "candle_count": len(klines),
+        "close_time": int(klines[-1][6]) if klines and len(klines[-1]) > 6 else None,
+        "price": current,
+        "price_change_pct": price_change_pct,
+        "rsi": rsi,
+        "rsi_status": rsi_status,
+        "macd": indicators.get("macd"),
+        "bollinger": indicators.get("bollinger"),
+        "momentum": indicators.get("momentum"),
+        "volume_ratio": indicators.get("volume_ratio"),
+        "moving_averages": compute_moving_averages(closes),
+        "trend": trend,
+        "direction": direction,
+        "confidence": confidence,
+        "bull_score": analysis.get("bull_score"),
+        "bear_score": analysis.get("bear_score"),
+        "analysis": analysis,
+    }
+
+
+async def analyze_symbol_technical(
+    symbol: str = "BTC",
+    interval: str = "4h",
+    limit: int = 120,
+) -> dict[str, Any]:
+    normalized_symbol = symbol.upper()
+    klines = await binance.get_klines(f"{normalized_symbol}USDT", interval, limit)
+    if not klines:
+        return {"error": f"No kline data for {normalized_symbol}"}
+
+    analysis = analyze_klines(klines)
+    if "error" in analysis:
+        return analysis
+
+    return build_technical_snapshot(normalized_symbol, interval, klines, analysis)

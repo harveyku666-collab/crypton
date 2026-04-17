@@ -540,7 +540,11 @@ async function openDetail(id) {
 
   const statusLabel = { active: '已上线', beta: '测试中', planned: '规划中' };
   const isOiSignal = s.id === 'oi-signal';
-  const primaryLabel = isOiSignal ? '进入 OI 仪表盘' : '查看实时简报';
+  const isDefiYield = s.id === 'defi-yield-scanner';
+  const isTechnicalAnalysis = s.id === 'technical-analysis';
+  const isPredictionMarkets = s.id === 'prediction-markets';
+  const isOkxIntelligence = s.id === 'okx-intelligence';
+  const primaryLabel = isOiSignal ? '进入 OI 仪表盘' : isDefiYield ? '进入收益仪表盘' : isTechnicalAnalysis ? '进入技术分析' : isPredictionMarkets ? '进入预测市场' : isOkxIntelligence ? '进入 OKX 情报台' : '查看实时简报';
   const oiLaunchBlock = isOiSignal ? `
     <div style="margin:18px 0 6px;padding:16px;border-radius:14px;border:1px solid rgba(88,166,255,.22);background:linear-gradient(135deg,rgba(88,166,255,.08),rgba(188,140,255,.08))">
       <div style="font-size:15px;font-weight:700;margin-bottom:6px">直接搜索代币</div>
@@ -554,6 +558,74 @@ async function openDetail(id) {
           <option value="1d">1d</option>
         </select>
         <button class="btn-primary" onclick="launchOiSignal(document.getElementById('modal-oi-symbol').value,document.getElementById('modal-oi-timeframe').value)">打开分析页</button>
+      </div>
+    </div>
+  ` : '';
+  const yieldLaunchBlock = isDefiYield ? `
+    <div style="margin:18px 0 6px;padding:16px;border-radius:14px;border:1px solid rgba(50,194,116,.22);background:linear-gradient(135deg,rgba(50,194,116,.09),rgba(255,203,103,.08))">
+      <div style="font-size:15px;font-weight:700;margin-bottom:6px">直接打开收益仪表盘</div>
+      <div style="font-size:12px;color:var(--text2);line-height:1.7;margin-bottom:12px">先筛链、最低 APY 和 TVL，再进入完整收益池界面继续扫描。</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <select id="modal-yield-chain" style="padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px">
+          <option value="">All Chains</option>
+          <option value="Ethereum">Ethereum</option>
+          <option value="Arbitrum">Arbitrum</option>
+          <option value="Base">Base</option>
+          <option value="BNB Chain">BNB Chain</option>
+          <option value="Solana">Solana</option>
+        </select>
+        <input id="modal-yield-symbol" placeholder="ETH / USDC / BTC" style="flex:1;min-width:150px;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px">
+        <input id="modal-yield-min-apy" type="number" min="0" step="0.1" value="5" placeholder="Min APY" style="width:110px;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px">
+        <button class="btn-primary" onclick="launchDefiYieldScanner({chain:document.getElementById('modal-yield-chain').value,symbol:document.getElementById('modal-yield-symbol').value,minApy:document.getElementById('modal-yield-min-apy').value})">打开分析页</button>
+      </div>
+    </div>
+  ` : '';
+  const technicalLaunchBlock = isTechnicalAnalysis ? `
+    <div style="margin:18px 0 6px;padding:16px;border-radius:14px;border:1px solid rgba(88,166,255,.22);background:linear-gradient(135deg,rgba(88,166,255,.09),rgba(63,185,80,.08))">
+      <div style="font-size:15px;font-weight:700;margin-bottom:6px">直接打开技术分析</div>
+      <div style="font-size:12px;color:var(--text2);line-height:1.7;margin-bottom:12px">输入币种和周期后，直接进入可视化技术分析页，查看 RSI、MACD、布林带、均线和多周期摘要。</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <input id="modal-ta-symbol" value="BTC" placeholder="BTC / ETH / SOL / AAVE" style="flex:1;min-width:170px;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px">
+        <select id="modal-ta-timeframe" style="padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px">
+          <option value="15m">15m</option>
+          <option value="1h">1h</option>
+          <option value="4h" selected>4h</option>
+          <option value="1d">1d</option>
+        </select>
+        <button class="btn-primary" onclick="launchTechnicalAnalysis(document.getElementById('modal-ta-symbol').value,document.getElementById('modal-ta-timeframe').value)">打开分析页</button>
+      </div>
+    </div>
+  ` : '';
+  const predictionLaunchBlock = isPredictionMarkets ? `
+    <div style="margin:18px 0 6px;padding:16px;border-radius:14px;border:1px solid rgba(188,140,255,.22);background:linear-gradient(135deg,rgba(188,140,255,.10),rgba(88,166,255,.08))">
+      <div style="font-size:15px;font-weight:700;margin-bottom:6px">直接打开预测市场</div>
+      <div style="font-size:12px;color:var(--text2);line-height:1.7;margin-bottom:12px">按 24h 成交量扫描 Polymarket 热门事件，先看最热话题、Yes 概率和流动性。</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <select id="modal-prediction-limit" style="padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px">
+          <option value="5">Top 5</option>
+          <option value="10" selected>Top 10</option>
+          <option value="20">Top 20</option>
+        </select>
+        <button class="btn-primary" onclick="launchPredictionMarkets(document.getElementById('modal-prediction-limit').value)">打开事件页</button>
+      </div>
+    </div>
+  ` : '';
+  const okxLaunchBlock = isOkxIntelligence ? `
+    <div style="margin:18px 0 6px;padding:16px;border-radius:14px;border:1px solid rgba(97,217,255,.22);background:linear-gradient(135deg,rgba(97,217,255,.09),rgba(117,222,143,.08))">
+      <div style="font-size:15px;font-weight:700;margin-bottom:6px">直接打开 OKX 市场情报台</div>
+      <div style="font-size:12px;color:var(--text2);line-height:1.7;margin-bottom:12px">输入币种、选择现货/永续和分析周期后，直接进入 OKX 行情 + Orbit 新闻 + 情绪一体仪表盘。</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <input id="modal-okx-symbol" value="BTC" placeholder="BTC / ETH / DOGE / AAPL-USDT-SWAP" style="flex:1;min-width:190px;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px">
+        <select id="modal-okx-market-type" style="padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px">
+          <option value="SWAP" selected>永续合约</option>
+          <option value="SPOT">现货</option>
+        </select>
+        <select id="modal-okx-timeframe" style="padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px">
+          <option value="1H" selected>1H</option>
+          <option value="4H">4H</option>
+          <option value="1D">1D</option>
+        </select>
+        <button class="btn-primary" onclick="launchOkxIntelligence(document.getElementById('modal-okx-symbol').value,document.getElementById('modal-okx-market-type').value,document.getElementById('modal-okx-timeframe').value)">打开情报台</button>
       </div>
     </div>
   ` : '';
@@ -580,6 +652,10 @@ async function openDetail(id) {
     </div>
 
     ${oiLaunchBlock}
+    ${yieldLaunchBlock}
+    ${technicalLaunchBlock}
+    ${predictionLaunchBlock}
+    ${okxLaunchBlock}
 
     <div class="modal-actions">
       <button class="btn-primary" onclick="viewReport('${s.id}')">${primaryLabel}</button>
@@ -599,7 +675,7 @@ document.getElementById('modal-overlay').onclick = function(e) {
 };
 
 function viewReport(skillId) {
-  const pages = {'oi-signal':'/oi-signal','market-briefing':'/briefing'};
+  const pages = {'oi-signal':'/oi-signal','market-briefing':'/briefing','defi-yield-scanner':'/defi-yield-scanner','okx-intelligence':'/okx-intelligence'};
   location.href = pages[skillId] ? `${BASE}${pages[skillId]}` : `${BASE}/skill?id=${skillId}`;
 }
 
@@ -612,10 +688,55 @@ function sanitizeSymbol(value){
   return symbol.slice(0,20);
 }
 
+function sanitizeYieldKeyword(value){
+  if(!value)return'';
+  return String(value).trim().toUpperCase().replace(/\s+/g,'').replace(/[^A-Z0-9:/_-]/g,'').slice(0,32);
+}
+
 function launchOiSignal(rawSymbol,timeframe){
   const symbol=sanitizeSymbol(rawSymbol??document.getElementById('oi-launch-symbol')?.value)||'BTC';
   const tf=timeframe||document.getElementById('oi-launch-timeframe')?.value||'1h';
   location.href=`${BASE}/oi-signal?symbol=${encodeURIComponent(symbol)}&timeframe=${encodeURIComponent(tf)}`;
+}
+
+function launchTechnicalAnalysis(rawSymbol,timeframe){
+  const symbol=sanitizeSymbol(rawSymbol??document.getElementById('modal-ta-symbol')?.value)||'BTC';
+  const tf=timeframe||document.getElementById('modal-ta-timeframe')?.value||'4h';
+  const params=new URLSearchParams();
+  params.set('id','technical-analysis');
+  params.set('symbol',symbol);
+  params.set('interval',tf);
+  params.set('limit','120');
+  location.href=`${BASE}/skill?${params.toString()}`;
+}
+
+function launchPredictionMarkets(limit='10'){
+  const params=new URLSearchParams();
+  params.set('id','prediction-markets');
+  params.set('limit',String(Number(limit||10)));
+  location.href=`${BASE}/skill?${params.toString()}`;
+}
+
+function launchOkxIntelligence(rawSymbol,marketType='SWAP',timeframe='1H'){
+  const raw=String(rawSymbol??'').trim().toUpperCase();
+  const symbol=raw||'BTC';
+  const type=marketType==='SPOT'?'SPOT':'SWAP';
+  const tf=['1H','4H','1D'].includes(String(timeframe).toUpperCase())?String(timeframe).toUpperCase():'1H';
+  const params=new URLSearchParams();
+  params.set('symbol',symbol);
+  params.set('marketType',type);
+  params.set('timeframe',tf);
+  location.href=`${BASE}/okx-intelligence?${params.toString()}`;
+}
+
+function launchDefiYieldScanner({chain='',symbol='',minApy='5',minTvl='10000000',limit='30'}={}){
+  const params = new URLSearchParams();
+  if(chain) params.set('chain', chain);
+  if(symbol) params.set('symbol', sanitizeYieldKeyword(symbol));
+  params.set('min_apy', String(Number(minApy||5)));
+  params.set('min_tvl', String(Number(minTvl||10000000)));
+  params.set('limit', String(Number(limit||30)));
+  location.href=`${BASE}/defi-yield-scanner?${params.toString()}`;
 }
 
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });

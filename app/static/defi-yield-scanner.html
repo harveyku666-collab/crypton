@@ -1,0 +1,936 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DeFi 收益扫描器 - BitInfo</title>
+<style>
+:root{
+  --bg:#071018;
+  --panel:#111c24;
+  --panel-2:#172531;
+  --panel-3:#203140;
+  --line:#304251;
+  --text:#edf4fa;
+  --muted:#94a7b6;
+  --green:#32c274;
+  --green-2:#86e99f;
+  --blue:#69c3ff;
+  --cyan:#56d7da;
+  --amber:#ffcb67;
+  --orange:#ff8c52;
+  --red:#ff6b6b;
+  --shadow:0 20px 52px rgba(0,0,0,.28);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;
+  min-height:100vh;
+  color:var(--text);
+  font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Helvetica Neue",sans-serif;
+  background:
+    radial-gradient(circle at 12% 12%, rgba(50,194,116,.12), transparent 18%),
+    radial-gradient(circle at 82% 10%, rgba(105,195,255,.13), transparent 20%),
+    linear-gradient(180deg, #061019 0%, #08111a 36%, #09131d 100%);
+}
+a{color:inherit}
+.page{max-width:1320px;margin:0 auto;padding:28px 20px 60px}
+.hero{
+  position:relative;
+  overflow:hidden;
+  border:1px solid rgba(86,215,218,.14);
+  border-radius:28px;
+  padding:28px;
+  background:
+    linear-gradient(135deg, rgba(12,22,30,.98), rgba(13,29,36,.92)),
+    linear-gradient(90deg, rgba(50,194,116,.08), rgba(105,195,255,.06));
+  box-shadow:var(--shadow);
+}
+.hero:before{
+  content:"";
+  position:absolute;
+  right:-80px;
+  top:-80px;
+  width:280px;
+  height:280px;
+  border-radius:50%;
+  background:radial-gradient(circle, rgba(50,194,116,.16), transparent 68%);
+  pointer-events:none;
+}
+.hero-grid{
+  position:relative;
+  display:grid;
+  grid-template-columns:1.2fr .8fr;
+  gap:20px;
+  align-items:start;
+}
+.back-link{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:8px 14px;
+  border-radius:999px;
+  border:1px solid var(--line);
+  background:rgba(255,255,255,.03);
+  color:var(--muted);
+  text-decoration:none;
+}
+.back-link:hover{color:var(--text);border-color:var(--green)}
+.eyebrow{
+  margin-top:14px;
+  color:var(--green-2);
+  font-size:12px;
+  letter-spacing:.18em;
+  text-transform:uppercase;
+}
+.hero h1{
+  margin:10px 0 10px;
+  font-size:38px;
+  line-height:1.02;
+  letter-spacing:-.04em;
+}
+.hero p{
+  margin:0;
+  max-width:720px;
+  color:var(--muted);
+  font-size:15px;
+}
+.hero-pills{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  margin-top:18px;
+}
+.pill{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:8px 12px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.08);
+  background:rgba(255,255,255,.03);
+  color:var(--muted);
+  font-size:12px;
+}
+.hero-side{
+  display:grid;
+  gap:12px;
+}
+.hero-note{
+  border:1px solid rgba(255,255,255,.06);
+  border-radius:20px;
+  padding:18px;
+  background:rgba(255,255,255,.03);
+}
+.hero-note .title{
+  font-size:12px;
+  color:var(--muted);
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
+.hero-note .value{
+  margin-top:10px;
+  font-size:28px;
+  font-weight:700;
+  letter-spacing:-.03em;
+  font-variant-numeric:tabular-nums;
+}
+.hero-note .sub{
+  margin-top:8px;
+  color:var(--muted);
+  font-size:12px;
+  line-height:1.7;
+}
+.dock{
+  display:grid;
+  grid-template-columns:1.1fr 1.1fr 1fr .9fr .8fr;
+  gap:16px;
+  margin-top:22px;
+}
+.dock-card{
+  border:1px solid rgba(255,255,255,.06);
+  border-radius:22px;
+  background:linear-gradient(180deg, rgba(17,28,36,.96), rgba(15,24,31,.94));
+  padding:16px 18px;
+  box-shadow:var(--shadow);
+}
+.dock-label{
+  color:var(--muted);
+  font-size:12px;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  margin-bottom:10px;
+}
+.chain-row,.dock-actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+}
+.chain-chip,.mini-chip,.button{
+  border:1px solid var(--line);
+  background:rgba(255,255,255,.03);
+  color:var(--muted);
+  border-radius:999px;
+  padding:8px 12px;
+  cursor:pointer;
+  transition:.2s ease;
+  font:inherit;
+}
+.chain-chip:hover,.mini-chip:hover,.button:hover{
+  border-color:rgba(105,195,255,.45);
+  color:var(--text);
+  transform:translateY(-1px);
+}
+.chain-chip.active{
+  color:#071018;
+  border-color:transparent;
+  background:linear-gradient(135deg, var(--green-2), var(--green));
+  box-shadow:0 10px 24px rgba(50,194,116,.24);
+}
+.filter-input,.filter-select{
+  width:100%;
+  border:1px solid var(--line);
+  border-radius:14px;
+  background:rgba(255,255,255,.03);
+  color:var(--text);
+  padding:11px 12px;
+  outline:none;
+  font:inherit;
+}
+.filter-input:focus,.filter-select:focus{
+  border-color:var(--blue);
+  box-shadow:0 0 0 3px rgba(105,195,255,.12);
+}
+.filter-help{
+  margin-top:8px;
+  color:var(--muted);
+  font-size:12px;
+  line-height:1.65;
+}
+.button{
+  border-radius:14px;
+  padding:11px 14px;
+}
+.button.primary{
+  color:#071018;
+  font-weight:800;
+  border-color:transparent;
+  background:linear-gradient(135deg, #7ee4ff, #69c3ff);
+  box-shadow:0 12px 24px rgba(105,195,255,.2);
+}
+.button:disabled{
+  opacity:.6;
+  cursor:wait;
+  transform:none;
+}
+.summary-grid{
+  display:grid;
+  grid-template-columns:repeat(4, minmax(0, 1fr));
+  gap:14px;
+  margin-top:18px;
+}
+.metric{
+  border:1px solid rgba(255,255,255,.06);
+  border-radius:18px;
+  background:linear-gradient(180deg, rgba(17,28,36,.96), rgba(15,24,31,.94));
+  padding:16px;
+  box-shadow:var(--shadow);
+}
+.metric-label{color:var(--muted);font-size:12px;margin-bottom:8px}
+.metric-value{
+  font-size:30px;
+  font-weight:700;
+  line-height:1.05;
+  letter-spacing:-.03em;
+  font-variant-numeric:tabular-nums;
+}
+.metric-sub{
+  margin-top:8px;
+  color:var(--muted);
+  font-size:12px;
+  line-height:1.65;
+}
+.section-stack{display:grid;gap:18px;margin-top:18px}
+.panel{
+  border:1px solid rgba(255,255,255,.06);
+  border-radius:24px;
+  background:linear-gradient(180deg, rgba(17,28,36,.96), rgba(15,24,31,.94));
+  box-shadow:var(--shadow);
+}
+.panel-head{
+  display:flex;
+  justify-content:space-between;
+  gap:16px;
+  align-items:flex-start;
+  padding:20px 22px 0;
+}
+.panel-title{
+  margin:0;
+  font-size:16px;
+  font-weight:700;
+}
+.panel-sub{
+  margin-top:5px;
+  color:var(--muted);
+  font-size:12px;
+}
+.panel-body{padding:18px 22px 22px}
+.opportunity-grid{
+  display:grid;
+  grid-template-columns:repeat(3, minmax(0, 1fr));
+  gap:14px;
+}
+.yield-card{
+  position:relative;
+  overflow:hidden;
+  border:1px solid rgba(255,255,255,.05);
+  border-radius:20px;
+  padding:16px;
+  background:
+    linear-gradient(135deg, rgba(22,37,49,.98), rgba(17,28,36,.96)),
+    linear-gradient(135deg, rgba(50,194,116,.08), rgba(255,203,103,.04));
+}
+.yield-card:before{
+  content:"";
+  position:absolute;
+  inset:auto -20px -40px auto;
+  width:130px;
+  height:130px;
+  border-radius:50%;
+  background:radial-gradient(circle, rgba(255,203,103,.12), transparent 68%);
+  pointer-events:none;
+}
+.yield-top{
+  position:relative;
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  align-items:flex-start;
+}
+.yield-project{
+  font-size:17px;
+  font-weight:700;
+}
+.yield-symbol{
+  margin-top:4px;
+  color:var(--muted);
+  font-size:12px;
+}
+.yield-apy{
+  text-align:right;
+}
+.yield-apy .value{
+  font-size:34px;
+  line-height:.95;
+  font-weight:800;
+  color:var(--green-2);
+  letter-spacing:-.04em;
+}
+.yield-apy .sub{
+  margin-top:4px;
+  color:var(--muted);
+  font-size:12px;
+}
+.yield-tags{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  margin-top:16px;
+}
+.tag{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:6px 10px;
+  border-radius:999px;
+  background:rgba(255,255,255,.04);
+  border:1px solid rgba(255,255,255,.06);
+  color:var(--muted);
+  font-size:11px;
+}
+.yield-split{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+  margin-top:16px;
+}
+.yield-mini{
+  border:1px solid rgba(255,255,255,.05);
+  border-radius:16px;
+  background:rgba(255,255,255,.03);
+  padding:12px;
+}
+.yield-mini .label{
+  color:var(--muted);
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+}
+.yield-mini .value{
+  margin-top:7px;
+  font-size:20px;
+  font-weight:700;
+  font-variant-numeric:tabular-nums;
+}
+.insight-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:16px;
+}
+.box{
+  border:1px solid rgba(255,255,255,.05);
+  border-radius:18px;
+  background:var(--panel-2);
+  padding:16px;
+}
+.chain-bars{
+  display:grid;
+  gap:10px;
+}
+.chain-row-item{
+  display:grid;
+  grid-template-columns:88px 1fr 88px;
+  gap:10px;
+  align-items:center;
+  font-size:12px;
+}
+.bar-wrap{
+  height:10px;
+  border-radius:999px;
+  overflow:hidden;
+  background:#203140;
+}
+.bar{
+  height:100%;
+  border-radius:999px;
+  background:linear-gradient(90deg, var(--green), var(--blue));
+}
+.note-list{display:grid;gap:10px}
+.note{
+  border-left:3px solid var(--amber);
+  border-radius:0 12px 12px 0;
+  background:rgba(255,203,103,.08);
+  padding:10px 12px;
+  color:#ecf3f8;
+  font-size:13px;
+}
+.table-wrap{overflow:auto}
+table{width:100%;border-collapse:collapse}
+th,td{padding:12px 10px;text-align:left;font-size:13px}
+thead th{
+  color:var(--muted);
+  font-weight:600;
+  border-bottom:1px solid rgba(255,255,255,.08);
+}
+tbody tr{border-bottom:1px solid rgba(255,255,255,.05)}
+tbody tr:last-child{border-bottom:none}
+.mono{font-variant-numeric:tabular-nums}
+.green{color:var(--green)}
+.muted{color:var(--muted)}
+.status{
+  min-height:18px;
+  color:var(--muted);
+  font-size:12px;
+  margin-top:10px;
+}
+.status.error{color:var(--orange)}
+.loading,.empty{
+  min-height:260px;
+  border-radius:22px;
+  border:1px dashed rgba(255,255,255,.08);
+  background:rgba(255,255,255,.02);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:var(--muted);
+}
+.footer-note{
+  margin-top:20px;
+  color:var(--muted);
+  text-align:center;
+  font-size:12px;
+}
+@media (max-width:1120px){
+  .hero-grid,.dock,.summary-grid,.opportunity-grid,.insight-grid{grid-template-columns:1fr 1fr}
+}
+@media (max-width:820px){
+  .hero-grid,.dock,.summary-grid,.opportunity-grid,.insight-grid{grid-template-columns:1fr}
+  .page{padding:20px 14px 42px}
+  .hero{padding:22px 18px}
+  .hero h1{font-size:30px}
+}
+</style>
+</head>
+<body>
+<div class="page">
+  <section class="hero">
+    <div class="hero-grid">
+      <div>
+        <a class="back-link" id="back-link" href="/">← 返回首页</a>
+        <div class="eyebrow">Yield Intelligence</div>
+        <h1>DeFi 收益扫描器</h1>
+        <p>把 DefiLlama 收益池扫描整理成真正能筛选和对比的界面，一眼看清 APY、基础收益、激励收益、TVL 和链分布，快速定位高收益但不至于太薄的池子。</p>
+        <div class="hero-pills">
+          <span class="pill" id="updated-pill">更新时间加载中</span>
+          <span class="pill" id="filter-pill">默认筛选</span>
+          <span class="pill" id="result-pill">结果 --</span>
+        </div>
+      </div>
+      <div class="hero-side">
+        <div class="hero-note">
+          <div class="title">当前焦点</div>
+          <div class="value" id="focus-title">等待扫描</div>
+          <div class="sub" id="focus-sub">先选择链、最小 APY 和 TVL，再开始扫描收益池。</div>
+        </div>
+        <div class="hero-note">
+          <div class="title">筛选提醒</div>
+          <div class="sub">高 APY 不代表高质量。这里默认同时看 TVL、基础收益和激励收益，避免只被短期补贴吸引。</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="dock">
+    <div class="dock-card">
+      <div class="dock-label">链选择</div>
+      <div class="chain-row" id="chain-chips"></div>
+      <div class="filter-help">主流链一键切换，搜索 Token 时会保留当前链筛选。</div>
+    </div>
+    <div class="dock-card">
+      <div class="dock-label">Token / 协议线索</div>
+      <input class="filter-input" id="symbol-input" type="text" placeholder="ETH / USDC / BTC / stETH">
+      <div class="filter-help">输入 Token 符号做收益池搜索，例如 `ETH`、`USDC`、`BTC`。</div>
+    </div>
+    <div class="dock-card">
+      <div class="dock-label">最小 APY</div>
+      <input class="filter-input" id="min-apy-input" type="number" min="0" step="0.1" value="5">
+      <div class="filter-help">先把低收益噪音池过滤掉，默认从 `5%` 起看。</div>
+    </div>
+    <div class="dock-card">
+      <div class="dock-label">最小 TVL</div>
+      <select class="filter-select" id="min-tvl-input">
+        <option value="1000000">≥ $1M</option>
+        <option value="5000000">$5M</option>
+        <option value="10000000" selected>$10M</option>
+        <option value="50000000">$50M</option>
+        <option value="100000000">$100M</option>
+      </select>
+      <div class="filter-help">提高 TVL 下限可以显著减少“高 APY 但流动性很薄”的池子。</div>
+    </div>
+    <div class="dock-card">
+      <div class="dock-label">结果规模</div>
+      <select class="filter-select" id="limit-input">
+        <option value="20">20</option>
+        <option value="30" selected>30</option>
+        <option value="50">50</option>
+        <option value="100">100</option>
+      </select>
+      <div class="dock-actions" style="margin-top:12px">
+        <button class="button primary" id="scan-button">开始扫描</button>
+        <button class="button" id="reset-button">重置</button>
+      </div>
+      <div class="status" id="status-line"></div>
+    </div>
+  </section>
+
+  <div id="app" class="section-stack">
+    <div class="loading">正在准备收益扫描器...</div>
+  </div>
+</div>
+
+<script>
+const BASE = location.pathname.replace(/\/(skill|daily|briefing|oi-signal|defi-yield-scanner)?\s*$/, '').replace(/\/+$/, '');
+const API = BASE + '/api/v1';
+const CHAINS = ['', 'Ethereum', 'Arbitrum', 'Base', 'BNB Chain', 'Solana', 'Polygon', 'Optimism'];
+
+let currentChain = '';
+let currentSymbol = '';
+let currentMinApy = 5;
+let currentMinTvl = 10000000;
+let currentLimit = 30;
+let latestRequestId = 0;
+let activeController = null;
+
+const params = new URLSearchParams(location.search);
+currentChain = params.get('chain') || '';
+currentSymbol = (params.get('symbol') || '').trim();
+currentMinApy = Number(params.get('min_apy') || 5);
+currentMinTvl = Number(params.get('min_tvl') || 10000000);
+currentLimit = Number(params.get('limit') || 30);
+
+document.getElementById('back-link').href = BASE + '/';
+
+function fmtUsd(value){
+  if (value == null || Number.isNaN(Number(value))) return '-';
+  const numeric = Number(value);
+  const abs = Math.abs(numeric);
+  if (abs >= 1e12) return '$' + (numeric / 1e12).toFixed(2) + 'T';
+  if (abs >= 1e9) return '$' + (numeric / 1e9).toFixed(2) + 'B';
+  if (abs >= 1e6) return '$' + (numeric / 1e6).toFixed(2) + 'M';
+  if (abs >= 1e3) return '$' + (numeric / 1e3).toFixed(2) + 'K';
+  return '$' + numeric.toLocaleString('en-US', {maximumFractionDigits: numeric < 1 ? 6 : 2});
+}
+
+function fmtPct(value, digits = 2){
+  if (value == null || Number.isNaN(Number(value))) return '-';
+  return Number(value).toFixed(digits) + '%';
+}
+
+function esc(value){
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function sanitizeSymbol(value){
+  if (!value) return '';
+  return String(value).trim().replace(/\s+/g, '').slice(0, 24);
+}
+
+function setStatus(message, isError = false){
+  const line = document.getElementById('status-line');
+  line.textContent = message || '';
+  line.classList.toggle('error', Boolean(message && isError));
+}
+
+function syncInputs(){
+  document.getElementById('symbol-input').value = currentSymbol;
+  document.getElementById('min-apy-input').value = String(currentMinApy);
+  document.getElementById('min-tvl-input').value = String(currentMinTvl);
+  document.getElementById('limit-input').value = String(currentLimit);
+}
+
+function syncUrl(mode = 'replace'){
+  const next = new URLSearchParams(location.search);
+  if (currentChain) next.set('chain', currentChain); else next.delete('chain');
+  if (currentSymbol) next.set('symbol', currentSymbol); else next.delete('symbol');
+  next.set('min_apy', String(currentMinApy));
+  next.set('min_tvl', String(currentMinTvl));
+  next.set('limit', String(currentLimit));
+  const nextUrl = `${location.pathname}?${next.toString()}`;
+  const state = {
+    chain: currentChain,
+    symbol: currentSymbol,
+    min_apy: currentMinApy,
+    min_tvl: currentMinTvl,
+    limit: currentLimit,
+  };
+  if (mode === 'push' && nextUrl !== `${location.pathname}${location.search}`) {
+    history.pushState(state, '', nextUrl);
+  } else {
+    history.replaceState(state, '', nextUrl);
+  }
+}
+
+function renderChainChips(){
+  const container = document.getElementById('chain-chips');
+  container.innerHTML = CHAINS.map((chain) => {
+    const label = chain || 'All';
+    const active = chain === currentChain ? 'active' : '';
+    return `<button class="chain-chip ${active}" data-chain="${esc(chain)}">${esc(label)}</button>`;
+  }).join('');
+  container.querySelectorAll('.chain-chip').forEach((button) => {
+    button.addEventListener('click', () => {
+      const nextChain = button.dataset.chain || '';
+      if (nextChain === currentChain) return;
+      currentChain = nextChain;
+      renderChainChips();
+      syncUrl('push');
+      loadDashboard({preserveContent: true});
+    });
+  });
+}
+
+function buildQuery(){
+  const params = new URLSearchParams();
+  params.set('min_apy', String(currentMinApy));
+  params.set('min_tvl', String(currentMinTvl));
+  params.set('limit', String(currentLimit));
+  if (currentChain) params.set('chain', currentChain);
+  if (currentSymbol) params.set('symbol', currentSymbol);
+  return params;
+}
+
+function renderTopCards(items){
+  if (!items.length) return '<div class="empty">当前筛选下没有找到收益池</div>';
+  return `<div class="opportunity-grid">${items.slice(0, 6).map((item, index) => `
+    <article class="yield-card">
+      <div class="yield-top">
+        <div>
+          <div class="yield-project">${index + 1}. ${esc(item.project || 'Unknown')}</div>
+          <div class="yield-symbol">${esc(item.symbol || '-')} · ${esc(item.chain || '-')}</div>
+        </div>
+        <div class="yield-apy">
+          <div class="value">${fmtPct(item.apy, 1)}</div>
+          <div class="sub">总 APY</div>
+        </div>
+      </div>
+      <div class="yield-tags">
+        <span class="tag">基础 ${fmtPct(item.apy_base, 1)}</span>
+        <span class="tag">奖励 ${fmtPct(item.apy_reward, 1)}</span>
+        <span class="tag">TVL ${fmtUsd(item.tvl)}</span>
+      </div>
+      <div class="yield-split">
+        <div class="yield-mini">
+          <div class="label">收益结构</div>
+          <div class="value">${(Number(item.apy_reward || 0) > Number(item.apy_base || 0)) ? '激励主导' : '基础收益主导'}</div>
+        </div>
+        <div class="yield-mini">
+          <div class="label">流动性厚度</div>
+          <div class="value">${Number(item.tvl || 0) >= 100000000 ? '厚' : Number(item.tvl || 0) >= 10000000 ? '中' : '薄'}</div>
+        </div>
+      </div>
+    </article>
+  `).join('')}</div>`;
+}
+
+function renderChainDistribution(items){
+  const totals = new Map();
+  items.forEach((item) => {
+    const chain = item.chain || 'Unknown';
+    totals.set(chain, (totals.get(chain) || 0) + Number(item.tvl || 0));
+  });
+  const rows = [...totals.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8);
+  if (!rows.length) return '<div class="empty" style="min-height:160px">暂无链分布</div>';
+  const max = Math.max(...rows.map((row) => row[1]), 1);
+  return `<div class="chain-bars">${rows.map(([chain, tvl]) => `
+    <div class="chain-row-item">
+      <div>${esc(chain)}</div>
+      <div class="bar-wrap"><div class="bar" style="width:${tvl / max * 100}%"></div></div>
+      <div class="mono" style="text-align:right">${fmtUsd(tvl)}</div>
+    </div>
+  `).join('')}</div>`;
+}
+
+function renderNotes(items, summary){
+  const notes = [];
+  if (summary.topApyItem) {
+    notes.push(`当前最高收益池来自 ${summary.topApyItem.project} / ${summary.topApyItem.symbol}，总 APY ${fmtPct(summary.topApyItem.apy, 1)}。`);
+  }
+  if (summary.topTvlItem) {
+    notes.push(`当前筛选下 TVL 最厚的是 ${summary.topTvlItem.project}，流动性约 ${fmtUsd(summary.topTvlItem.tvl)}。`);
+  }
+  const rewardHeavy = items.filter((item) => Number(item.apy_reward || 0) > Number(item.apy_base || 0)).length;
+  if (rewardHeavy) {
+    notes.push(`${rewardHeavy} 个池子的奖励收益高于基础收益，补贴退潮后的收益回落风险更高。`);
+  }
+  if (!notes.length) {
+    return '<div class="empty" style="min-height:160px">暂无扫描备注</div>';
+  }
+  return `<div class="note-list">${notes.map((note) => `<div class="note">${esc(note)}</div>`).join('')}</div>`;
+}
+
+function renderTable(items){
+  if (!items.length) return '<div class="empty">当前筛选没有结果，可以降低 APY 门槛或放宽 TVL。</div>';
+  return `
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>协议</th>
+            <th>池子</th>
+            <th>链</th>
+            <th>总 APY</th>
+            <th>基础</th>
+            <th>奖励</th>
+            <th>TVL</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${items.map((item, index) => `
+            <tr>
+              <td class="mono">${index + 1}</td>
+              <td><strong>${esc(item.project || '-')}</strong></td>
+              <td>${esc(item.symbol || '-')}</td>
+              <td>${esc(item.chain || '-')}</td>
+              <td class="mono green">${fmtPct(item.apy, 2)}</td>
+              <td class="mono">${fmtPct(item.apy_base, 2)}</td>
+              <td class="mono">${fmtPct(item.apy_reward, 2)}</td>
+              <td class="mono">${fmtUsd(item.tvl)}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function summarize(items){
+  const totalTvl = items.reduce((sum, item) => sum + Number(item.tvl || 0), 0);
+  const avgApy = items.length ? items.reduce((sum, item) => sum + Number(item.apy || 0), 0) / items.length : 0;
+  const topApyItem = items[0] || null;
+  const topTvlItem = items.slice().sort((a, b) => Number(b.tvl || 0) - Number(a.tvl || 0))[0] || null;
+  const chainCount = new Set(items.map((item) => item.chain).filter(Boolean)).size;
+  return {totalTvl, avgApy, topApyItem, topTvlItem, chainCount};
+}
+
+function renderDashboard(items){
+  const summary = summarize(items);
+  const top = summary.topApyItem;
+
+  document.title = `${currentChain || '多链'} DeFi 收益扫描器 - BitInfo`;
+  document.getElementById('updated-pill').textContent = `更新时间 ${new Date().toLocaleTimeString('zh-CN', {hour:'2-digit', minute:'2-digit', second:'2-digit'})}`;
+  document.getElementById('filter-pill').textContent = `${currentChain || 'All Chains'} · APY ≥ ${fmtPct(currentMinApy, 0)} · TVL ≥ ${fmtUsd(currentMinTvl)}`;
+  document.getElementById('result-pill').textContent = `结果 ${items.length} 个池子`;
+  document.getElementById('focus-title').textContent = top ? `${top.project} · ${fmtPct(top.apy, 1)}` : '暂无结果';
+  document.getElementById('focus-sub').textContent = top
+    ? `${top.chain} · ${top.symbol} · TVL ${fmtUsd(top.tvl)} · 基础 ${fmtPct(top.apy_base, 1)} / 奖励 ${fmtPct(top.apy_reward, 1)}`
+    : '当前筛选没有可用收益池，可以适当降低 TVL 或 APY 门槛。';
+  setStatus(`已返回 ${items.length} 个收益池`, false);
+
+  document.getElementById('app').innerHTML = `
+    <section class="summary-grid">
+      <div class="metric">
+        <div class="metric-label">平均 APY</div>
+        <div class="metric-value">${fmtPct(summary.avgApy, 1)}</div>
+        <div class="metric-sub">当前结果池子的平均收益水平，适合先看整体热度。</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">最高 APY</div>
+        <div class="metric-value">${top ? fmtPct(top.apy, 1) : '-'}</div>
+        <div class="metric-sub">${top ? `${top.project} · ${top.symbol}` : '暂无结果'}</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">样本总 TVL</div>
+        <div class="metric-value">${fmtUsd(summary.totalTvl)}</div>
+        <div class="metric-sub">把当前筛选下所有池子的 TVL 叠加，便于估算流动性厚度。</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">覆盖链数</div>
+        <div class="metric-value">${summary.chainCount}</div>
+        <div class="metric-sub">当前筛选涉及的链数量，越集中越容易说明机会集中在单一生态。</div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <h2 class="panel-title">机会面板</h2>
+          <div class="panel-sub">先看最值得点开的前几名池子，把基础收益和奖励收益拆开看，避免只盯总 APY。</div>
+        </div>
+      </div>
+      <div class="panel-body">
+        ${renderTopCards(items)}
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <h2 class="panel-title">结构视图</h2>
+          <div class="panel-sub">一个看链分布，一个看筛选后的风险提示，帮助判断收益是否太集中或太依赖激励。</div>
+        </div>
+      </div>
+      <div class="panel-body insight-grid">
+        <div class="box">
+          <div class="panel-title" style="font-size:13px;margin-bottom:10px">链上 TVL 分布</div>
+          ${renderChainDistribution(items)}
+        </div>
+        <div class="box">
+          <div class="panel-title" style="font-size:13px;margin-bottom:10px">扫描备注</div>
+          ${renderNotes(items, summary)}
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <h2 class="panel-title">全部结果</h2>
+          <div class="panel-sub">按 APY 排序列出完整结果，适合进一步筛选基础收益、奖励补贴和 TVL。</div>
+        </div>
+      </div>
+      <div class="panel-body">
+        ${renderTable(items)}
+      </div>
+    </section>
+
+    <div class="footer-note">收益池的高 APY 可能来自短期补贴、低流动性或资产波动风险，建议结合无常损失、协议安全性和池子寿命一起判断。</div>
+  `;
+}
+
+async function loadDashboard({preserveContent = false} = {}){
+  const app = document.getElementById('app');
+  const button = document.getElementById('scan-button');
+  const requestId = ++latestRequestId;
+  if (activeController) activeController.abort();
+  activeController = new AbortController();
+  button.disabled = true;
+  if (!preserveContent) {
+    app.innerHTML = '<div class="loading">正在扫描 DeFi 收益池...</div>';
+  }
+  setStatus(`正在扫描 ${currentChain || '多链'} 收益池...`);
+  try {
+    const response = await fetch(`${API}/analysis/defi-yields?${buildQuery().toString()}`, {
+      signal: activeController.signal,
+    });
+    const data = await response.json();
+    if (requestId !== latestRequestId) return;
+    if (!response.ok || data.error) {
+      throw new Error(data.error || `HTTP ${response.status}`);
+    }
+    renderDashboard(Array.isArray(data) ? data : []);
+  } catch (error) {
+    if (error.name === 'AbortError') return;
+    setStatus(`扫描失败：${error.message}`, true);
+    if (!preserveContent) {
+      app.innerHTML = `<div class="empty">扫描失败：${esc(error.message)}</div>`;
+    }
+  } finally {
+    if (requestId === latestRequestId) {
+      button.disabled = false;
+      activeController = null;
+    }
+  }
+}
+
+function applyFilters({pushHistory = true, preserveContent = true} = {}){
+  currentSymbol = sanitizeSymbol(document.getElementById('symbol-input').value);
+  currentMinApy = Math.max(0, Number(document.getElementById('min-apy-input').value || 0));
+  currentMinTvl = Math.max(0, Number(document.getElementById('min-tvl-input').value || 0));
+  currentLimit = Math.max(1, Math.min(100, Number(document.getElementById('limit-input').value || 30)));
+  syncInputs();
+  syncUrl(pushHistory ? 'push' : 'replace');
+  loadDashboard({preserveContent});
+}
+
+document.getElementById('scan-button').addEventListener('click', () => applyFilters({pushHistory: true, preserveContent: true}));
+document.getElementById('reset-button').addEventListener('click', () => {
+  currentChain = '';
+  currentSymbol = '';
+  currentMinApy = 5;
+  currentMinTvl = 10000000;
+  currentLimit = 30;
+  syncInputs();
+  renderChainChips();
+  syncUrl('push');
+  loadDashboard({preserveContent: false});
+});
+document.getElementById('symbol-input').addEventListener('keydown', (event) => {
+  if (event.key === 'Enter') applyFilters({pushHistory: true, preserveContent: true});
+});
+
+window.addEventListener('popstate', () => {
+  const next = new URLSearchParams(location.search);
+  currentChain = next.get('chain') || '';
+  currentSymbol = sanitizeSymbol(next.get('symbol') || '');
+  currentMinApy = Number(next.get('min_apy') || 5);
+  currentMinTvl = Number(next.get('min_tvl') || 10000000);
+  currentLimit = Number(next.get('limit') || 30);
+  syncInputs();
+  renderChainChips();
+  loadDashboard({preserveContent: true});
+});
+
+syncInputs();
+renderChainChips();
+syncUrl('replace');
+loadDashboard({preserveContent: false});
+</script>
+</body>
+</html>

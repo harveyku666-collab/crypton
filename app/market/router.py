@@ -67,6 +67,228 @@ async def exchange_price(
     return result or {"error": "No data"}
 
 
+# ─── OKX Public Intelligence ────────────────────────────────
+
+
+@router.get("/okx/ticker")
+async def okx_ticker(
+    inst_id: str = Query("BTC-USDT-SWAP"),
+) -> dict[str, Any]:
+    result = await okx.get_ticker(inst_id)
+    return result or {"error": f"No OKX ticker data for {inst_id}"}
+
+
+@router.get("/okx/tickers")
+async def okx_tickers(
+    inst_type: str = Query("SWAP"),
+    uly: str | None = Query(None),
+    inst_family: str | None = Query(None),
+) -> list[dict[str, Any]]:
+    return await okx.get_tickers(inst_type, uly, inst_family)
+
+
+@router.get("/okx/index-ticker")
+async def okx_index_ticker(
+    inst_id: str | None = Query(None),
+    quote_ccy: str | None = Query(None),
+) -> list[dict[str, Any]]:
+    return await okx.get_index_ticker(inst_id, quote_ccy)
+
+
+@router.get("/okx/orderbook")
+async def okx_orderbook(
+    inst_id: str = Query("BTC-USDT-SWAP"),
+    sz: int = Query(20, ge=1, le=400),
+) -> dict[str, Any]:
+    result = await okx.get_orderbook(inst_id, sz)
+    return result or {"error": f"No OKX orderbook for {inst_id}"}
+
+
+@router.get("/okx/candles")
+async def okx_candles(
+    inst_id: str = Query("BTC-USDT-SWAP"),
+    bar: str = Query("1H"),
+    after: str | None = Query(None),
+    before: str | None = Query(None),
+    limit: int = Query(100, ge=1, le=300),
+) -> list[dict[str, Any]]:
+    return await okx.get_candles(inst_id, bar, after, before, limit)
+
+
+@router.get("/okx/index-candles")
+async def okx_index_candles(
+    inst_id: str = Query("BTC-USD"),
+    bar: str = Query("1m"),
+    after: str | None = Query(None),
+    before: str | None = Query(None),
+    limit: int = Query(100, ge=1, le=300),
+    history: bool = Query(False),
+) -> list[dict[str, Any]]:
+    return await okx.get_index_candles(inst_id, bar, after, before, limit, history)
+
+
+@router.get("/okx/instruments")
+async def okx_instruments(
+    inst_type: str = Query("SWAP"),
+    inst_id: str | None = Query(None),
+    uly: str | None = Query(None),
+    inst_family: str | None = Query(None),
+) -> Any:
+    return await okx.get_instruments(inst_type, inst_id, uly, inst_family)
+
+
+@router.get("/okx/funding-rate")
+async def okx_funding_rate(
+    inst_id: str = Query("BTC-USDT-SWAP"),
+    history: bool = Query(False),
+    after: str | None = Query(None),
+    before: str | None = Query(None),
+    limit: int = Query(20, ge=1, le=100),
+) -> Any:
+    return await okx.get_funding_rate(
+        inst_id,
+        history=history,
+        after=after,
+        before=before,
+        limit=limit,
+    )
+
+
+@router.get("/okx/mark-price")
+async def okx_mark_price(
+    inst_type: str = Query("SWAP"),
+    inst_id: str | None = Query(None),
+    uly: str | None = Query(None),
+    inst_family: str | None = Query(None),
+) -> Any:
+    return await okx.get_mark_price(inst_type, inst_id, uly, inst_family)
+
+
+@router.get("/okx/trades")
+async def okx_trades(
+    inst_id: str = Query("BTC-USDT-SWAP"),
+    limit: int = Query(20, ge=1, le=500),
+) -> list[dict[str, Any]]:
+    return await okx.get_trades(inst_id, limit)
+
+
+@router.get("/okx/price-limit")
+async def okx_price_limit(
+    inst_id: str = Query("BTC-USDT-SWAP"),
+) -> dict[str, Any]:
+    result = await okx.get_price_limit(inst_id)
+    return result or {"error": f"No OKX price limit for {inst_id}"}
+
+
+@router.get("/okx/open-interest")
+async def okx_open_interest_public(
+    inst_type: str = Query("SWAP"),
+    inst_id: str | None = Query(None),
+    uly: str | None = Query(None),
+    inst_family: str | None = Query(None),
+) -> Any:
+    return await okx.get_public_open_interest(inst_type, inst_id, uly, inst_family)
+
+
+@router.get("/okx/stock-tokens")
+async def okx_stock_tokens(
+    inst_type: str = Query("SWAP"),
+    inst_id: str | None = Query(None),
+) -> list[dict[str, Any]]:
+    return await okx.get_stock_tokens(inst_type, inst_id)
+
+
+@router.get("/okx/instruments-by-category")
+async def okx_instruments_by_category(
+    inst_category: str = Query(..., description="3=Stock, 4=Metals, 5=Commodities, 6=Forex, 7=Bonds"),
+    inst_type: str = Query("SWAP"),
+    inst_id: str | None = Query(None),
+) -> list[dict[str, Any]]:
+    return await okx.get_instruments_by_category(inst_category, inst_type, inst_id)
+
+
+@router.get("/okx/filter")
+async def okx_market_filter(
+    inst_type: str = Query("SWAP"),
+    base_ccy: str | None = Query(None),
+    quote_ccy: str | None = Query(None),
+    settle_ccy: str | None = Query(None),
+    inst_family: str | None = Query(None),
+    ct_type: str | None = Query(None),
+    min_last: str | None = Query(None),
+    max_last: str | None = Query(None),
+    min_chg24h_pct: str | None = Query(None),
+    max_chg24h_pct: str | None = Query(None),
+    min_market_cap_usd: str | None = Query(None),
+    max_market_cap_usd: str | None = Query(None),
+    min_vol_usd_24h: str | None = Query(None),
+    max_vol_usd_24h: str | None = Query(None),
+    min_funding_rate: str | None = Query(None),
+    max_funding_rate: str | None = Query(None),
+    min_oi_usd: str | None = Query(None),
+    max_oi_usd: str | None = Query(None),
+    sort_by: str | None = Query(None),
+    sort_order: str | None = Query(None),
+    limit: int = Query(20, ge=1, le=100),
+) -> list[dict[str, Any]]:
+    return await okx.market_filter(
+        inst_type,
+        base_ccy=base_ccy,
+        quote_ccy=quote_ccy,
+        settle_ccy=settle_ccy,
+        inst_family=inst_family,
+        ct_type=ct_type,
+        min_last=min_last,
+        max_last=max_last,
+        min_chg24h_pct=min_chg24h_pct,
+        max_chg24h_pct=max_chg24h_pct,
+        min_market_cap_usd=min_market_cap_usd,
+        max_market_cap_usd=max_market_cap_usd,
+        min_vol_usd_24h=min_vol_usd_24h,
+        max_vol_usd_24h=max_vol_usd_24h,
+        min_funding_rate=min_funding_rate,
+        max_funding_rate=max_funding_rate,
+        min_oi_usd=min_oi_usd,
+        max_oi_usd=max_oi_usd,
+        sort_by=sort_by,
+        sort_order=sort_order,
+        limit=limit,
+    )
+
+
+@router.get("/okx/oi-history")
+async def okx_oi_history(
+    inst_id: str = Query("BTC-USDT-SWAP"),
+    bar: str = Query("1H"),
+    limit: int = Query(50, ge=1, le=500),
+    ts: int | None = Query(None),
+) -> list[dict[str, Any]]:
+    return await okx.get_oi_history(inst_id, bar=bar, limit=limit, ts=ts)
+
+
+@router.get("/okx/oi-change")
+async def okx_oi_change(
+    inst_type: str = Query("SWAP"),
+    bar: str = Query("1H"),
+    min_oi_usd: str | None = Query(None),
+    min_vol_usd_24h: str | None = Query(None),
+    min_abs_oi_delta_pct: str | None = Query(None),
+    sort_by: str | None = Query(None),
+    sort_order: str | None = Query(None),
+    limit: int = Query(20, ge=1, le=100),
+) -> list[dict[str, Any]]:
+    return await okx.filter_oi_change(
+        inst_type=inst_type,
+        bar=bar,
+        min_oi_usd=min_oi_usd,
+        min_vol_usd_24h=min_vol_usd_24h,
+        min_abs_oi_delta_pct=min_abs_oi_delta_pct,
+        sort_by=sort_by,
+        sort_order=sort_order,
+        limit=limit,
+    )
+
+
 # ─── Open Interest (OI) — free multi-exchange ────────────────
 
 

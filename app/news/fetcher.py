@@ -31,6 +31,7 @@ async def fetch_desk3_news(
     category: str = "crypto",
     count: int = 20,
     language: str = "en",
+    page: int = 1,
 ) -> list[dict]:
     """Fetch news from Desk3 in the specified language, with sentiment tags."""
     from app.news.sentiment import tag_news
@@ -41,7 +42,7 @@ async def fetch_desk3_news(
 
     data = await fetch_json(
         f"{DESK3_API}/news/list",
-        params={"catid": catid, "page": 1, "rows": count},
+        params={"catid": catid, "page": max(1, page), "rows": count},
         headers=headers,
     )
     if data.get("code") != 0:
