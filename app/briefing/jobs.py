@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 
-from app.common.database import async_session
+from app.common.database import async_session, db_available
 from app.common.models import Briefing
 from app.briefing.generator import generate_briefing
 
@@ -15,6 +15,8 @@ REPORT_LANGUAGES = ["zh", "en"]
 
 async def _generate_and_store(period: str) -> None:
     """Generate briefings in all languages and persist to DB."""
+    if not db_available():
+        return
     for lang in REPORT_LANGUAGES:
         try:
             data = await generate_briefing(period=period, language=lang)

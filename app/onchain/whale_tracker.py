@@ -11,7 +11,7 @@ from typing import Any
 
 from app.common.http_client import fetch_json
 from app.common.cache import cached
-from app.common.database import async_session
+from app.common.database import async_session, db_available
 from app.common.models import WhaleAlert
 
 logger = logging.getLogger("bitinfo.onchain.whale")
@@ -31,6 +31,8 @@ async def get_recent_transactions(min_value: int = 1_000_000, limit: int = 20) -
 
 
 async def store_whale_alert(alert: dict[str, Any]) -> None:
+    if not db_available():
+        return
     try:
         async with async_session() as session:
             session.add(WhaleAlert(

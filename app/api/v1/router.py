@@ -53,12 +53,20 @@ async def list_skills():
             "category": s.category,
             "status": s.status,
             "api_endpoint": s.api_endpoint,
+            "requires_credits": s.requires_credits,
             "features": s.features,
             "features_zh": s.features_zh,
             "data_sources": s.data_sources,
         }
         for s in SKILLS
     ]
+
+
+@api_router.get("/skills/surf-pro", tags=["skills"])
+async def get_surf_pro_modules():
+    """获取 Surf 专业版子模块列表"""
+    from app.common.skills import SURF_PRO_MODULES
+    return SURF_PRO_MODULES
 
 
 @api_router.get("/skills/{skill_id}", tags=["skills"])
@@ -79,6 +87,7 @@ async def get_skill(skill_id: str):
         "category": skill.category,
         "status": skill.status,
         "api_endpoint": skill.api_endpoint,
+        "requires_credits": skill.requires_credits,
         "features": skill.features,
         "features_zh": skill.features_zh,
         "data_sources": skill.data_sources,

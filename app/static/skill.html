@@ -49,6 +49,15 @@ td{padding:8px 10px;border-bottom:1px solid rgba(48,54,61,0.5)}
 .report-text{padding:20px;font-size:13px;line-height:1.8;white-space:pre-wrap;color:var(--text);max-height:70vh;overflow-y:auto;background:var(--surface);border:1px solid var(--border);border-radius:12px}
 .report-json{padding:20px;font-size:12px;line-height:1.6;white-space:pre-wrap;font-family:'SF Mono',Monaco,Consolas,monospace;color:var(--text2);max-height:70vh;overflow-y:auto;background:var(--surface);border:1px solid var(--border);border-radius:12px}
 .indicator-row td:nth-child(4){text-align:center}
+.quick-launch{background:linear-gradient(135deg,rgba(88,166,255,0.08),rgba(188,140,255,0.08));border:1px solid rgba(88,166,255,0.25);border-radius:14px;padding:18px;margin-bottom:16px}
+.quick-launch-title{font-size:16px;font-weight:700;margin-bottom:6px}
+.quick-launch-sub{font-size:12px;color:var(--text2);line-height:1.8;margin-bottom:12px}
+.quick-launch-row{display:flex;gap:10px;flex-wrap:wrap}
+.quick-launch-row input,.quick-launch-row select{padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px;outline:none}
+.quick-launch-row input{flex:1;min-width:180px}
+.mini-tags{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.mini-tags button{font-size:11px;padding:4px 10px;border-radius:999px;border:1px solid var(--border);background:var(--surface2);color:var(--text2);cursor:pointer}
+.mini-tags button:hover{border-color:var(--accent);color:var(--accent)}
 @media(max-width:768px){.skill-header{flex-direction:column;text-align:center}table{font-size:12px}}
 </style>
 </head>
@@ -68,31 +77,394 @@ td{padding:8px 10px;border-bottom:1px solid rgba(48,54,61,0.5)}
   <div id="report-area"><div class="report-placeholder">加载中...</div></div>
 </div>
 <script>
-const API='/api/v1';
+const BASE=location.pathname.replace(/\/(skill|daily|briefing)?\s*$/,'').replace(/\/+$/,'');
+const API=BASE+'/api/v1';
 let skill=null;
 function getSkillId(){return new URLSearchParams(location.search).get('id')}
 
+const SKILL_FEATURES={
+  'open-interest':[
+    {id:'oi-btc',label:'₿ BTC 持仓量',desc:'BTC 多交易所 OI 聚合（Gate.io + Bitget）',endpoint:'/market/open-interest/BTC',source:'Gate.io, Bitget'},
+    {id:'oi-eth',label:'Ξ ETH 持仓量',desc:'ETH 多交易所 OI 聚合',endpoint:'/market/open-interest/ETH',source:'Gate.io, Bitget'},
+    {id:'oi-sol',label:'◎ SOL 持仓量',desc:'SOL 多交易所 OI 聚合',endpoint:'/market/open-interest/SOL',source:'Gate.io, Bitget'},
+    {id:'oi-hist-btc',label:'📈 BTC OI 历史',desc:'BTC 持仓量 + 多空比 + 清算历史',endpoint:'/market/open-interest-history/BTC',source:'Gate.io'},
+    {id:'oi-hist-eth',label:'📈 ETH OI 历史',desc:'ETH 持仓量 + 多空比 + 清算历史',endpoint:'/market/open-interest-history/ETH',source:'Gate.io'},
+    {id:'oi-custom',label:'🔍 自定义币种 OI',desc:'输入任意币种查看持仓量',endpoint:'/market/open-interest/{symbol}',inputs:[{name:'symbol',label:'币种符号',placeholder:'DOGE',required:true}],source:'Gate.io, Bitget'},
+  ],
+  'exchange-data':[
+    {id:'depth',label:'📊 订单簿深度',desc:'实时买卖盘深度',endpoint:'/market/exchange/depth',inputs:[{name:'pair',label:'交易对',placeholder:'BTC/USDT',default:'BTC/USDT'},{name:'exchange',label:'交易所',placeholder:'binance',default:'binance'}]},
+    {id:'long-short',label:'📈 多空比',desc:'多空比历史数据',endpoint:'/market/exchange/long-short-ratio',inputs:[{name:'pair',label:'交易对',placeholder:'BTC/USDT',default:'BTC/USDT'},{name:'interval',label:'间隔',placeholder:'1h',default:'1h'}]},
+    {id:'markets',label:'🏦 交易对列表',desc:'交易所可用交易对',endpoint:'/market/exchange/markets',inputs:[{name:'exchange',label:'交易所',placeholder:'binance',default:'binance'},{name:'market_type',label:'类型',placeholder:'spot',default:'spot'}]},
+    {id:'perp',label:'📜 永续合约',desc:'永续合约快照',endpoint:'/market/exchange/perp',inputs:[{name:'symbol',label:'币种',placeholder:'BTC',default:'BTC'}]},
+    {id:'price',label:'💲 交易所价格',desc:'指定交易所实时价格',endpoint:'/market/exchange/price',inputs:[{name:'pair',label:'交易对',placeholder:'BTC/USDT',default:'BTC/USDT'},{name:'exchange',label:'交易所',placeholder:'binance',default:'binance'}]},
+    {id:'klines',label:'🕯️ K 线数据',desc:'OHLCV K 线',endpoint:'/market/klines/{symbol}',inputs:[{name:'symbol',label:'币种',placeholder:'BTC',default:'BTC'},{name:'interval',label:'间隔',placeholder:'15m',default:'15m'}]},
+    {id:'funding-hist',label:'💰 资金费率历史',desc:'逐交易对资金费率',endpoint:'/market/funding-rates-multi'},
+  ],
+  'etf-flows':[
+    {id:'btc-etf',label:'₿ BTC ETF 资金流',desc:'比特币 ETF 资金流入流出',endpoint:'/market/etf',inputs:[{name:'symbol',label:'币种',placeholder:'BTC',default:'BTC'},{name:'limit',label:'天数',placeholder:'30',default:'30'}]},
+    {id:'eth-etf',label:'Ξ ETH ETF 资金流',desc:'以太坊 ETF 资金流入流出',endpoint:'/market/etf',inputs:[{name:'symbol',label:'币种',placeholder:'ETH',default:'ETH'},{name:'limit',label:'天数',placeholder:'30',default:'30'}]},
+  ],
+  'options-market':[
+    {id:'btc-options',label:'₿ BTC 期权',desc:'BTC 期权市场概览',endpoint:'/market/options',inputs:[{name:'symbol',label:'币种',placeholder:'BTC',default:'BTC'}]},
+    {id:'eth-options',label:'Ξ ETH 期权',desc:'ETH 期权市场概览',endpoint:'/market/options',inputs:[{name:'symbol',label:'币种',placeholder:'ETH',default:'ETH'}]},
+  ],
+  'onchain-indicators':[
+    {id:'nupl',label:'📊 NUPL',desc:'未实现净盈亏',endpoint:'/market/onchain-indicator',inputs:[{name:'indicator',label:'指标',default:'nupl',placeholder:'nupl'},{name:'symbol',label:'币种',default:'BTC',placeholder:'BTC'}]},
+    {id:'sopr',label:'📈 SOPR',desc:'已花费产出利润比',endpoint:'/market/onchain-indicator',inputs:[{name:'indicator',label:'指标',default:'sopr',placeholder:'sopr'},{name:'symbol',label:'币种',default:'BTC',placeholder:'BTC'}]},
+    {id:'mvrv',label:'📉 MVRV',desc:'市值/实现价值比',endpoint:'/market/onchain-indicator',inputs:[{name:'indicator',label:'指标',default:'mvrv',placeholder:'mvrv'},{name:'symbol',label:'币种',default:'BTC',placeholder:'BTC'}]},
+    {id:'s2f',label:'🔗 Stock-to-Flow',desc:'S2F 模型',endpoint:'/market/onchain-indicator',inputs:[{name:'indicator',label:'指标',default:'stock-to-flow',placeholder:'stock-to-flow'},{name:'symbol',label:'币种',default:'BTC',placeholder:'BTC'}]},
+  ],
+  'liquidation-monitor':[
+    {id:'chart',label:'📊 清算图表',desc:'小时级清算数据',endpoint:'/market/liquidations/chart',inputs:[{name:'symbol',label:'币种',default:'BTC',placeholder:'BTC'}]},
+    {id:'exchanges',label:'🏦 按交易所',desc:'各交易所清算分布',endpoint:'/market/liquidations/exchanges',inputs:[{name:'symbol',label:'币种',default:'BTC',placeholder:'BTC'}]},
+    {id:'large',label:'💥 大额清算单',desc:'最近大额清算',endpoint:'/market/liquidations/large-orders'},
+  ],
+  'funding-rate-monitor':[
+    {id:'multi',label:'💰 多交易所费率',desc:'跨交易所资金费率排名',endpoint:'/market/funding-rates-multi'},
+    {id:'binance',label:'🟡 Binance 费率',desc:'Binance 资金费率',endpoint:'/market/funding-rates'},
+  ],
+  'prediction-advanced':[
+    {id:'poly-smart',label:'🧠 聪明资金',desc:'Polymarket 聪明资金追踪',endpoint:'/market/prediction/polymarket/smart-money'},
+    {id:'poly-leader',label:'🏆 排行榜',desc:'Polymarket 交易员排行',endpoint:'/market/prediction/polymarket/leaderboard'},
+    {id:'poly-markets',label:'📋 市场列表',desc:'Polymarket 所有市场',endpoint:'/market/prediction/polymarket/markets'},
+    {id:'poly-ob',label:'📊 订单簿',desc:'指定市场订单簿',endpoint:'/market/prediction/polymarket/orderbooks/{market_id}',inputs:[{name:'market_id',label:'Market ID',placeholder:'输入市场ID',required:true}]},
+    {id:'poly-trades',label:'💱 交易记录',desc:'指定市场交易',endpoint:'/market/prediction/polymarket/trades/{market_id}',inputs:[{name:'market_id',label:'Market ID',placeholder:'输入市场ID',required:true}]},
+    {id:'poly-ohlcv',label:'🕯️ K 线',desc:'Polymarket K 线数据',endpoint:'/market/prediction/polymarket/ohlcv/{market_id}',inputs:[{name:'market_id',label:'Market ID',placeholder:'输入市场ID',required:true}]},
+    {id:'poly-positions',label:'📦 钱包持仓',desc:'Polymarket 钱包持仓',endpoint:'/market/prediction/polymarket/positions/{address}',inputs:[{name:'address',label:'钱包地址',placeholder:'0x...',required:true}]},
+    {id:'kalshi-events',label:'🎯 Kalshi 事件',desc:'Kalshi 预测事件',endpoint:'/market/prediction/kalshi/events'},
+    {id:'kalshi-markets',label:'📋 Kalshi 市场',desc:'Kalshi 市场列表',endpoint:'/market/prediction/kalshi/markets'},
+    {id:'cross-daily',label:'🔄 跨平台对比',desc:'Polymarket vs Kalshi 每日对比',endpoint:'/market/prediction/cross-platform/daily'},
+    {id:'cross-pairs',label:'🔗 跨平台配对',desc:'跨平台同类市场配对',endpoint:'/market/prediction/cross-platform/pairs'},
+    {id:'analytics',label:'📈 市场分析',desc:'预测市场整体分析',endpoint:'/market/prediction/analytics'},
+    {id:'correlations',label:'🔗 相关性',desc:'预测市场与加密价格相关性',endpoint:'/market/prediction/correlations'},
+  ],
+  'token-analysis':[
+    {id:'dex-trades',label:'📊 DEX 交易 (免费)',desc:'DEX Screener 交易对数据',endpoint:'/market/token/dex-trades/{address}',inputs:[{name:'address',label:'合约地址',placeholder:'0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984',required:true}],source:'DEX Screener'},
+  ],
+  'token-analysis-pro':[
+    {id:'unlocks',label:'📅 代币解锁计划',desc:'查看代币解锁时间表',endpoint:'/market/token/unlocks/{symbol}',inputs:[{name:'symbol',label:'代币符号',placeholder:'ARB',required:true}]},
+    {id:'holders',label:'👥 持有者分析',desc:'代币前 N 大持有者',endpoint:'/market/token/holders/{address}',inputs:[{name:'address',label:'合约地址',placeholder:'0x...',required:true},{name:'chain',label:'链',placeholder:'ethereum',default:'ethereum'}]},
+    {id:'dex-trades',label:'📊 DEX 交易 (免费)',desc:'DEX Screener 交易对数据',endpoint:'/market/token/dex-trades/{address}',inputs:[{name:'address',label:'合约地址',placeholder:'0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984',required:true}],source:'DEX Screener'},
+    {id:'dex-trades-surf',label:'📊 DEX 交易 (Surf)',desc:'Surf DEX 交易历史',endpoint:'/market/token/dex-trades-surf/{address}',inputs:[{name:'address',label:'合约地址',placeholder:'0x...',required:true},{name:'chain',label:'链',placeholder:'ethereum',default:'ethereum'}]},
+    {id:'transfers',label:'💸 转账历史',desc:'代币转账记录',endpoint:'/market/token/transfers/{address}',inputs:[{name:'address',label:'合约地址',placeholder:'0x...',required:true},{name:'chain',label:'链',placeholder:'ethereum',default:'ethereum'}]},
+  ],
+  'wallet-tracker':[
+    {id:'detail',label:'🐋 钱包详情',desc:'余额、DeFi 持仓、标签',endpoint:'/onchain/wallet/{address}',inputs:[{name:'address',label:'钱包地址',placeholder:'0x...',required:true},{name:'chain',label:'链',placeholder:'ethereum',default:'ethereum'}]},
+    {id:'history',label:'📜 交易历史',desc:'钱包交易记录',endpoint:'/onchain/wallet/{address}/history',inputs:[{name:'address',label:'钱包地址',placeholder:'0x...',required:true},{name:'chain',label:'链',placeholder:'ethereum',default:'ethereum'}]},
+    {id:'protocols',label:'🌾 DeFi 持仓',desc:'钱包 DeFi 协议持仓',endpoint:'/onchain/wallet/{address}/protocols',inputs:[{name:'address',label:'钱包地址',placeholder:'0x...',required:true}]},
+    {id:'transfers',label:'💸 转账记录',desc:'钱包转账历史',endpoint:'/onchain/wallet/{address}/transfers',inputs:[{name:'address',label:'钱包地址',placeholder:'0x...',required:true},{name:'chain',label:'链',placeholder:'ethereum',default:'ethereum'}]},
+    {id:'net-worth',label:'💰 净值趋势',desc:'钱包净值变化',endpoint:'/onchain/wallet/{address}/net-worth',inputs:[{name:'address',label:'钱包地址',placeholder:'0x...',required:true}]},
+  ],
+  'onchain-data':[
+    {id:'gas',label:'⛽ Gas 价格',desc:'实时链上 Gas 价格',endpoint:'/onchain/gas-price',inputs:[{name:'chain',label:'链',placeholder:'ethereum',default:'ethereum'}]},
+    {id:'tx',label:'🔍 交易查询',desc:'按哈希查交易详情',endpoint:'/onchain/tx/{tx_hash}',inputs:[{name:'tx_hash',label:'交易哈希',placeholder:'0x...',required:true},{name:'chain',label:'链',placeholder:'ethereum',default:'ethereum'}]},
+    {id:'schema',label:'📋 表结构',desc:'链上数据表结构',endpoint:'/onchain/schema',inputs:[{name:'chain',label:'链',placeholder:'ethereum',default:'ethereum'}]},
+    {id:'yield',label:'🌾 收益池排名',desc:'DeFi 收益池排名 (DefiLlama)',endpoint:'/onchain/yield-ranking',source:'DefiLlama'},
+    {id:'bridge',label:'🌉 跨链桥排名',desc:'跨链桥协议排名',endpoint:'/onchain/bridge-ranking'},
+  ],
+  'social-sentiment':[
+    {id:'ranking',label:'🔥 热度排名',desc:'社交热度 Top N',endpoint:'/market/social/mindshare'},
+    {id:'sentiment',label:'😊 情绪分析',desc:'项目情绪分析',endpoint:'/market/social/sentiment/{query}',inputs:[{name:'query',label:'项目/币种',placeholder:'bitcoin',required:true}]},
+    {id:'detail',label:'📊 聚合分析',desc:'项目社交聚合分析',endpoint:'/market/social/detail/{project}',inputs:[{name:'project',label:'项目名',placeholder:'bitcoin',required:true}]},
+    {id:'user',label:'👤 KOL 主页',desc:'Twitter 用户资料',endpoint:'/market/social/user/{handle}',inputs:[{name:'handle',label:'用户名',placeholder:'elonmusk',required:true}]},
+    {id:'user-posts',label:'📝 KOL 推文',desc:'用户最近推文',endpoint:'/market/social/user/{handle}/posts',inputs:[{name:'handle',label:'用户名',placeholder:'elonmusk',required:true}]},
+    {id:'engagement',label:'⚡ 互动评分',desc:'KOL 互动质量评分',endpoint:'/market/social/engagement-score/{handle}',inputs:[{name:'handle',label:'用户名',placeholder:'VitalikButerin',required:true}]},
+    {id:'mindshare-ts',label:'📈 热度趋势',desc:'项目热度时间序列',endpoint:'/market/social/mindshare-ts/{project}',inputs:[{name:'project',label:'项目名',placeholder:'bitcoin',required:true}]},
+    {id:'smart-followers',label:'🧠 Smart Followers',desc:'Smart Follower 历史',endpoint:'/market/social/smart-followers/{handle}',inputs:[{name:'handle',label:'用户名',placeholder:'VitalikButerin',required:true}]},
+    {id:'followers',label:'👥 粉丝列表',desc:'用户粉丝列表',endpoint:'/market/social/user/{handle}/followers',inputs:[{name:'handle',label:'用户名',placeholder:'elonmusk',required:true}]},
+    {id:'following',label:'👁️ 关注列表',desc:'用户关注列表',endpoint:'/market/social/user/{handle}/following',inputs:[{name:'handle',label:'用户名',placeholder:'elonmusk',required:true}]},
+  ],
+  'project-analysis':[
+    {id:'detail',label:'📋 项目详情',desc:'聚合项目信息',endpoint:'/market/project/detail/{project}',inputs:[{name:'project',label:'项目名',placeholder:'bitcoin',required:true}]},
+    {id:'pulse',label:'💓 项目脉搏',desc:'项目活跃度和动量',endpoint:'/market/project/pulse/{project}',inputs:[{name:'project',label:'项目名',placeholder:'ethereum',required:true}]},
+    {id:'defi-metrics',label:'📊 DeFi 指标',desc:'协议 TVL、用户、收入',endpoint:'/market/project/defi-metrics/{project}',inputs:[{name:'project',label:'项目名',placeholder:'aave',required:true}]},
+    {id:'defi-ranking',label:'🏆 DeFi 排名',desc:'DeFi 协议排名',endpoint:'/market/project/defi-ranking'},
+  ],
+  'fund-analysis':[
+    {id:'ranking',label:'🏆 基金排名',desc:'按 AUM 排名',endpoint:'/market/fund/ranking'},
+    {id:'detail',label:'📋 基金详情',desc:'基金资料',endpoint:'/market/fund/detail/{fund_id}',inputs:[{name:'fund_id',label:'基金 ID',placeholder:'输入基金ID',required:true}]},
+    {id:'portfolio',label:'💼 基金持仓',desc:'当前持仓组合',endpoint:'/market/fund/portfolio/{fund_id}',inputs:[{name:'fund_id',label:'基金 ID',placeholder:'输入基金ID',required:true}]},
+  ],
+  'event-calendar':[
+    {id:'listings',label:'🏦 交易所上币',desc:'即将上币事件',endpoint:'/market/events/listings'},
+    {id:'tge',label:'🎉 TGE 事件',desc:'代币生成事件',endpoint:'/market/events/tge'},
+    {id:'sales',label:'💰 公开募资',desc:'公开/私募轮次',endpoint:'/market/events/public-sales'},
+    {id:'calendar',label:'📅 事件日历',desc:'项目事件日历',endpoint:'/market/calendar'},
+  ],
+  'search-engine':[
+    {id:'project',label:'🔍 搜索项目',desc:'按关键词搜索项目',endpoint:'/market/search/project',inputs:[{name:'q',label:'关键词',placeholder:'bitcoin',required:true}]},
+    {id:'airdrop',label:'🎁 搜索空投',desc:'空投机会搜索',endpoint:'/market/search/airdrop',inputs:[{name:'q',label:'关键词',placeholder:'layer2'}]},
+    {id:'events',label:'📅 搜索事件',desc:'项目事件搜索',endpoint:'/market/search/events',inputs:[{name:'q',label:'关键词',placeholder:'halving'}]},
+    {id:'fund',label:'💼 搜索基金',desc:'加密基金搜索',endpoint:'/market/search/fund',inputs:[{name:'q',label:'关键词',placeholder:'a16z',required:true}]},
+    {id:'news',label:'📰 搜索新闻',desc:'新闻全文搜索',endpoint:'/market/search/news',inputs:[{name:'q',label:'关键词',placeholder:'SEC regulation',required:true}]},
+    {id:'prediction',label:'🔮 搜索预测市场',desc:'预测市场搜索',endpoint:'/market/search/prediction-market',inputs:[{name:'q',label:'关键词',placeholder:'Trump',required:true}]},
+    {id:'people',label:'👤 搜索用户',desc:'社交用户搜索',endpoint:'/market/search/social/people',inputs:[{name:'q',label:'关键词',placeholder:'crypto',required:true}]},
+    {id:'posts',label:'📝 搜索帖子',desc:'社交帖子搜索',endpoint:'/market/search/social/posts',inputs:[{name:'q',label:'关键词',placeholder:'BTC prediction',required:true}]},
+    {id:'wallet',label:'🐋 搜索钱包',desc:'钱包地址搜索',endpoint:'/market/search/wallet',inputs:[{name:'q',label:'关键词',placeholder:'whale',required:true}]},
+  ],
+};
+
 async function init(){
   const id=getSkillId();
-  if(!id){location.href='/';return}
+  if(!id){location.href=BASE+'/';return}
+  if(id==='surf-pro'){return initSurfPro()}
   try{
     const r=await fetch(`${API}/skills/${id}`);
-    if(!r.ok){location.href='/';return}
+    if(!r.ok){location.href=BASE+'/';return}
     skill=await r.json();
     renderInfo();
-    loadReport();
+    if(skill.id==='oi-signal'){
+      document.getElementById('toolbar').style.display='none';
+      renderOISignalEntry();
+      return;
+    }
+    const features=SKILL_FEATURES[skill.id];
+    if(features){
+      document.getElementById('toolbar').style.display='none';
+      renderFeatureList(features);
+    }else{
+      loadReport();
+    }
   }catch(e){document.getElementById('skill-info').innerHTML='<div style="color:var(--red);padding:40px;text-align:center">加载失败</div>'}
+}
+
+function sanitizeSymbol(value){
+  if(!value)return'';
+  let symbol=String(value).trim().toUpperCase();
+  symbol=symbol.replace(/\s+/g,'').replace(/[-_/]/g,'');
+  symbol=symbol.replace(/USDT$/,'').replace(/USD$/,'').replace(/PERP$/,'').replace(/SWAP$/,'');
+  symbol=symbol.replace(/[^A-Z0-9]/g,'');
+  return symbol.slice(0,20);
+}
+
+function openOISignal(rawSymbol,timeframe){
+  const symbol=sanitizeSymbol(rawSymbol??document.getElementById('oi-launch-symbol')?.value)||'BTC';
+  const tf=timeframe||document.getElementById('oi-launch-timeframe')?.value||'1h';
+  location.href=`${BASE}/oi-signal?symbol=${encodeURIComponent(symbol)}&timeframe=${encodeURIComponent(tf)}`;
+}
+
+function renderOISignalEntry(){
+  const area=document.getElementById('report-area');
+  area.innerHTML=`
+    <div class="quick-launch">
+      <div class="quick-launch-title">直接搜索代币并打开 OI 仪表盘</div>
+      <div class="quick-launch-sub">输入任意代币符号后，直接进入完整 OI 分析页，查看评分、Funding、盘口、筹码和订单流。</div>
+      <div class="quick-launch-row">
+        <input id="oi-launch-symbol" value="BTC" placeholder="DOGE / XRP / 1000SHIB / BNBUSDT">
+        <select id="oi-launch-timeframe">
+          <option value="15m">15m</option>
+          <option value="1h" selected>1h</option>
+          <option value="4h">4h</option>
+          <option value="1d">1d</option>
+        </select>
+        <button class="btn-load" onclick="openOISignal()">立即分析</button>
+      </div>
+      <div class="mini-tags">
+        <button onclick="openOISignal('DOGE')">DOGE</button>
+        <button onclick="openOISignal('XRP')">XRP</button>
+        <button onclick="openOISignal('1000SHIB')">1000SHIB</button>
+        <button onclick="openOISignal('BNB')">BNB</button>
+      </div>
+    </div>
+    <div class="b-section">
+      <h3>🎯 页面能力</h3>
+      <table>
+        <tr><th>模块</th><th>说明</th></tr>
+        <tr><td>综合评分</td><td>按 15m / 1h / 4h / 1d 多周期阈值重算 OI 结构分数</td></tr>
+        <tr><td>盘口深度</td><td>聚合 Binance / OKX / Bybit 的近端深度、失衡和流动性墙</td></tr>
+        <tr><td>筹码分布</td><td>基于 Volume Profile 展示 POC、VAH、VAL 和筹码集中度</td></tr>
+        <tr><td>订单流</td><td>Taker Delta、CVD、VWAP、期现基差、合约/现货量比</td></tr>
+        <tr><td>单交易所明细</td><td>查看不同交易所的 OI、Funding、成交量和多空比差异</td></tr>
+      </table>
+    </div>`;
+}
+
+async function initSurfPro(){
+  try{
+    const modsR=await fetch(`${API}/skills/surf-pro`);
+    const mods=await modsR.json();
+    document.title='BitInfo - Surf 专业数据套件';
+    document.getElementById('topbar-title').textContent='Surf 专业数据套件';
+    document.getElementById('skill-info').innerHTML=`
+      <div class="skill-header">
+        <div class="skill-icon" style="background:rgba(188,140,255,0.12)">🌊</div>
+        <div>
+          <div class="skill-name">Surf 专业数据套件
+            <span style="font-size:12px;padding:2px 8px;border-radius:4px;background:rgba(188,140,255,0.15);color:var(--purple);margin-left:8px">需要 Credits</span>
+          </div>
+          <div class="skill-subname">Surf Professional Data Suite · ${mods.length} 个模块 · 80+ 工具</div>
+        </div>
+      </div>
+      <div class="meta-row"><span class="meta-tag" style="background:rgba(188,140,255,0.12);color:var(--purple)">Surf</span></div>
+      <div style="font-size:13px;color:var(--text2);margin-bottom:20px;line-height:1.8">涵盖交易所深度、ETF 资金流、期权、链上指标、清算监控、社交情报、钱包追踪、基金分析、全能搜索等 80+ 专业加密情报工具。部分数据已有免费替代方案。</div>`;
+    renderSurfModules(mods);
+  }catch(e){document.getElementById('skill-info').innerHTML='<div style="color:var(--red);padding:40px;text-align:center">加载失败</div>'}
+}
+
+function renderSurfModules(mods){
+  const area=document.getElementById('report-area');
+  let h='';
+  mods.forEach((m,i)=>{
+    const freeTag=m.free_alt?`<div style="font-size:11px;color:var(--green);margin-top:6px">✅ ${m.free_alt}</div>`:'';
+    const feats=m.features_zh||[];
+    h+=`<div class="b-section" style="cursor:pointer;transition:border-color .2s" onclick="this.querySelector('.mod-detail').style.display=this.querySelector('.mod-detail').style.display==='none'?'block':'none'" onmouseenter="this.style.borderColor='var(--purple)'" onmouseleave="this.style.borderColor='var(--border)'">
+      <div style="display:flex;align-items:center;gap:12px;justify-content:space-between">
+        <div style="display:flex;align-items:center;gap:12px">
+          <span style="font-size:28px">${m.icon}</span>
+          <div>
+            <div style="font-size:15px;font-weight:600">${m.name_zh}
+              <span style="font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(188,140,255,0.12);color:var(--purple);margin-left:6px">Credits</span>
+            </div>
+            <div style="font-size:12px;color:var(--text2)">${m.desc_zh}</div>
+            ${freeTag}
+          </div>
+        </div>
+        <span style="color:var(--text2);font-size:12px">${feats.length} 功能 ▾</span>
+      </div>
+      <div class="mod-detail" style="display:none;margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
+        <div style="display:flex;flex-wrap:wrap;gap:8px">
+          ${feats.map(f=>`<span style="font-size:12px;padding:4px 10px;border-radius:6px;background:var(--surface2);color:var(--text)">${f}</span>`).join('')}
+        </div>
+        <div style="margin-top:10px"><button onclick="event.stopPropagation();openSurfFeature('${m.id}')" class="btn-load" style="padding:6px 16px;border-radius:8px;border:none;cursor:pointer;font-size:12px;font-weight:600">查看功能详情 →</button></div>
+      </div>
+    </div>`;
+  });
+  area.innerHTML=h;
+}
+
+function openSurfFeature(modId){
+  const feats=SKILL_FEATURES[modId];
+  if(feats){
+    window._features=feats;
+    const area=document.getElementById('report-area');
+    let h=`<div style="margin-bottom:16px"><button onclick="initSurfPro()" style="padding:6px 16px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text2);cursor:pointer;font-size:13px">← 返回模块列表</button></div>`;
+    h+=`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;margin-bottom:20px">`;
+    feats.forEach((f,i)=>{
+      const srcBadge=f.source?`<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(63,185,80,0.15);color:var(--green);margin-left:6px">免费</span>`:'';
+      h+=`<div onclick="showFeature(${i})" style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;cursor:pointer;transition:border-color .2s" onmouseenter="this.style.borderColor='var(--accent)'" onmouseleave="this.style.borderColor='var(--border)'">
+        <div style="font-size:15px;font-weight:600;margin-bottom:4px">${f.label}${srcBadge}</div>
+        <div style="font-size:12px;color:var(--text2)">${f.desc}</div>
+      </div>`;
+    });
+    h+=`</div><div id="feature-detail"></div>`;
+    area.innerHTML=h;
+  }
+}
+
+function renderFeatureList(features){
+  const area=document.getElementById('report-area');
+  let h=`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;margin-bottom:20px">`;
+  features.forEach((f,i)=>{
+    const srcBadge=f.source?`<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(63,185,80,0.15);color:var(--green);margin-left:6px">免费</span>`:'';
+    h+=`<div onclick="showFeature(${i})" style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;cursor:pointer;transition:border-color .2s" onmouseenter="this.style.borderColor='var(--accent)'" onmouseleave="this.style.borderColor='var(--border)'">
+      <div style="font-size:15px;font-weight:600;margin-bottom:4px">${f.label}${srcBadge}</div>
+      <div style="font-size:12px;color:var(--text2)">${f.desc}</div>
+    </div>`;
+  });
+  h+=`</div><div id="feature-detail"></div>`;
+  area.innerHTML=h;
+  window._features=features;
+}
+
+function showFeature(idx){
+  const f=window._features[idx];
+  const detail=document.getElementById('feature-detail');
+  let h=`<div class="b-section"><h3>${f.label}</h3>`;
+  if(f.inputs&&f.inputs.length){
+    h+=`<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">`;
+    f.inputs.forEach(inp=>{
+      const val=inp.default||'';
+      h+=`<div style="flex:1;min-width:160px">
+        <label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px">${inp.label}${inp.required?' *':''}</label>
+        <input id="inp-${inp.name}" value="${val}" placeholder="${inp.placeholder}" style="width:100%;padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px">
+      </div>`;
+    });
+    h+=`</div>`;
+  }
+  h+=`<button onclick="loadFeature(${idx})" class="btn-load" style="padding:8px 20px;border-radius:8px;border:none;cursor:pointer;font-size:13px;font-weight:600">加载数据</button>`;
+  h+=`<span id="feature-time" style="font-size:12px;color:var(--text2);margin-left:12px"></span>`;
+  h+=`<div id="feature-result" style="margin-top:16px"></div></div>`;
+  detail.innerHTML=h;
+  detail.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+async function loadFeature(idx){
+  const f=window._features[idx];
+  const result=document.getElementById('feature-result');
+  result.innerHTML='<div style="text-align:center;padding:20px"><div class="spinner"></div>加载中...</div>';
+  const t0=Date.now();
+  try{
+    let url=`${API}${f.endpoint}`;
+    const params=new URLSearchParams();
+    (f.inputs||[]).forEach(inp=>{
+      const el=document.getElementById(`inp-${inp.name}`);
+      const val=el?.value||inp.default||el?.placeholder||'';
+      if(url.includes(`{${inp.name}}`)){url=url.replace(`{${inp.name}}`,encodeURIComponent(val))}
+      else if(val){params.set(inp.name,val)}
+    });
+    const qs=params.toString();
+    if(qs)url+=`?${qs}`;
+    const r=await fetch(url);
+    const d=await r.json();
+    document.getElementById('feature-time').textContent=((Date.now()-t0)/1000).toFixed(1)+'s';
+    if(Array.isArray(d)){result.innerHTML=renderArrayData(d,f)}
+    else if(typeof d==='object'){result.innerHTML=`<div class="report-json">${esc(JSON.stringify(d,null,2))}</div>`}
+    else{result.innerHTML=`<div class="report-text">${esc(String(d))}</div>`}
+  }catch(e){result.innerHTML=`<div style="color:var(--red);padding:12px">加载失败: ${e.message}</div>`}
+}
+
+function renderArrayData(arr){
+  if(!arr.length)return'<div style="color:var(--text2);padding:12px;text-align:center">暂无数据</div>';
+  const keys=Object.keys(arr[0]).filter(k=>!k.startsWith('_'));
+  let h=`<div style="font-size:12px;color:var(--text2);margin-bottom:8px">共 ${arr.length} 条结果</div>`;
+  h+=`<div style="overflow-x:auto"><table><tr>`;
+  keys.slice(0,10).forEach(k=>h+=`<th>${k}</th>`);
+  h+=`</tr>`;
+  arr.forEach(row=>{
+    h+=`<tr>`;
+    keys.slice(0,10).forEach(k=>{
+      let v=row[k];
+      if(v===null||v===undefined)v='—';
+      else if(typeof v==='object')v=v.name||v.symbol||JSON.stringify(v);
+      else if(typeof v==='number'&&v>1e6)v=fmt$(v);
+      else if(typeof v==='number')v=fmtNum(v,4);
+      h+=`<td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(String(v))}</td>`;
+    });
+    h+=`</tr>`;
+  });
+  h+=`</table></div>`;
+  return h;
 }
 
 function renderInfo(){
   const sl={active:'已上线',beta:'测试中',planned:'规划中'};
   document.title=`BitInfo - ${skill.name_zh}`;
   document.getElementById('topbar-title').textContent=skill.name_zh;
+  const features=SKILL_FEATURES[skill.id];
+  const featureCount=features?`<span style="font-size:12px;color:var(--text2);margin-left:8px">${features.length} 个功能</span>`:'';
+  const quickHint=skill.id==='oi-signal'
+    ? `<div class="quick-launch" style="margin-top:0">
+        <div class="quick-launch-title">OI 信号页支持直接搜索代币</div>
+        <div class="quick-launch-sub">输入代币符号后会跳转到完整仪表盘，支持山寨币、主流币和自定义周期。</div>
+        <div class="quick-launch-row">
+          <input id="oi-launch-inline-symbol" value="BTC" placeholder="DOGE / XRP / 1000SHIB">
+          <select id="oi-launch-inline-timeframe">
+            <option value="15m">15m</option>
+            <option value="1h" selected>1h</option>
+            <option value="4h">4h</option>
+            <option value="1d">1d</option>
+          </select>
+          <button class="btn-load" onclick="openOISignal(document.getElementById('oi-launch-inline-symbol').value,document.getElementById('oi-launch-inline-timeframe').value)">打开分析页</button>
+        </div>
+      </div>`
+    : '';
   document.getElementById('skill-info').innerHTML=`
     <div class="skill-header"><div class="skill-icon">${skill.icon}</div>
-    <div><div class="skill-name">${skill.name_zh}</div><div class="skill-subname">${skill.name}</div></div></div>
-    <div class="meta-row"><span class="meta-tag">${sl[skill.status]}</span>${skill.data_sources.map(d=>`<span class="meta-tag">${d}</span>`).join('')}</div>`;
-  document.getElementById('toolbar').style.display='flex';
+    <div><div class="skill-name">${skill.name_zh}${featureCount}</div><div class="skill-subname">${skill.name}</div></div></div>
+    <div class="meta-row"><span class="meta-tag">${sl[skill.status]}</span>${skill.data_sources.map(d=>`<span class="meta-tag">${d}</span>`).join('')}</div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:16px;line-height:1.8">${skill.description_zh}</div>
+    ${quickHint}`;
+  if(!features){document.getElementById('toolbar').style.display='flex'}
 }
 
 async function loadReport(){
@@ -137,7 +509,7 @@ async function loadReport(){
       if(fmt==='visual')area.innerHTML=renderNewsVisual(d);
       else area.innerHTML=`<div class="report-json">${esc(JSON.stringify(d,null,2))}</div>`;
     }else{
-      const r=await fetch(skill.api_endpoint);
+      const r=await fetch(BASE+skill.api_endpoint);
       const d=await r.json();
       document.getElementById('load-time').textContent=((Date.now()-t0)/1000).toFixed(1)+'s';
       area.innerHTML=`<div class="report-json">${esc(JSON.stringify(d,null,2))}</div>`;

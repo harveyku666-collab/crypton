@@ -25,6 +25,11 @@ class TimestampMixin:
 
 _engine: AsyncEngine | None = None
 _session_factory: async_sessionmaker[AsyncSession] | None = None
+_db_available: bool = False
+
+
+def db_available() -> bool:
+    return _db_available
 
 
 def get_engine() -> AsyncEngine:
@@ -42,6 +47,8 @@ def async_session() -> AsyncSession:
 
 
 async def get_session() -> AsyncGenerator[AsyncSession, None]:
+    if not _db_available:
+        raise RuntimeError("Database not available")
     session = async_session()
     try:
         yield session
@@ -50,11 +57,13 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
 
 
 async def init_db() -> None:
+    global _db_available
     engine = get_engine()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
     await _run_migrations(engine)
+    _db_available = True
 
 
 async def _run_migrations(engine: AsyncEngine) -> None:

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 
-from app.common.database import async_session
+from app.common.database import async_session, db_available
 from app.common.models import PriceTick, NewsItem
 from app.market.sources import desk3
 
@@ -13,6 +13,8 @@ logger = logging.getLogger("bitinfo.market.jobs")
 
 async def collect_price_ticks() -> None:
     """Collect BTC/ETH/SOL prices and store to DB."""
+    if not db_available():
+        return
     try:
         prices = await desk3.get_core_prices()
         async with async_session() as session:
@@ -32,6 +34,8 @@ async def collect_price_ticks() -> None:
 
 async def collect_news() -> None:
     """Collect latest crypto news and store to DB."""
+    if not db_available():
+        return
     try:
         from app.market.sources.desk3 import HEADERS as desk3_headers
         from app.common.http_client import fetch_json

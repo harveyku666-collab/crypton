@@ -45,8 +45,11 @@ async def get_news_history(
     limit: int = Query(50, le=200),
 ) -> list[dict[str, Any]]:
     """Get stored news from database (historical) with sentiment/importance."""
-    from app.common.database import async_session
+    from app.common.database import async_session, db_available
     from app.common.models import NewsItem
+
+    if not db_available():
+        return []
 
     try:
         async with async_session() as session:
@@ -78,6 +81,14 @@ async def get_news_history(
             ]
     except Exception:
         return [{"error": "Database not available. Use / endpoint for live news."}]
+
+
+@router.get("/detail/{article_id}")
+async def news_detail(article_id: str) -> dict[str, Any]:
+    """Full article detail via Surf."""
+    from app.market.sources.surf import get_news_detail
+    result = await get_news_detail(article_id)
+    return result or {"error": f"No article found for {article_id}"}
 
 
 @router.get("/{category}")

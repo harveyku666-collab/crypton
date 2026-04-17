@@ -4,12 +4,18 @@ Security:
   - All outbound requests are checked against ALLOWED_HOSTS from endpoints.py
   - Requests to unknown hosts are blocked and logged as security events
   - Only GET requests go through fetch_json; no user data is sent via query params
+
+Proxy:
+  - Set PROXY_URL env var (e.g. socks5://127.0.0.1:7890 or http://proxy:8080)
+  - Geographically restricted hosts (Binance Futures, Bybit, etc.) auto-route through proxy
+  - Non-restricted hosts use direct connection for speed
 """
 
 from __future__ import annotations
 
 import asyncio
 import logging
+import os
 from typing import Any
 from urllib.parse import urlparse
 
@@ -19,10 +25,23 @@ logger = logging.getLogger("bitinfo.http")
 security_logger = logging.getLogger("bitinfo.security")
 
 _client: httpx.AsyncClient | None = None
+_proxy_client: httpx.AsyncClient | None = None
 
 DEFAULT_TIMEOUT = 15.0
 MAX_RETRIES = 3
 BACKOFF_BASE = 0.5
+
+PROXY_URL = os.environ.get("PROXY_URL") or os.environ.get("HTTPS_PROXY") or os.environ.get("HTTP_PROXY") or ""
+
+RESTRICTED_HOSTS = {
+    "fapi.binance.com",
+    "dapi.binance.com",
+    "api.bybit.com",
+    "www.okx.com",
+    "api.deribit.com",
+    "api.coinbase.com",
+    "advanced-api.coinbase.com",
+}
 
 
 def _check_host_allowed(url: str) -> None:
@@ -40,6 +59,12 @@ def _check_host_allowed(url: str) -> None:
         )
 
 
+def _needs_proxy(url: str) -> bool:
+    """Check if a URL targets a geographically restricted host."""
+    parsed = urlparse(url)
+    return (parsed.hostname or "") in RESTRICTED_HOSTS
+
+
 async def get_client() -> httpx.AsyncClient:
     global _client
     if _client is None or _client.is_closed:
@@ -51,11 +76,30 @@ async def get_client() -> httpx.AsyncClient:
     return _client
 
 
+async def get_proxy_client() -> httpx.AsyncClient | None:
+    """Return a proxy-enabled client if PROXY_URL is configured."""
+    global _proxy_client
+    if not PROXY_URL:
+        return None
+    if _proxy_client is None or _proxy_client.is_closed:
+        _proxy_client = httpx.AsyncClient(
+            timeout=DEFAULT_TIMEOUT,
+            limits=httpx.Limits(max_connections=50, max_keepalive_connections=10),
+            follow_redirects=True,
+            proxy=PROXY_URL,
+        )
+        logger.info("Proxy client initialized: %s", PROXY_URL.split("@")[-1])
+    return _proxy_client
+
+
 async def close_client() -> None:
-    global _client
+    global _client, _proxy_client
     if _client and not _client.is_closed:
         await _client.aclose()
         _client = None
+    if _proxy_client and not _proxy_client.is_closed:
+        await _proxy_client.aclose()
+        _proxy_client = None
 
 
 async def fetch_json(
@@ -65,10 +109,20 @@ async def fetch_json(
     headers: dict[str, str] | None = None,
     retries: int = MAX_RETRIES,
 ) -> Any:
-    """GET JSON from url. Host must be registered in endpoints.py."""
+    """GET JSON from url. Host must be registered in endpoints.py.
+    Automatically routes through proxy for geographically restricted hosts.
+    """
     _check_host_allowed(url)
 
-    client = await get_client()
+    use_proxy = _needs_proxy(url)
+    if use_proxy:
+        client = await get_proxy_client()
+        if client is None:
+            logger.warning("No proxy configured for restricted host: %s", urlparse(url).hostname)
+            client = await get_client()
+    else:
+        client = await get_client()
+
     last_exc: Exception | None = None
     for attempt in range(retries):
         try:

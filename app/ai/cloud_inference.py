@@ -7,7 +7,7 @@ import logging
 from typing import Any
 
 from app.common.ai_client import ai_chat
-from app.common.database import async_session
+from app.common.database import async_session, db_available
 from app.common.models import AIDecision
 
 logger = logging.getLogger("bitinfo.ai.cloud")
@@ -52,17 +52,18 @@ Provide your prediction:"""
     except json.JSONDecodeError:
         result = {"direction": "NEUTRAL", "confidence": 0, "reasoning": raw}
 
-    try:
-        async with async_session() as session:
-            session.add(AIDecision(
-                symbol=symbol,
-                input_features={"market": market_data, "analysis": analysis_data},
-                reasoning=result.get("reasoning"),
-                decision=result.get("direction", "NEUTRAL"),
-                confidence=result.get("confidence"),
-            ))
-            await session.commit()
-    except Exception:
-        logger.debug("DB store skipped for AI decision", exc_info=True)
+    if db_available():
+        try:
+            async with async_session() as session:
+                session.add(AIDecision(
+                    symbol=symbol,
+                    input_features={"market": market_data, "analysis": analysis_data},
+                    reasoning=result.get("reasoning"),
+                    decision=result.get("direction", "NEUTRAL"),
+                    confidence=result.get("confidence"),
+                ))
+                await session.commit()
+        except Exception:
+            logger.debug("DB store skipped for AI decision", exc_info=True)
 
     return result

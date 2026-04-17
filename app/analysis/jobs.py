@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 
-from app.common.database import async_session
+from app.common.database import async_session, db_available
 from app.common.models import Indicator
 from app.analysis.indicators import analyze_klines
 from app.market.sources import binance
@@ -15,6 +15,8 @@ TRACKED_SYMBOLS = ["BTC", "ETH", "SOL"]
 
 
 async def compute_and_store_indicators() -> None:
+    if not db_available():
+        return
     try:
         for symbol in TRACKED_SYMBOLS:
             klines = await binance.get_klines(f"{symbol}USDT", "15m", 50)

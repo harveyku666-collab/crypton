@@ -1,0 +1,1713 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OI 信号研判 - BitInfo</title>
+<style>
+:root{
+  --bg:#0a0f16;
+  --panel:#121a24;
+  --panel-2:#18212d;
+  --panel-3:#1e2937;
+  --line:#2c3a4d;
+  --text:#edf2f7;
+  --muted:#91a0b3;
+  --green:#31c26f;
+  --red:#f35f5f;
+  --orange:#ff8b3d;
+  --yellow:#f2c14e;
+  --blue:#5cb8ff;
+  --cyan:#4dd0e1;
+  --shadow:0 18px 48px rgba(0,0,0,.28);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;
+  min-height:100vh;
+  color:var(--text);
+  font:14px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Helvetica Neue",sans-serif;
+  background:
+    radial-gradient(circle at top right, rgba(92,184,255,.16), transparent 28%),
+    radial-gradient(circle at 12% 18%, rgba(49,194,111,.10), transparent 22%),
+    linear-gradient(180deg, #08111a 0%, #0b1219 42%, #091018 100%);
+}
+a{color:inherit}
+.page{max-width:1280px;margin:0 auto;padding:28px 20px 60px}
+.hero{
+  position:relative;
+  overflow:hidden;
+  border:1px solid rgba(92,184,255,.16);
+  background:linear-gradient(135deg, rgba(18,26,36,.96), rgba(14,22,31,.92));
+  border-radius:24px;
+  padding:26px 28px;
+  box-shadow:var(--shadow);
+}
+.hero:before{
+  content:"";
+  position:absolute;
+  inset:-20% auto auto 58%;
+  width:360px;height:360px;
+  border-radius:50%;
+  background:radial-gradient(circle, rgba(92,184,255,.18), transparent 62%);
+  pointer-events:none;
+}
+.hero-top{
+  position:relative;
+  display:flex;
+  justify-content:space-between;
+  gap:20px;
+  align-items:flex-start;
+  flex-wrap:wrap;
+}
+.back-link{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:8px 14px;
+  border:1px solid var(--line);
+  border-radius:999px;
+  color:var(--muted);
+  text-decoration:none;
+  background:rgba(255,255,255,.02);
+}
+.back-link:hover{color:var(--text);border-color:var(--blue)}
+.eyebrow{
+  color:var(--cyan);
+  font-size:12px;
+  letter-spacing:.2em;
+  text-transform:uppercase;
+  margin-bottom:10px;
+}
+.hero h1{
+  margin:0 0 8px;
+  font-size:34px;
+  line-height:1.1;
+  letter-spacing:-.03em;
+}
+.hero p{
+  margin:0;
+  max-width:720px;
+  color:var(--muted);
+  font-size:15px;
+}
+.hero-meta{
+  margin-top:18px;
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+}
+.pill{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:8px 12px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.08);
+  background:rgba(255,255,255,.03);
+  color:var(--muted);
+  font-size:12px;
+}
+.pill.busy{
+  border-color:rgba(92,184,255,.34);
+  color:var(--text);
+  box-shadow:0 0 0 1px rgba(92,184,255,.12) inset;
+}
+.pill.error{
+  border-color:rgba(243,95,95,.34);
+  color:#ffd8d8;
+}
+.toolbar{
+  display:grid;
+  grid-template-columns:minmax(220px,.95fr) minmax(340px,1.35fr) minmax(220px,.95fr) minmax(180px,.7fr);
+  gap:18px;
+  align-items:stretch;
+  margin:22px 0 18px;
+}
+.toolbar-card{
+  border:1px solid rgba(255,255,255,.06);
+  background:linear-gradient(180deg, rgba(18,26,36,.96), rgba(15,22,30,.92));
+  border-radius:20px;
+  padding:16px 18px;
+  box-shadow:var(--shadow);
+}
+.toolbar-card.search-card{
+  border-color:rgba(92,184,255,.16);
+  background:linear-gradient(140deg, rgba(14,23,32,.98), rgba(17,33,46,.94));
+}
+.control-group{display:flex;flex-direction:column;gap:8px}
+.control-head{
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+  align-items:center;
+}
+.control-label{
+  color:var(--muted);
+  font-size:12px;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
+.control-note,.refresh-note{
+  color:var(--muted);
+  font-size:12px;
+  line-height:1.65;
+}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{
+  border:1px solid var(--line);
+  background:rgba(255,255,255,.02);
+  color:var(--muted);
+  min-width:66px;
+  padding:9px 14px;
+  border-radius:999px;
+  cursor:pointer;
+  transition:.2s ease;
+  font-weight:700;
+}
+.chip:hover{border-color:rgba(92,184,255,.55);color:var(--text);transform:translateY(-1px)}
+.chip.active{
+  color:#08111a;
+  background:linear-gradient(135deg, var(--cyan), var(--blue));
+  border-color:transparent;
+  box-shadow:0 10px 24px rgba(92,184,255,.28);
+}
+.button{
+  border:1px solid var(--line);
+  background:rgba(255,255,255,.03);
+  color:var(--text);
+  padding:10px 14px;
+  border-radius:12px;
+  cursor:pointer;
+  transition:.2s ease;
+}
+.button.primary{
+  border-color:transparent;
+  color:#08111a;
+  font-weight:800;
+  background:linear-gradient(135deg, #73ddff, #5cb8ff);
+  box-shadow:0 12px 24px rgba(92,184,255,.22);
+}
+.button.primary:hover{border-color:transparent}
+.button:disabled{
+  opacity:.62;
+  cursor:wait;
+  transform:none;
+}
+.button:hover{border-color:var(--blue);transform:translateY(-1px)}
+.search-wrap{
+  display:flex;
+  gap:10px;
+  align-items:center;
+  flex-wrap:wrap;
+}
+.search-field{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  min-width:260px;
+  padding:10px 14px;
+  border-radius:14px;
+  border:1px solid var(--line);
+  background:rgba(255,255,255,.03);
+}
+.search-field:focus-within{
+  border-color:var(--blue);
+  box-shadow:0 0 0 3px rgba(92,184,255,.12);
+}
+.search-field input{
+  width:100%;
+  border:none;
+  outline:none;
+  background:transparent;
+  color:var(--text);
+  font:inherit;
+}
+.search-field input::placeholder{color:var(--muted)}
+.search-hint{
+  color:var(--muted);
+  font-size:12px;
+}
+.search-status{
+  min-height:18px;
+  color:var(--muted);
+  font-size:12px;
+}
+.search-status.error{color:var(--orange)}
+.search-presets{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+}
+.quick-token{
+  border:1px solid rgba(255,255,255,.08);
+  background:rgba(255,255,255,.03);
+  color:var(--muted);
+  font-size:12px;
+  padding:6px 10px;
+  border-radius:999px;
+  cursor:pointer;
+  transition:.2s ease;
+}
+.quick-token:hover{
+  color:var(--text);
+  border-color:rgba(92,184,255,.42);
+  transform:translateY(-1px);
+}
+.refresh-stack{
+  display:grid;
+  gap:10px;
+  align-content:start;
+}
+.position-layout{
+  display:grid;
+  grid-template-columns:1.1fr .9fr;
+  gap:18px;
+}
+.bias-stack,.exchange-bias-list{
+  display:grid;
+  gap:12px;
+}
+.bias-card,.exchange-bias{
+  border:1px solid rgba(255,255,255,.05);
+  background:var(--panel-2);
+  border-radius:16px;
+  padding:14px 15px;
+}
+.bias-top,.exchange-bias-top{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  align-items:flex-start;
+  margin-bottom:10px;
+}
+.bias-name{
+  font-size:13px;
+  font-weight:700;
+}
+.bias-desc{
+  margin-top:4px;
+  color:var(--muted);
+  font-size:12px;
+  line-height:1.65;
+}
+.bias-value{
+  font-size:22px;
+  font-weight:700;
+  line-height:1;
+  font-variant-numeric:tabular-nums;
+}
+.tone-pill{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:6px 10px;
+  border-radius:999px;
+  font-size:11px;
+  font-weight:700;
+}
+.tone-pill.long{background:rgba(49,194,111,.16);color:var(--green)}
+.tone-pill.short{background:rgba(243,95,95,.16);color:var(--red)}
+.tone-pill.neutral{background:rgba(145,160,179,.14);color:var(--muted)}
+.split-rail{
+  display:flex;
+  height:12px;
+  border-radius:999px;
+  overflow:hidden;
+  background:var(--panel-3);
+  border:1px solid rgba(255,255,255,.05);
+}
+.split-long{background:linear-gradient(90deg, #219653, #31c26f)}
+.split-short{background:linear-gradient(90deg, #f35f5f, #cb4352)}
+.split-meta{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  margin-top:9px;
+  font-size:12px;
+}
+.split-meta strong{
+  display:block;
+  margin-bottom:2px;
+  font-size:15px;
+  font-weight:700;
+  color:var(--text);
+}
+.split-meta .long strong{color:var(--green)}
+.split-meta .short strong{color:var(--red)}
+.exchange-bias-top .name{
+  font-weight:700;
+  font-size:13px;
+}
+.exchange-bias-top .ratio{
+  color:var(--muted);
+  font-size:12px;
+}
+.exchange-bias-top .value{
+  font-size:12px;
+  color:var(--muted);
+  font-variant-numeric:tabular-nums;
+}
+.status-strip{
+  display:grid;
+  grid-template-columns:1.15fr .85fr;
+  gap:18px;
+}
+.panel{
+  position:relative;
+  overflow:hidden;
+  border:1px solid rgba(255,255,255,.06);
+  background:linear-gradient(180deg, rgba(18,26,36,.96), rgba(15,22,30,.92));
+  border-radius:22px;
+  box-shadow:var(--shadow);
+}
+.panel-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:12px;
+  padding:18px 20px 0;
+}
+.panel-title{
+  margin:0;
+  font-size:15px;
+  font-weight:700;
+  letter-spacing:.02em;
+}
+.panel-sub{
+  color:var(--muted);
+  font-size:12px;
+  margin-top:4px;
+}
+.panel-body{padding:18px 20px 20px}
+.score-layout{
+  display:grid;
+  grid-template-columns:260px 1fr;
+  gap:18px;
+  align-items:center;
+}
+.score-wrap{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  min-height:260px;
+}
+.score-value{
+  font-size:86px;
+  line-height:.95;
+  letter-spacing:-.06em;
+  font-weight:200;
+  margin-bottom:8px;
+}
+.score-verdict{font-size:22px;font-weight:700}
+.score-direction{margin-top:8px;color:var(--muted);font-size:13px}
+.score-rail{
+  position:relative;
+  width:100%;
+  max-width:780px;
+  height:10px;
+  border-radius:999px;
+  margin-top:26px;
+  background:linear-gradient(90deg, #ff6961 0%, #ff9f43 25%, #f2c14e 50%, #78d45a 75%, #31c26f 100%);
+}
+.score-pin{
+  position:absolute;
+  top:50%;
+  width:22px;height:22px;
+  border-radius:50%;
+  background:#fff;
+  border:3px solid #091018;
+  transform:translate(-50%,-50%);
+  box-shadow:0 6px 18px rgba(0,0,0,.35);
+}
+.ticks{
+  display:flex;
+  justify-content:space-between;
+  gap:8px;
+  margin-top:12px;
+  color:var(--muted);
+  font-size:11px;
+}
+.snapshot-grid,.stats-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit, minmax(170px, 1fr));
+  gap:12px;
+}
+.metric{
+  border:1px solid rgba(255,255,255,.05);
+  background:var(--panel-2);
+  border-radius:16px;
+  padding:14px 15px;
+}
+.metric-label{color:var(--muted);font-size:12px;margin-bottom:8px}
+.metric-value{
+  font-size:24px;
+  line-height:1.1;
+  font-weight:700;
+  font-variant-numeric:tabular-nums;
+}
+.metric-sub{margin-top:7px;color:var(--muted);font-size:12px}
+.grid-2{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:18px;
+  margin-top:18px;
+}
+.box{
+  border:1px solid rgba(255,255,255,.05);
+  background:var(--panel-2);
+  border-radius:18px;
+  padding:16px;
+}
+.quad{
+  display:flex;
+  gap:14px;
+  align-items:flex-start;
+}
+.quad-badge{
+  width:60px;height:60px;
+  border-radius:18px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:28px;font-weight:800;
+  flex-shrink:0;
+}
+.quad-badge.A{background:rgba(49,194,111,.16);color:var(--green)}
+.quad-badge.B{background:rgba(255,139,61,.16);color:var(--orange)}
+.quad-badge.C{background:rgba(243,95,95,.16);color:var(--red)}
+.quad-badge.D{background:rgba(242,193,78,.16);color:var(--yellow)}
+.quad-badge.N{background:rgba(145,160,179,.14);color:var(--muted)}
+.badge{
+  display:inline-flex;align-items:center;
+  padding:6px 10px;border-radius:999px;
+  font-size:12px;font-weight:700;
+}
+.badge.long{background:rgba(49,194,111,.16);color:var(--green)}
+.badge.short{background:rgba(243,95,95,.16);color:var(--red)}
+.badge.neutral{background:rgba(145,160,179,.14);color:var(--muted)}
+.signal-list,.note-list{display:grid;gap:10px}
+.signal{
+  border:1px solid rgba(255,255,255,.05);
+  background:var(--panel-2);
+  border-radius:14px;
+  padding:12px 13px;
+  display:flex;
+  gap:12px;
+  align-items:flex-start;
+}
+.signal.live{border-color:rgba(255,139,61,.38);background:linear-gradient(180deg, rgba(255,139,61,.07), rgba(24,33,45,.95))}
+.signal-icon{font-size:20px;line-height:1.1}
+.signal-title{font-weight:700}
+.signal-desc{font-size:12px;color:var(--muted);margin-top:3px}
+.note{
+  border-left:3px solid var(--cyan);
+  background:rgba(77,208,225,.08);
+  color:#d8e5ef;
+  padding:10px 12px;
+  border-radius:0 12px 12px 0;
+  font-size:13px;
+}
+.section-stack{display:grid;gap:18px;margin-top:18px}
+.depth-bar{
+  display:flex;
+  height:30px;
+  border-radius:999px;
+  overflow:hidden;
+  background:var(--panel-3);
+  border:1px solid rgba(255,255,255,.04);
+}
+.depth-bid{background:linear-gradient(90deg, #1f9d57, #31c26f)}
+.depth-ask{background:linear-gradient(90deg, #f35f5f, #cb4352)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;color:var(--muted);font-size:12px}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}
+.dot.green{background:var(--green)}
+.dot.red{background:var(--red)}
+.wall-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:14px;
+  margin-top:16px;
+}
+.wall-list{display:grid;gap:8px}
+.wall{
+  display:flex;justify-content:space-between;gap:10px;
+  padding:10px 12px;border-radius:14px;
+  background:var(--panel-2);border:1px solid rgba(255,255,255,.05);
+  font-variant-numeric:tabular-nums;
+}
+.wall small{color:var(--muted);display:block;margin-top:2px}
+.mono{font-variant-numeric:tabular-nums}
+.green{color:var(--green)}
+.red{color:var(--red)}
+.orange{color:var(--orange)}
+.muted{color:var(--muted)}
+.chip-chart{
+  margin-top:18px;
+  padding:12px;
+  border-radius:16px;
+  background:var(--panel-2);
+  border:1px solid rgba(255,255,255,.05);
+}
+.chip-row{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-bottom:4px;
+  font-size:12px;
+}
+.chip-row .label{width:88px;text-align:right;color:var(--muted)}
+.chip-row .bar-wrap{
+  flex:1;
+  height:9px;
+  background:#213042;
+  border-radius:999px;
+  overflow:hidden;
+}
+.chip-row .bar{height:100%;background:linear-gradient(90deg, #5cb8ff, #4dd0e1)}
+.chip-row.poc .bar{background:linear-gradient(90deg, #f2c14e, #ff8b3d)}
+.chip-row.in-va .bar{background:linear-gradient(90deg, #78d45a, #31c26f)}
+.chip-row.current{background:rgba(92,184,255,.08);border-radius:10px;padding:4px 0}
+.chip-row .pct{width:58px;color:var(--muted);font-size:11px}
+.table-wrap{overflow:auto}
+table{width:100%;border-collapse:collapse}
+th,td{padding:12px 10px;text-align:left;font-size:13px}
+thead th{color:var(--muted);font-weight:600;border-bottom:1px solid rgba(255,255,255,.08)}
+tbody tr{border-bottom:1px solid rgba(255,255,255,.05)}
+tbody tr:last-child{border-bottom:none}
+.loading,.empty{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  min-height:240px;
+  border:1px dashed rgba(255,255,255,.08);
+  border-radius:20px;
+  color:var(--muted);
+  background:rgba(255,255,255,.02);
+}
+#app{
+  position:relative;
+  transition:opacity .2s ease;
+}
+#app.is-refreshing:before{
+  content:"";
+  position:absolute;
+  inset:0;
+  border-radius:24px;
+  background:linear-gradient(180deg, rgba(8,16,24,.06), rgba(8,16,24,.22));
+  backdrop-filter:blur(2px);
+  pointer-events:none;
+  z-index:2;
+}
+#app.is-refreshing:after{
+  content:"AJAX 刷新中";
+  position:absolute;
+  top:16px;
+  right:16px;
+  z-index:3;
+  padding:7px 12px;
+  border-radius:999px;
+  background:rgba(8,17,26,.86);
+  border:1px solid rgba(92,184,255,.24);
+  color:#dcedff;
+  font-size:12px;
+  letter-spacing:.05em;
+}
+.footer-note{
+  margin-top:22px;
+  color:var(--muted);
+  font-size:12px;
+  text-align:center;
+}
+@media (max-width:1080px){
+  .toolbar,.status-strip,.score-layout,.grid-2,.wall-grid,.position-layout{grid-template-columns:1fr}
+}
+@media (max-width:720px){
+  .page{padding:20px 14px 42px}
+  .hero{padding:22px 18px}
+  .hero h1{font-size:28px}
+  .toolbar-card{padding:15px 14px}
+  .search-field{min-width:unset;width:100%}
+  .score-value{font-size:72px}
+}
+</style>
+</head>
+<body>
+<div class="page">
+  <section class="hero">
+    <div class="hero-top">
+      <div>
+        <a class="back-link" id="back-link" href="/">← 返回首页</a>
+        <div class="eyebrow">Open Interest Intelligence</div>
+        <h1>多交易所 OI 信号研判</h1>
+        <p>把 OI、Funding、量价关系、盘口深度、筹码分布和订单流放到一个页面里，直接给出结构判断和执行提示。</p>
+        <div class="hero-meta">
+          <span class="pill" id="generated-at">更新时间加载中</span>
+          <span class="pill" id="history-pill">历史样本 --</span>
+          <span class="pill" id="threshold-pill">阈值加载中</span>
+          <span class="pill" id="selection-pill">BTC · 1h 视图</span>
+          <span class="pill" id="ajax-pill">自动同步已开启 · 60s</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="toolbar">
+    <div class="toolbar-card">
+      <div class="control-group">
+        <div class="control-label">币种快切</div>
+        <div class="chips" id="symbol-chips">
+          <button class="chip active" data-symbol="BTC">BTC</button>
+          <button class="chip" data-symbol="ETH">ETH</button>
+          <button class="chip" data-symbol="SOL">SOL</button>
+        </div>
+        <div class="control-note">主流币一键切换，临时搜索的山寨币会自动补进这里，方便连续观察。</div>
+      </div>
+    </div>
+    <div class="toolbar-card search-card">
+      <div class="control-group">
+        <div class="control-head">
+          <div class="control-label">原位搜索</div>
+          <div class="control-note">不整页跳转</div>
+        </div>
+        <form class="search-wrap" id="symbol-search-form">
+          <label class="search-field" for="symbol-search-input">
+            <span class="muted">⌕</span>
+            <input id="symbol-search-input" type="text" placeholder="输入 DOGE / XRP / 1000SHIB / BNBUSDT" autocomplete="off" spellcheck="false">
+          </label>
+          <button class="button primary" id="search-submit-button" type="submit">就地分析</button>
+        </form>
+        <div class="search-hint">支持 `DOGE`、`BNB`、`1000SHIB`、`DOGEUSDT`，页内切币和切周期都会走 AJAX 刷新，并保留浏览器前进/后退状态。</div>
+        <div class="search-presets">
+          <button class="quick-token" type="button" data-quick-symbol="DOGE">DOGE</button>
+          <button class="quick-token" type="button" data-quick-symbol="XRP">XRP</button>
+          <button class="quick-token" type="button" data-quick-symbol="1000SHIB">1000SHIB</button>
+          <button class="quick-token" type="button" data-quick-symbol="BNB">BNB</button>
+        </div>
+        <div class="search-status" id="search-status"></div>
+      </div>
+    </div>
+    <div class="toolbar-card">
+      <div class="control-group">
+        <div class="control-label">交易周期</div>
+        <div class="chips" id="timeframe-chips">
+          <button class="chip" data-timeframe="15m">15m</button>
+          <button class="chip active" data-timeframe="1h">1h</button>
+          <button class="chip" data-timeframe="4h">4h</button>
+          <button class="chip" data-timeframe="1d">1d</button>
+        </div>
+        <div class="control-note">更换周期只刷新数据面板，不重置当前代币，也不会闪成整页空白。</div>
+      </div>
+    </div>
+    <div class="toolbar-card">
+      <div class="control-group">
+        <div class="control-label">刷新方式</div>
+        <div class="refresh-stack">
+          <button class="button" id="refresh-button">立即刷新</button>
+          <div class="refresh-note">每 60 秒自动同步一次，手动刷新时也保留当前内容，只做局部更新。</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div id="app">
+    <div class="loading">正在加载 OI 信号仪表盘...</div>
+  </div>
+</div>
+
+<script>
+const BASE = location.pathname.replace(/\/(skill|daily|briefing|oi-signal)?\s*$/, '').replace(/\/+$/, '');
+const API = BASE + '/api/v1';
+const PRESET_SYMBOLS = ['BTC', 'ETH', 'SOL'];
+const TIMEFRAMES = ['15m', '1h', '4h', '1d'];
+let currentSymbol = 'BTC';
+let currentTimeframe = '1h';
+let searchMessage = '';
+let searchMessageError = false;
+let hasRenderedDashboard = false;
+let activeController = null;
+let latestRequestId = 0;
+
+const params = new URLSearchParams(location.search);
+const initialSymbol = sanitizeSymbol(params.get('symbol'));
+const initialTimeframe = params.get('timeframe');
+if (initialSymbol) currentSymbol = initialSymbol;
+if (TIMEFRAMES.includes(initialTimeframe)) currentTimeframe = initialTimeframe;
+
+document.getElementById('back-link').href = BASE + '/';
+document.getElementById('refresh-button').addEventListener('click', () => loadDashboard({preserveContent: hasRenderedDashboard, trigger: 'manual'}));
+document.getElementById('symbol-search-form').addEventListener('submit', handleSearchSubmit);
+document.getElementById('symbol-search-input').value = currentSymbol;
+document.querySelectorAll('.quick-token').forEach((button) => {
+  button.addEventListener('click', () => {
+    applySelection({
+      symbol: button.dataset.quickSymbol,
+      pushHistory: true,
+      statusText: `正在分析 ${sanitizeSymbol(button.dataset.quickSymbol)}...`,
+    });
+  });
+});
+
+function bindSymbolChipEvents(){
+  document.querySelectorAll('#symbol-chips .chip').forEach((button) => {
+    button.onclick = () => {
+      const nextSymbol = sanitizeSymbol(button.dataset.symbol);
+      if (!nextSymbol || nextSymbol === currentSymbol) return;
+      applySelection({
+        symbol: nextSymbol,
+        pushHistory: true,
+        statusText: `正在切换到 ${nextSymbol}...`,
+      });
+    };
+  });
+}
+
+function syncSymbolChips(){
+  const container = document.getElementById('symbol-chips');
+  const symbols = PRESET_SYMBOLS.includes(currentSymbol)
+    ? PRESET_SYMBOLS
+    : [...PRESET_SYMBOLS, currentSymbol];
+  container.innerHTML = symbols.map((symbol) => `
+    <button class="chip ${symbol === currentSymbol ? 'active' : ''}" data-symbol="${symbol}">${symbol}</button>
+  `).join('');
+  bindSymbolChipEvents();
+}
+
+function syncTimeframeChips(){
+  document.querySelectorAll('#timeframe-chips .chip').forEach((item) => {
+    item.classList.toggle('active', item.dataset.timeframe === currentTimeframe);
+  });
+}
+
+function syncSelectionPill(){
+  document.getElementById('selection-pill').textContent = `${currentSymbol} · ${currentTimeframe} 视图`;
+}
+
+function setSearchStatus(message, isError = false){
+  searchMessage = message;
+  searchMessageError = isError;
+  const el = document.getElementById('search-status');
+  el.textContent = message || '';
+  el.classList.toggle('error', Boolean(message && isError));
+}
+
+function setAjaxPill(message, mode = 'idle'){
+  const pill = document.getElementById('ajax-pill');
+  pill.textContent = message;
+  pill.classList.toggle('busy', mode === 'busy');
+  pill.classList.toggle('error', mode === 'error');
+}
+
+function sanitizeSymbol(value){
+  if (!value) return '';
+  let symbol = value.trim().toUpperCase();
+  symbol = symbol.replace(/\s+/g, '');
+  symbol = symbol.replace(/[-_/]/g, '');
+  symbol = symbol.replace(/USDT$/,'');
+  symbol = symbol.replace(/USD$/,'');
+  symbol = symbol.replace(/PERP$/,'');
+  symbol = symbol.replace(/SWAP$/,'');
+  symbol = symbol.replace(/[^A-Z0-9]/g, '');
+  return symbol.slice(0, 20);
+}
+
+function syncUrlState(mode = 'replace'){
+  const next = new URLSearchParams(location.search);
+  next.set('symbol', currentSymbol);
+  next.set('timeframe', currentTimeframe);
+  const nextUrl = `${location.pathname}?${next.toString()}`;
+  const state = {symbol: currentSymbol, timeframe: currentTimeframe};
+  if (mode === 'push' && nextUrl !== `${location.pathname}${location.search}`) {
+    history.pushState(state, '', nextUrl);
+    return;
+  }
+  history.replaceState(state, '', nextUrl);
+}
+
+function applySelection({symbol = currentSymbol, timeframe = currentTimeframe, pushHistory = false, statusText = ''} = {}){
+  const nextSymbol = sanitizeSymbol(symbol) || currentSymbol;
+  const nextTimeframe = TIMEFRAMES.includes(timeframe) ? timeframe : currentTimeframe;
+  const changed = nextSymbol !== currentSymbol || nextTimeframe !== currentTimeframe;
+  currentSymbol = nextSymbol;
+  currentTimeframe = nextTimeframe;
+  document.getElementById('symbol-search-input').value = currentSymbol;
+  syncSymbolChips();
+  syncTimeframeChips();
+  syncSelectionPill();
+  syncUrlState(pushHistory ? 'push' : 'replace');
+  if (statusText) setSearchStatus(statusText, false);
+  if (changed || !hasRenderedDashboard) {
+    loadDashboard({preserveContent: hasRenderedDashboard, trigger: pushHistory ? 'selection' : 'manual'});
+  }
+}
+
+async function handleSearchSubmit(event){
+  event.preventDefault();
+  const input = document.getElementById('symbol-search-input');
+  const nextSymbol = sanitizeSymbol(input.value);
+  if (!nextSymbol) {
+    setSearchStatus('请输入有效的代币符号', true);
+    return;
+  }
+  applySelection({
+    symbol: nextSymbol,
+    pushHistory: true,
+    statusText: `正在分析 ${nextSymbol}...`,
+  });
+}
+
+syncSymbolChips();
+syncSelectionPill();
+syncUrlState();
+
+document.querySelectorAll('#timeframe-chips .chip').forEach((button) => {
+  button.addEventListener('click', () => {
+    if (button.dataset.timeframe === currentTimeframe) return;
+    applySelection({
+      timeframe: button.dataset.timeframe,
+      pushHistory: true,
+      statusText: `已切换到 ${currentSymbol} · ${button.dataset.timeframe}`,
+    });
+  });
+});
+syncTimeframeChips();
+
+window.addEventListener('popstate', () => {
+  const next = new URLSearchParams(location.search);
+  currentSymbol = sanitizeSymbol(next.get('symbol')) || currentSymbol;
+  currentTimeframe = TIMEFRAMES.includes(next.get('timeframe')) ? next.get('timeframe') : currentTimeframe;
+  document.getElementById('symbol-search-input').value = currentSymbol;
+  syncSymbolChips();
+  syncTimeframeChips();
+  syncSelectionPill();
+  setSearchStatus(`已切换到 ${currentSymbol} · ${currentTimeframe}`, false);
+  loadDashboard({preserveContent: hasRenderedDashboard, trigger: 'history'});
+});
+
+function chipIntervalFor(timeframe){
+  return timeframe === '15m' ? '1h' : timeframe;
+}
+
+function fmtUsd(value, digits = 2){
+  if (value == null || Number.isNaN(Number(value))) return '-';
+  const numeric = Number(value);
+  const abs = Math.abs(numeric);
+  let resolvedDigits = digits;
+  if (abs > 0) {
+    const dynamicDigits = Math.max(2, Math.min(8, 4 - Math.floor(Math.log10(abs)) - 1));
+    resolvedDigits = Math.max(resolvedDigits, dynamicDigits);
+  }
+  return '$' + numeric.toLocaleString('en-US', {
+    minimumFractionDigits: Math.min(2, resolvedDigits),
+    maximumFractionDigits: resolvedDigits,
+  });
+}
+
+function fmtCompactUsd(value){
+  if (value == null || Number.isNaN(Number(value))) return '-';
+  const abs = Math.abs(Number(value));
+  if (abs >= 1e9) return '$' + (value / 1e9).toFixed(2) + 'B';
+  if (abs >= 1e6) return '$' + (value / 1e6).toFixed(2) + 'M';
+  if (abs >= 1e3) return '$' + (value / 1e3).toFixed(2) + 'K';
+  return fmtUsd(value, 2);
+}
+
+function clsBySign(value){
+  if (value > 0) return 'green';
+  if (value < 0) return 'red';
+  return 'muted';
+}
+
+function signedPercent(value, digits = 2){
+  if (value == null || Number.isNaN(Number(value))) return '-';
+  const n = Number(value);
+  const prefix = n > 0 ? '+' : '';
+  return `<span class="${clsBySign(n)}">${prefix}${n.toFixed(digits)}%</span>`;
+}
+
+function decimalPercent(value, digits = 2){
+  if (value == null || Number.isNaN(Number(value))) return '-';
+  const n = Number(value) * 100;
+  const prefix = n > 0 ? '+' : '';
+  return `<span class="${clsBySign(n)}">${prefix}${n.toFixed(digits)}%</span>`;
+}
+
+function formatRatio(value, digits = 2){
+  if (value == null || Number.isNaN(Number(value))) return '-';
+  return Number(value).toFixed(digits);
+}
+
+function splitByRatio(ratio){
+  const numeric = Number(ratio);
+  if (!(numeric > 0)) return null;
+  const longPct = numeric / (1 + numeric) * 100;
+  return {
+    longPct,
+    shortPct: Math.max(0, 100 - longPct),
+  };
+}
+
+function toneClass(value, positiveLabel = 'long', negativeLabel = 'short'){
+  if (value > 0) return positiveLabel;
+  if (value < 0) return negativeLabel;
+  return 'neutral';
+}
+
+function ratioBiasMeta(ratio){
+  const split = splitByRatio(ratio);
+  if (!split) {
+    return {
+      tone: 'neutral',
+      label: '暂无账户比',
+      desc: '当前交易所样本还不足以给出可靠的多空账户偏向。',
+    };
+  }
+  if (ratio >= 3) {
+    return {tone: 'long', label: '多头拥挤', desc: '账户明显偏多，若继续拉升要留意反身性回撤。'};
+  }
+  if (ratio >= 1.6) {
+    return {tone: 'long', label: '多头略强', desc: '账户端多头占优，但还没有到极端拥挤。'};
+  }
+  if (ratio <= 0.33) {
+    return {tone: 'short', label: '空头拥挤', desc: '账户明显偏空，继续下杀后要警惕反抽。'};
+  }
+  if (ratio <= 0.7) {
+    return {tone: 'short', label: '空头略强', desc: '账户端空头占优，但还没到极端值。'};
+  }
+  return {tone: 'neutral', label: '多空平衡', desc: '账户端没有明显单边拥挤，结构更接近平衡。'};
+}
+
+function fundingMeta(fundingPct){
+  const numeric = Number(fundingPct);
+  if (!Number.isFinite(numeric)) {
+    return {tone: 'neutral', label: 'Funding 缺失', desc: '暂时没有足够样本判断当前谁在支付持仓成本。'};
+  }
+  if (numeric >= 0.1) {
+    return {tone: 'long', label: '多头成本偏热', desc: 'Funding 为正且偏高，代表多头在付费持仓。'};
+  }
+  if (numeric > 0.02) {
+    return {tone: 'long', label: '多头轻度付费', desc: 'Funding 为正，市场情绪略偏向多头。'};
+  }
+  if (numeric <= -0.1) {
+    return {tone: 'short', label: '空头成本偏热', desc: 'Funding 为负且偏低，代表空头在付费持仓。'};
+  }
+  if (numeric < -0.02) {
+    return {tone: 'short', label: '空头轻度付费', desc: 'Funding 为负，市场情绪略偏向空头。'};
+  }
+  return {tone: 'neutral', label: 'Funding 中性', desc: '持仓成本没有明显倾向，多空暂时没有强拥挤。'};
+}
+
+function flowMeta(deltaPct){
+  const numeric = Number(deltaPct);
+  if (!Number.isFinite(numeric)) {
+    return {tone: 'neutral', label: '主动成交缺失', desc: '暂时拿不到主动买卖成交的偏向信息。'};
+  }
+  if (numeric >= 0.05) {
+    return {tone: 'long', label: '主动买入强', desc: '主动买盘明显占优，短线资金更愿意追着买。'};
+  }
+  if (numeric > 0.01) {
+    return {tone: 'long', label: '主动买入略强', desc: '主动买盘略占上风，但还不是极端值。'};
+  }
+  if (numeric <= -0.05) {
+    return {tone: 'short', label: '主动卖出强', desc: '主动卖盘明显占优，短线资金更愿意追着卖。'};
+  }
+  if (numeric < -0.01) {
+    return {tone: 'short', label: '主动卖出略强', desc: '主动卖盘略占上风，但还没有失衡到极端。'};
+  }
+  return {tone: 'neutral', label: '主动成交平衡', desc: '主动买卖差不大，订单流暂时偏中性。'};
+}
+
+function liquidationMeta(liqRatio){
+  const numeric = Number(liqRatio);
+  if (!Number.isFinite(numeric)) {
+    return {tone: 'neutral', label: '清算数据不足', desc: '当前没有足够清算样本去判断哪一侧在被挤压。'};
+  }
+  if (numeric >= 0.7) {
+    return {tone: 'long', label: '多头被挤压', desc: '近期清算更多来自多单，说明下跌阶段多头更痛。'};
+  }
+  if (numeric <= 0.3) {
+    return {tone: 'short', label: '空头被挤压', desc: '近期清算更多来自空单，说明上涨阶段空头更痛。'};
+  }
+  return {tone: 'neutral', label: '清算相对平衡', desc: '多空两侧的被动清算暂时没有明显单边。'};
+}
+
+function renderSplitBar(leftPct, rightPct, leftLabel, rightLabel, leftValue, rightValue, leftTone = 'long', rightTone = 'short'){
+  const safeLeft = Math.max(0, Math.min(100, Number(leftPct) || 0));
+  const safeRight = Math.max(0, Math.min(100, Number(rightPct) || 0));
+  const total = safeLeft + safeRight || 1;
+  return `
+    <div class="split-rail">
+      <div class="split-${leftTone}" style="width:${safeLeft / total * 100}%"></div>
+      <div class="split-${rightTone}" style="width:${safeRight / total * 100}%"></div>
+    </div>
+    <div class="split-meta">
+      <div class="${leftTone}">
+        <strong>${leftValue}</strong>
+        <span>${leftLabel}</span>
+      </div>
+      <div class="${rightTone}" style="text-align:right">
+        <strong>${rightValue}</strong>
+        <span>${rightLabel}</span>
+      </div>
+    </div>
+  `;
+}
+
+function scoreColor(score){
+  if (score >= 75) return 'var(--green)';
+  if (score >= 55) return 'var(--cyan)';
+  if (score >= 41) return 'var(--yellow)';
+  if (score >= 25) return 'var(--orange)';
+  return 'var(--red)';
+}
+
+function directionClass(direction){
+  if (direction === '做多') return 'long';
+  if (direction === '做空') return 'short';
+  return 'neutral';
+}
+
+function wallMarkup(items, tone){
+  if (!items || !items.length) return '<div class="empty" style="min-height:120px">暂无墙体数据</div>';
+  return `<div class="wall-list">${items.map((item) => `
+    <div class="wall">
+      <div>
+        <div class="mono ${tone}">${fmtUsd(item.price, 0)}</div>
+        <small>${item.ex}</small>
+      </div>
+      <div class="mono">${fmtCompactUsd(item.usd)}</div>
+    </div>
+  `).join('')}</div>`;
+}
+
+function exchangeRows(exchanges){
+  return exchanges.map((item) => {
+    if (item.status !== 'ok') {
+      return `<tr>
+        <td>${item.exchange}</td>
+        <td class="red">失败</td>
+        <td colspan="5" class="muted">${item.error || 'unknown error'}</td>
+      </tr>`;
+    }
+    return `<tr>
+      <td>${item.exchange}</td>
+      <td class="green">正常</td>
+      <td class="mono">${fmtUsd(item.price, 1)}</td>
+      <td class="mono">${fmtCompactUsd(item.oi_usd)}</td>
+      <td class="mono">${item.funding != null ? signedPercent(item.funding, 4) : '-'}</td>
+      <td class="mono">${fmtCompactUsd(item.volume_24h_usd)}</td>
+      <td class="mono">${formatRatio(item.long_short_ratio, 2)}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderSignals(signals){
+  if (!signals || !signals.length) {
+    return '<div class="empty" style="min-height:150px">当前没有重大活动信号</div>';
+  }
+  return `<div class="signal-list">${signals.map((item) => `
+    <div class="signal live">
+      <div class="signal-icon">${item.icon}</div>
+      <div>
+        <div class="signal-title">${item.label}</div>
+        <div class="signal-desc">${item.desc}</div>
+      </div>
+    </div>
+  `).join('')}</div>`;
+}
+
+function renderNotes(notes){
+  if (!notes || !notes.length) {
+    return '<div class="empty" style="min-height:150px">暂无观察要点</div>';
+  }
+  return `<div class="note-list">${notes.map((note) => `<div class="note">${note}</div>`).join('')}</div>`;
+}
+
+function renderPositioning(snapshot, flow, exchanges){
+  const ratio = Number(snapshot.long_short_ratio);
+  const ratioSplit = splitByRatio(ratio);
+  const ratioMeta = ratioBiasMeta(ratio);
+
+  const takerBuy = Number(flow?.taker_buy_usd || 0);
+  const takerSell = Number(flow?.taker_sell_usd || 0);
+  const takerTotal = takerBuy + takerSell;
+  const takerBuyPct = takerTotal ? takerBuy / takerTotal * 100 : 0;
+  const takerSellPct = takerTotal ? takerSell / takerTotal * 100 : 0;
+  const takerMeta = flowMeta(flow?.taker_delta_pct);
+
+  const liqLong = Number(flow?.liq_long_24h_usd || 0);
+  const liqShort = Number(flow?.liq_short_24h_usd || 0);
+  const liqTotal = liqLong + liqShort;
+  const liqLongPct = liqTotal ? liqLong / liqTotal * 100 : 0;
+  const liqShortPct = liqTotal ? liqShort / liqTotal * 100 : 0;
+  const liqMeta = liquidationMeta(flow?.liq_ratio);
+
+  const fundingState = fundingMeta(snapshot.funding_weighted);
+  const exchangeBiases = (exchanges || [])
+    .filter((item) => item.status === 'ok' && item.long_short_ratio != null)
+    .map((item) => ({
+      exchange: item.exchange,
+      ratio: Number(item.long_short_ratio),
+      split: splitByRatio(item.long_short_ratio),
+      oiUsd: item.oi_usd,
+    }))
+    .filter((item) => item.split)
+    .sort((a, b) => (b.oiUsd || 0) - (a.oiUsd || 0));
+
+  return `
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <h2 class="panel-title">多空结构</h2>
+          <div class="panel-sub">这里展示的是多空偏向拆解，不是把总 OI 真正拆成“多头 OI / 空头 OI”两列；核心用到账户比、主动买卖、Funding 和清算样本。</div>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div class="position-layout">
+          <div class="bias-stack">
+            <div class="bias-card">
+              <div class="bias-top">
+                <div>
+                  <div class="bias-name">账户偏向</div>
+                  <div class="bias-desc">${ratioMeta.desc}</div>
+                </div>
+                <div style="text-align:right">
+                  <div class="bias-value mono">${formatRatio(snapshot.long_short_ratio, 2)}</div>
+                  <div class="tone-pill ${ratioMeta.tone}">${ratioMeta.label}</div>
+                </div>
+              </div>
+              ${
+                ratioSplit
+                  ? renderSplitBar(
+                      ratioSplit.longPct,
+                      ratioSplit.shortPct,
+                      '多头账户占比',
+                      '空头账户占比',
+                      `${ratioSplit.longPct.toFixed(1)}%`,
+                      `${ratioSplit.shortPct.toFixed(1)}%`,
+                    )
+                  : '<div class="empty" style="min-height:100px">暂无多空账户比</div>'
+              }
+            </div>
+
+            <div class="bias-card">
+              <div class="bias-top">
+                <div>
+                  <div class="bias-name">主动成交偏向</div>
+                  <div class="bias-desc">${takerMeta.desc}</div>
+                </div>
+                <div style="text-align:right">
+                  <div class="bias-value mono">${decimalPercent(flow?.taker_delta_pct, 2)}</div>
+                  <div class="tone-pill ${takerMeta.tone}">${takerMeta.label}</div>
+                </div>
+              </div>
+              ${renderSplitBar(
+                takerBuyPct,
+                takerSellPct,
+                '主动买入',
+                '主动卖出',
+                fmtCompactUsd(takerBuy),
+                fmtCompactUsd(takerSell),
+              )}
+            </div>
+          </div>
+
+          <div class="bias-stack">
+            <div class="bias-card">
+              <div class="bias-top">
+                <div>
+                  <div class="bias-name">资金费率偏向</div>
+                  <div class="bias-desc">${fundingState.desc}</div>
+                </div>
+                <div style="text-align:right">
+                  <div class="bias-value mono">${signedPercent(snapshot.funding_weighted, 4)}</div>
+                  <div class="tone-pill ${fundingState.tone}">${fundingState.label}</div>
+                </div>
+              </div>
+              <div class="split-meta" style="margin-top:2px">
+                <div class="long">
+                  <strong>${snapshot.funding_weighted > 0 ? '多头付费' : snapshot.funding_weighted < 0 ? '空头收租' : '中性'}</strong>
+                  <span>Funding 为正时，多头承担更多持仓成本</span>
+                </div>
+                <div class="short" style="text-align:right">
+                  <strong>${flow?.ls_ratio_change != null ? decimalPercent(flow.ls_ratio_change, 2) : '-'}</strong>
+                  <span>${formatRatio(flow?.ls_ratio_1h_ago, 2)} → ${formatRatio(flow?.ls_ratio_now, 2)}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="bias-card">
+              <div class="bias-top">
+                <div>
+                  <div class="bias-name">清算偏向</div>
+                  <div class="bias-desc">${liqMeta.desc}</div>
+                </div>
+                <div style="text-align:right">
+                  <div class="bias-value mono">${flow?.liq_ratio != null ? `${(Number(flow.liq_ratio) * 100).toFixed(0)}%` : '-'}</div>
+                  <div class="tone-pill ${liqMeta.tone}">${liqMeta.label}</div>
+                </div>
+              </div>
+              ${
+                liqTotal
+                  ? renderSplitBar(
+                      liqLongPct,
+                      liqShortPct,
+                      '多头被清算',
+                      '空头被清算',
+                      fmtCompactUsd(liqLong),
+                      fmtCompactUsd(liqShort),
+                    )
+                  : '<div class="empty" style="min-height:100px">暂无清算拆分样本</div>'
+              }
+            </div>
+          </div>
+        </div>
+
+        <div class="box" style="margin-top:18px">
+          <div class="panel-title" style="font-size:13px;margin-bottom:10px">交易所多空比拆解</div>
+          <div class="panel-sub" style="margin-bottom:12px">按交易所样本展示账户端多空偏向。注意它代表账户/仓位情绪，不等于真实把 OI 拆成多头总量和空头总量。</div>
+          ${
+            exchangeBiases.length
+              ? `<div class="exchange-bias-list">${exchangeBiases.map((item) => `
+                  <div class="exchange-bias">
+                    <div class="exchange-bias-top">
+                      <div>
+                        <div class="name">${item.exchange}</div>
+                        <div class="ratio">多空比 ${formatRatio(item.ratio, 2)}</div>
+                      </div>
+                      <div class="value">${fmtCompactUsd(item.oiUsd)}</div>
+                    </div>
+                    ${renderSplitBar(
+                      item.split.longPct,
+                      item.split.shortPct,
+                      '多头占比',
+                      '空头占比',
+                      `${item.split.longPct.toFixed(1)}%`,
+                      `${item.split.shortPct.toFixed(1)}%`,
+                    )}
+                  </div>
+                `).join('')}</div>`
+              : '<div class="empty" style="min-height:120px">当前没有可用的交易所多空比样本</div>'
+          }
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function renderChipChart(chip){
+  const distribution = (chip.distribution || []).slice().sort((a, b) => b.price - a.price).slice(0, 40);
+  if (!distribution.length) return '<div class="empty" style="min-height:160px">暂无筹码分布</div>';
+  const maxPct = Math.max(...distribution.map((item) => Number(item.volume_pct) || 0), 1);
+  const vah = Number(chip.vah || 0);
+  const val = Number(chip.val || 0);
+  const poc = Number(chip.poc || 0);
+  const currentPrice = Number(chip.price_now || 0);
+  return distribution.map((item) => {
+    const width = Math.max(3, Number(item.volume_pct) / maxPct * 100);
+    const isPoc = Math.abs(Number(item.price) - poc) < Math.max((vah - val) / 60, 1);
+    const inVa = Number(item.price) >= val && Number(item.price) <= vah;
+    const isCurrent = Math.abs(Number(item.price) - currentPrice) < Math.max((vah - val) / 30, 1);
+    const klass = `${isPoc ? 'poc' : inVa ? 'in-va' : ''} ${isCurrent ? 'current' : ''}`.trim();
+    return `<div class="chip-row ${klass}">
+      <span class="label mono">${fmtUsd(item.price, 0)}</span>
+      <div class="bar-wrap"><div class="bar" style="width:${width}%"></div></div>
+      <span class="pct">${Number(item.volume_pct).toFixed(2)}%</span>
+    </div>`;
+  }).join('');
+}
+
+function renderHvnRows(items){
+  if (!items || !items.length) return '<tr><td class="muted">暂无数据</td><td></td></tr>';
+  return items.map((item) => `
+    <tr>
+      <td class="mono">${fmtUsd(item.price, 0)}</td>
+      <td class="mono">${Number(item.volume_pct).toFixed(2)}%</td>
+    </tr>
+  `).join('');
+}
+
+function renderOrderbook(book){
+  if (!book || book.error) return '';
+  const bid1 = Number(book.bid_usd_1pct || 0);
+  const ask1 = Number(book.ask_usd_1pct || 0);
+  const total = bid1 + ask1 || 1;
+  return `
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <h2 class="panel-title">盘口深度</h2>
+          <div class="panel-sub">聚合 Binance / OKX / Bybit 的 ±1% 与 ±5% 深度，辅助判断流动性墙和短线失衡。</div>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div class="stats-grid">
+          <div class="metric">
+            <div class="metric-label">中间价</div>
+            <div class="metric-value mono">${fmtUsd(book.mid)}</div>
+            <div class="metric-sub">点差 ${Number(book.spread_bps_avg || 0).toFixed(2)} bps</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">±1% 买单深度</div>
+            <div class="metric-value mono green">${fmtCompactUsd(book.bid_usd_1pct)}</div>
+            <div class="metric-sub">买盘近端流动性</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">±1% 卖单深度</div>
+            <div class="metric-value mono red">${fmtCompactUsd(book.ask_usd_1pct)}</div>
+            <div class="metric-sub">卖盘近端流动性</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">1% 失衡</div>
+            <div class="metric-value mono">${decimalPercent(book.imbalance_1pct, 2)}</div>
+            <div class="metric-sub">${book.imbalance_1pct > 0.15 ? '买盘明显偏强' : book.imbalance_1pct < -0.15 ? '卖盘明显偏强' : '短线相对平衡'}</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">5% 失衡</div>
+            <div class="metric-value mono">${decimalPercent(book.imbalance_5pct, 2)}</div>
+            <div class="metric-sub">更大深度带宽</div>
+          </div>
+        </div>
+        <div class="depth-bar" style="margin-top:18px">
+          <div class="depth-bid" style="width:${bid1 / total * 100}%"></div>
+          <div class="depth-ask" style="width:${ask1 / total * 100}%"></div>
+        </div>
+        <div class="legend">
+          <span><span class="dot green"></span>买单深度 ${fmtCompactUsd(book.bid_usd_1pct)}</span>
+          <span><span class="dot red"></span>卖单深度 ${fmtCompactUsd(book.ask_usd_1pct)}</span>
+        </div>
+        <div class="wall-grid">
+          <div>
+            <div class="panel-sub" style="margin-bottom:10px">主要买墙</div>
+            ${wallMarkup(book.top_bid_walls, 'green')}
+          </div>
+          <div>
+            <div class="panel-sub" style="margin-bottom:10px">主要卖墙</div>
+            ${wallMarkup(book.top_ask_walls, 'red')}
+          </div>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function renderChip(chip){
+  if (!chip || chip.error) return '';
+  return `
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <h2 class="panel-title">筹码分布</h2>
+          <div class="panel-sub">基于 ${chip.source} 的 ${chip.interval} K 线生成 Volume Profile，观察 POC、Value Area 和筹码集中度。</div>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div class="stats-grid">
+          <div class="metric">
+            <div class="metric-label">POC</div>
+            <div class="metric-value mono">${fmtUsd(chip.poc, 0)}</div>
+            <div class="metric-sub">${chip.position_vs_poc}</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Value Area</div>
+            <div class="metric-value mono" style="font-size:18px">${fmtUsd(chip.val, 0)} ~ ${fmtUsd(chip.vah, 0)}</div>
+            <div class="metric-sub">${chip.position_vs_va}</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">筹码集中度</div>
+            <div class="metric-value mono">${Number(chip.concentration_score || 0).toFixed(1)}/100</div>
+            <div class="metric-sub">CR70 ${Number(chip.cr70_width_pct || 0).toFixed(2)}% · CR90 ${Number(chip.cr90_width_pct || 0).toFixed(2)}%</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">样本数</div>
+            <div class="metric-value mono">${chip.n_candles}</div>
+            <div class="metric-sub">${chip.interval} 周期</div>
+          </div>
+        </div>
+        <div class="chip-chart">${renderChipChart(chip)}</div>
+        <div class="grid-2">
+          <div class="box">
+            <div class="panel-title" style="font-size:13px">HVN 高成交节点</div>
+            <div class="table-wrap">
+              <table><tbody>${renderHvnRows(chip.hvn_zones)}</tbody></table>
+            </div>
+          </div>
+          <div class="box">
+            <div class="panel-title" style="font-size:13px">LVN 低成交节点</div>
+            <div class="table-wrap">
+              <table><tbody>${renderHvnRows(chip.lvn_zones)}</tbody></table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function renderFlow(flow){
+  if (!flow || flow.error) return '';
+  return `
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <h2 class="panel-title">订单流与量能</h2>
+          <div class="panel-sub">围绕 Binance 的 taker delta、CVD、VWAP、基差、现货/合约量比和爆仓失衡，辅助确认趋势质量。</div>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div class="stats-grid">
+          <div class="metric">
+            <div class="metric-label">主动买卖差</div>
+            <div class="metric-value mono">${decimalPercent(flow.taker_delta_pct, 2)}</div>
+            <div class="metric-sub">买 ${fmtCompactUsd(flow.taker_buy_usd)} / 卖 ${fmtCompactUsd(flow.taker_sell_usd)}</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">CVD 趋势</div>
+            <div class="metric-value" style="font-size:20px">${flow.cvd_trend || '-'}</div>
+            <div class="metric-sub">观察主动买卖是否持续加速</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">VWAP 偏离</div>
+            <div class="metric-value mono">${decimalPercent(flow.price_vs_vwap_pct, 2)}</div>
+            <div class="metric-sub">VWAP ${fmtUsd(flow.vwap_24h)}</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">期现基差</div>
+            <div class="metric-value mono">${decimalPercent(flow.basis_pct, 3)}</div>
+            <div class="metric-sub">Spot ${fmtUsd(flow.spot_price)} / Perp ${fmtUsd(flow.perp_price)}</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">合约/现货量比</div>
+            <div class="metric-value mono">${formatRatio(flow.perp_to_spot_ratio, 2)}x</div>
+            <div class="metric-sub">投机度越高，反身性越强</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">ATR / 年化波动</div>
+            <div class="metric-value mono">${flow.atr_pct != null ? (Number(flow.atr_pct) * 100).toFixed(2) + '%' : '-'}</div>
+            <div class="metric-sub">RV ${flow.realized_vol_24h != null ? (Number(flow.realized_vol_24h) * 100).toFixed(1) + '%' : '-'}</div>
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="box">
+            <div class="panel-title" style="font-size:13px">多空比变化</div>
+            <div class="metric-value mono" style="font-size:30px;margin-top:12px">${decimalPercent(flow.ls_ratio_change, 2)}</div>
+            <div class="metric-sub" style="margin-top:10px">${formatRatio(flow.ls_ratio_1h_ago, 2)} → ${formatRatio(flow.ls_ratio_now, 2)}</div>
+          </div>
+          <div class="box">
+            <div class="panel-title" style="font-size:13px">清算失衡</div>
+            <div class="metric-value mono" style="font-size:30px;margin-top:12px">${flow.liq_ratio != null ? (Number(flow.liq_ratio) * 100).toFixed(0) + '% 多爆' : '-'}</div>
+            <div class="metric-sub" style="margin-top:10px">多 ${fmtCompactUsd(flow.liq_long_24h_usd)} / 空 ${fmtCompactUsd(flow.liq_short_24h_usd)}</div>
+          </div>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function renderDashboard(data){
+  const snapshot = data.snapshot || {};
+  const scoreColorValue = scoreColor(data.score || 0);
+  const activeSignals = (data.all_signals || []).filter((item) => item.active !== false);
+  const thresholdMeta = data.timeframe_meta?.thresholds || {};
+  setSearchStatus(`当前分析 ${data.symbol || currentSymbol}`, false);
+  setAjaxPill('自动同步已开启 · 60s', 'idle');
+  document.title = `${currentSymbol} OI 信号研判 - BitInfo`;
+  document.getElementById('generated-at').textContent = `更新时间 ${data.generated_at || '-'}`;
+  document.getElementById('history-pill').textContent = `历史样本 ${data.history_samples || 0}`;
+  document.getElementById('threshold-pill').textContent = `${data.timeframe || currentTimeframe} 强信号阈值: 价格 ${thresholdMeta.price_strong_pct || '-'}% / OI ${thresholdMeta.oi_strong_pct || '-'}%`;
+  syncSelectionPill();
+
+  document.getElementById('app').innerHTML = `
+    <section class="panel">
+      <div class="panel-body">
+        <div class="status-strip">
+          <div class="panel">
+            <div class="panel-head">
+              <div>
+                <h2 class="panel-title">综合评分</h2>
+                <div class="panel-sub">${data.timeframe || currentTimeframe} 周期评分，筹码周期 ${data.chip_interval || '-'}</div>
+              </div>
+            </div>
+            <div class="panel-body">
+              <div class="score-layout">
+                <div class="score-wrap">
+                  <div class="score-value mono" style="color:${scoreColorValue}">${data.score ?? '--'}</div>
+                  <div class="score-verdict" style="color:${scoreColorValue}">${data.verdict || '-'}</div>
+                  <div class="score-direction">${data.direction || '-'} ${data.leverage && data.leverage !== '-' ? `· ${data.leverage}` : ''}</div>
+                </div>
+                <div>
+                  <div class="score-rail">
+                    <div class="score-pin" style="left:${Math.max(0, Math.min(100, data.score || 0))}%"></div>
+                  </div>
+                  <div class="ticks">
+                    <span>0 强烈看空</span>
+                    <span>25 偏空</span>
+                    <span>50 中性</span>
+                    <span>75 偏多</span>
+                    <span>100 强烈看多</span>
+                  </div>
+                  <div class="snapshot-grid" style="margin-top:22px">
+                    <div class="metric">
+                      <div class="metric-label">价格</div>
+                      <div class="metric-value mono">${fmtUsd(snapshot.price)}</div>
+                      <div class="metric-sub">${snapshot.selected_label || currentTimeframe} ${signedPercent(snapshot.dP_selected, 2)} · 24h ${signedPercent(snapshot.dP_24h, 2)}</div>
+                    </div>
+                    <div class="metric">
+                      <div class="metric-label">总 OI</div>
+                      <div class="metric-value mono">${fmtCompactUsd(snapshot.oi_total_usd)}</div>
+                      <div class="metric-sub">${snapshot.selected_label || currentTimeframe} ${signedPercent(snapshot.dOI_selected, 2)} · 24h ${signedPercent(snapshot.dOI_24h, 2)}</div>
+                    </div>
+                    <div class="metric">
+                      <div class="metric-label">Funding</div>
+                      <div class="metric-value mono">${signedPercent(snapshot.funding_weighted, 4)}</div>
+                      <div class="metric-sub">> 0.10% 代表偏热</div>
+                    </div>
+                    <div class="metric">
+                      <div class="metric-label">24h 成交量</div>
+                      <div class="metric-value mono">${fmtCompactUsd(snapshot.volume_24h_usd)}</div>
+                      <div class="metric-sub">vs MA20 ${formatRatio(snapshot.volume_ma_ratio, 2)}x</div>
+                    </div>
+                    <div class="metric">
+                      <div class="metric-label">多空比</div>
+                      <div class="metric-value mono">${formatRatio(snapshot.long_short_ratio, 2)}</div>
+                      <div class="metric-sub">极端值常是反向信号</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-head">
+              <div>
+                <h2 class="panel-title">结构判断</h2>
+                <div class="panel-sub">结合价格与 OI 方向，给出象限定位和执行方向。</div>
+              </div>
+            </div>
+            <div class="panel-body">
+              <div class="box">
+                <div class="quad">
+                  <div class="quad-badge ${data.quadrant?.id || 'N'}">${data.quadrant?.id || 'N'}</div>
+                  <div>
+                    <div class="panel-title" style="font-size:20px">${data.quadrant?.label || '-'}</div>
+                    <div class="panel-sub" style="margin-top:8px">${data.quadrant?.desc || '-'}</div>
+                    <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">
+                      <span class="badge ${directionClass(data.direction)}">${data.direction || '-'}</span>
+                      <span class="badge neutral">${data.leverage || '-'}</span>
+                      <span class="badge neutral">${data.timeframe || currentTimeframe}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="grid-2">
+                <div>
+                  <div class="panel-title" style="margin-bottom:10px">活动信号</div>
+                  ${renderSignals(activeSignals)}
+                </div>
+                <div>
+                  <div class="panel-title" style="margin-bottom:10px">观察要点</div>
+                  ${renderNotes(data.notes || [])}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="section-stack">
+      ${renderPositioning(snapshot, data.flow, data.exchanges)}
+      ${renderOrderbook(data.orderbook)}
+      ${renderChip(data.chip_zone)}
+      ${renderFlow(data.flow)}
+
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <h2 class="panel-title">单交易所明细</h2>
+            <div class="panel-sub">查看各交易所价格、持仓量、Funding、成交量和多空比差异。</div>
+          </div>
+        </div>
+        <div class="panel-body table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>交易所</th>
+                <th>状态</th>
+                <th>价格</th>
+                <th>OI</th>
+                <th>Funding</th>
+                <th>24h 成交量</th>
+                <th>多空比</th>
+              </tr>
+            </thead>
+            <tbody>${exchangeRows(data.exchanges || [])}</tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <div class="footer-note">本工具仅用于辅助决策，不构成投资建议。OI、Funding 和订单流都属于上下文信号，建议配合更高周期结构一起确认。</div>
+  `;
+}
+
+async function loadDashboard({preserveContent = false, trigger = 'manual'} = {}){
+  const chipInterval = chipIntervalFor(currentTimeframe);
+  const app = document.getElementById('app');
+  const refreshButton = document.getElementById('refresh-button');
+  const searchButton = document.getElementById('search-submit-button');
+  const requestId = ++latestRequestId;
+  const silentRefresh = trigger === 'auto';
+  const showRefreshState = !silentRefresh;
+  if (activeController) activeController.abort();
+  activeController = new AbortController();
+  if (showRefreshState) {
+    refreshButton.disabled = true;
+    searchButton.disabled = true;
+  }
+  if (!hasRenderedDashboard || !preserveContent) {
+    app.innerHTML = `<div class="loading">正在加载 ${currentSymbol} 的 ${currentTimeframe} OI 结构...</div>`;
+  } else if (showRefreshState) {
+    app.classList.add('is-refreshing');
+  }
+  if (showRefreshState) {
+    setAjaxPill(`正在刷新 ${currentSymbol} · ${currentTimeframe}`, 'busy');
+  }
+  try{
+    const params = new URLSearchParams({timeframe: currentTimeframe, chip_interval: chipInterval});
+    const response = await fetch(`${API}/market/oi-signal/${currentSymbol}?${params.toString()}`, {
+      signal: activeController.signal,
+    });
+    const data = await response.json();
+    if (requestId !== latestRequestId) return;
+    if (!response.ok || data.error) {
+      throw new Error(data.error || `HTTP ${response.status}`);
+    }
+    renderDashboard(data);
+    hasRenderedDashboard = true;
+  }catch(error){
+    if (error.name === 'AbortError') return;
+    if (!silentRefresh) {
+      setSearchStatus(`${currentSymbol} 暂时拿不到有效数据：${error.message}`, true);
+      setAjaxPill('刷新失败', 'error');
+    }
+    if (!hasRenderedDashboard) {
+      app.innerHTML = `<div class="empty">加载失败：${error.message}</div>`;
+    }
+  }finally{
+    if (requestId === latestRequestId) {
+      activeController = null;
+      if (showRefreshState) {
+        refreshButton.disabled = false;
+        searchButton.disabled = false;
+        app.classList.remove('is-refreshing');
+      }
+    }
+  }
+}
+
+loadDashboard({preserveContent: false, trigger: 'manual'});
+setInterval(() => loadDashboard({preserveContent: hasRenderedDashboard, trigger: 'auto'}), 60000);
+</script>
+</body>
+</html>

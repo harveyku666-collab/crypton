@@ -1,4 +1,4 @@
-"""Multi-source aggregator — combines data from all sources with fallback."""
+"""Multi-source aggregator — Surf primary, Desk3/CoinGecko/Binance fallback."""
 
 from __future__ import annotations
 
@@ -6,14 +6,16 @@ import asyncio
 import logging
 from typing import Any
 
-from app.market.sources import desk3, binance, coingecko
+from app.market.sources import desk3, binance, coingecko, surf
 
 logger = logging.getLogger("bitinfo.market")
 
 
 async def get_market_overview() -> dict[str, Any]:
-    """Aggregate core market data from multiple sources."""
+    """Aggregate core market data — Surf first, legacy fallback."""
     tasks = {
+        "surf_fear_greed": surf.get_fear_greed(),
+        "surf_ranking": surf.get_market_ranking(20),
         "desk3_prices": desk3.get_core_prices(),
         "desk3_fear_greed": desk3.get_fear_greed(),
         "desk3_dominance": desk3.get_dominance(),
@@ -28,7 +30,7 @@ async def get_market_overview() -> dict[str, Any]:
         data[k] = None if isinstance(v, BaseException) else v
 
     prices = data["desk3_prices"] or {}
-    fear = data["desk3_fear_greed"] or data["gecko_fear_greed"]
+    fear = data["surf_fear_greed"] or data["desk3_fear_greed"] or data["gecko_fear_greed"]
     dominance = data["desk3_dominance"]
     global_data = data["gecko_global"]
 
@@ -39,11 +41,16 @@ async def get_market_overview() -> dict[str, Any]:
         "global": global_data,
         "trending_desk3": data["desk3_trending"],
         "trending_gecko": data["gecko_trending"],
+        "surf_ranking": data["surf_ranking"],
     }
 
 
 async def get_symbol_price(symbol: str) -> dict[str, Any] | None:
-    """Get price for a single symbol, trying Binance first then Desk3."""
+    """Get price for a single symbol — Surf > Binance > Desk3."""
+    surf_price = await surf.get_price(symbol)
+    if surf_price and surf_price.get("price"):
+        return surf_price
+
     ticker = await binance.get_ticker_24h(f"{symbol}USDT")
     if ticker:
         return {

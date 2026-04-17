@@ -63,6 +63,93 @@ async def get_futures_ticker(symbol: str) -> dict[str, Any] | None:
         return None
 
 
+@cached(ttl=10, prefix="binance")
+async def get_order_book(symbol: str = "BTCUSDT", limit: int = 20) -> dict[str, Any] | None:
+    """Order book depth from Binance (free, no key needed)."""
+    data = await _try_bases("/api/v3/depth", {"symbol": symbol, "limit": min(limit, 5000)})
+    if not isinstance(data, dict):
+        return None
+    return {
+        "symbol": symbol,
+        "bids": [{"price": float(b[0]), "qty": float(b[1])} for b in (data.get("bids") or [])[:limit]],
+        "asks": [{"price": float(a[0]), "qty": float(a[1])} for a in (data.get("asks") or [])[:limit]],
+        "source": "binance",
+    }
+
+
+@cached(ttl=60, prefix="binance")
+async def get_long_short_ratio(symbol: str = "BTCUSDT", period: str = "1h", limit: int = 24) -> list[dict[str, Any]]:
+    """Top trader long/short ratio from Binance Futures (free)."""
+    try:
+        data = await fetch_json(
+            f"{FAPI}/futures/data/topLongShortAccountRatio",
+            params={"symbol": symbol, "period": period, "limit": min(limit, 500)},
+        )
+        if not isinstance(data, list):
+            return []
+        return [
+            {
+                "symbol": symbol.replace("USDT", ""),
+                "timestamp": item.get("timestamp"),
+                "long_account": float(item.get("longAccount", 0)),
+                "short_account": float(item.get("shortAccount", 0)),
+                "long_short_ratio": float(item.get("longShortRatio", 0)),
+                "source": "binance",
+            }
+            for item in data
+        ]
+    except Exception:
+        return []
+
+
+@cached(ttl=30, prefix="binance_oi")
+async def get_open_interest(symbol: str = "BTCUSDT") -> dict[str, Any] | None:
+    """Open interest from Binance Futures (requires proxy in restricted regions)."""
+    try:
+        data = await fetch_json(f"{FAPI}/fapi/v1/openInterest", params={"symbol": symbol})
+        if not isinstance(data, dict) or "openInterest" not in data:
+            return None
+        ticker = await get_futures_ticker(symbol.replace("USDT", ""))
+        mark_price = float(ticker.get("lastPrice", 0)) if ticker else 0
+        oi_coin = float(data["openInterest"])
+        return {
+            "symbol": symbol.replace("USDT", ""),
+            "exchange": "binance",
+            "open_interest_coin": oi_coin,
+            "open_interest_usd": round(oi_coin * mark_price, 2) if mark_price else None,
+            "mark_price": mark_price or None,
+            "timestamp": data.get("time"),
+        }
+    except Exception:
+        return None
+
+
+@cached(ttl=60, prefix="binance_oi_hist")
+async def get_open_interest_history(
+    symbol: str = "BTCUSDT", period: str = "5m", limit: int = 30,
+) -> list[dict[str, Any]]:
+    """Historical OI from Binance Futures (requires proxy in restricted regions)."""
+    try:
+        data = await fetch_json(
+            f"{FAPI}/futures/data/openInterestHist",
+            params={"symbol": symbol, "period": period, "limit": min(limit, 500)},
+        )
+        if not isinstance(data, list):
+            return []
+        return [
+            {
+                "symbol": symbol.replace("USDT", ""),
+                "exchange": "binance",
+                "timestamp": item.get("timestamp"),
+                "open_interest_coin": float(item.get("sumOpenInterest", 0)),
+                "open_interest_usd": float(item.get("sumOpenInterestValue", 0)),
+            }
+            for item in data
+        ]
+    except Exception:
+        return []
+
+
 async def scan_funding_rates(min_abs_rate: float = 0.0005, min_volume: float = 10_000_000) -> list[dict]:
     """Scan all tracked symbols for funding rate opportunities."""
     import asyncio

@@ -1,126 +1,98 @@
-# BitInfo 项目进度检查点
+# BitInfo 项目进度 Checkpoint
 
-> 生成时间：2026-04-16 02:30（Asia/Shanghai）
-> 工作区：/Users/wrok/bitinfo
-> Git：main 分支，2 commits，76 文件
+**更新时间**: 2026-04-16
 
----
+## 项目概述
+BitInfo 加密货币交易情报平台，FastAPI 后端 + Jinja2/HTML 前端。
 
-## 项目简介
+## 服务器信息
+- **IP**: 45.77.175.55
+- **域名**: bbcoin.io（已配置 HTTPS）
+- **SSH**: root / g9,Ktzj@7,7e$VWb
+- **项目目录**: /opt/bitinfo
+- **虚拟环境**: /opt/bitinfo/.venv
+- **服务**: systemctl (bitinfo.service)
+- **Nginx**: /etc/nginx/sites-available/bbcoin (域名) + crypto-data-core (/bi/ 路径)
+- **访问方式**: https://bbcoin.io 或 http://45.77.175.55/bi/
+- **HTTPS**: Let's Encrypt，到期 2026-07-15，自动续期
+- **代理**: PROXY_URL 环境变量（SOCKS5），用于访问 Binance/OKX/Bybit 等受限 API
 
-BitInfo 是一个数字货币智能分析平台，融合多个 AI 技能帮助用户发现有潜力的数字货币和收益机会。
+## 已完成的免费技能 (首页展示)
+1. **market-briefing** — 加密货币市场实时简报（CoinGecko + Desk3 + Binance + DefiLlama）
+2. **technical-analysis** — 技术分析引擎（RSI, MACD, 布林带, 均线）
+3. **news-sentiment** — 新闻情报（多语言，情绪分类）
+4. **prediction-markets** — 预测市场（Polymarket Gamma API）
+5. **defi-yield-scanner** — DeFi 收益扫描器（DefiLlama）
+6. **btc-quant-predictor** — BTC 量化短线预测（多因子评分）
+7. **oi-signal** — OI 信号研判系统（五大交易所 OI 聚合 + 四象限评分）★ 新增
+8. **open-interest** — 持仓量与衍生品原始数据
+9. **surf-pro** — Surf 专业数据套件（需 credits，15 个子模块）
 
-**技术栈：** Python FastAPI + Jinja2/HTML 前端 + 多数据源（Binance, CoinGecko, DefiLlama, Desk3, Alternative.me）
+## OI 信号研判系统（最新完成）
+- **后端**: `app/analysis/oi_signal.py` — 多交易所数据获取 + 历史追踪 + 四象限评分引擎
+- **API**: `/api/v1/market/oi-signal/{symbol}` (GET)，支持 BTC/ETH/SOL
+- **前端**: `app/static/oi-signal.html` — 仪表盘 + 象限图 + 信号检测 + 交易所明细
+- **路由**: `/oi-signal` 页面路由在 `app/main.py`
+- **首页跳转**: `index.html` 中 oi-signal 技能卡直接进入专属页面
+- **功能**: 0-100 评分、方向判断、杠杆建议、背离检测、挤压预警、过热警报
+- **数据源**: Binance, OKX, Bybit, Gate.io, Bitget
 
----
+## 关键文件结构
+```
+app/
+├── main.py                    # FastAPI 入口 + 页面路由
+├── config.py                  # Pydantic Settings
+├── common/
+│   ├── skills.py              # 技能注册表
+│   ├── cache.py               # Redis 缓存装饰器
+│   ├── http_client.py         # httpx + SOCKS5 代理
+│   └── database.py            # SQLAlchemy (可选，无 DB 也能运行)
+├── market/
+│   ├── router.py              # 市场数据 API 路由（含 /oi-signal）
+│   └── sources/               # 各交易所数据源
+│       ├── binance.py
+│       ├── okx.py
+│       ├── bybit.py
+│       ├── gateio.py
+│       ├── bitget.py
+│       ├── coingecko.py
+│       ├── defi_llama.py
+│       ├── desk3.py
+│       └── surf.py
+├── analysis/
+│   ├── oi_signal.py           # OI 信号引擎 ★
+│   ├── router.py
+│   └── ...
+├── news/
+├── briefing/
+└── static/
+    ├── index.html             # 首页
+    ├── skill.html             # 通用技能详情页
+    ├── daily.html             # 日报页
+    ├── briefing.html          # 简报页
+    └── oi-signal.html         # OI 信号研判页 ★
+```
 
-## 启动命令
-
+## 部署流程
 ```bash
-cd /Users/wrok/bitinfo
-source venv/bin/activate
-uvicorn app.main:app --host 0.0.0.0 --port 8899 --reload
+# 1. 同步代码
+sshpass -p 'g9,Ktzj@7,7e$VWb' rsync -avz -e 'ssh -o StrictHostKeyChecking=no' \
+  --exclude '.git' --exclude '__pycache__' --exclude '.venv' --exclude '.cursor' --exclude '.env' \
+  /Users/wrok/bitinfo/ root@45.77.175.55:/opt/bitinfo/
+
+# 2. 重启服务
+sshpass -p 'g9,Ktzj@7,7e$VWb' ssh root@45.77.175.55 'systemctl restart bitinfo'
 ```
 
-- 首页：http://localhost:8899/
-- 日报：http://localhost:8899/daily
-- 技能详情：http://localhost:8899/skill?id=<skill-id>
-- API 文档：http://localhost:8899/docs
+## 注意事项
+- 服务器无 PostgreSQL，所有 DB 操作通过 `db_available()` 检查自动跳过
+- 前端 API 路径通过 `BASE` 变量动态适配（支持 /bi/ 前缀和根路径）
+- `.env` 文件在服务器上，不要覆盖（含 PROXY_URL 等配置）
+- funding_rate 和 get_futures_ticker 内部会追加 "USDT"，传入 symbol 应为 "BTC" 非 "BTCUSDT"
 
----
-
-## 已完成功能
-
-### 1. 基础架构
-- FastAPI 应用（`app/main.py`）
-- 统一配置（`app/config.py`）
-- 安全 HTTP 客户端 + 出站白名单（`app/common/http_client.py`, `app/common/endpoints.py`）
-- 技能注册中心（`app/common/skills.py`）
-- Redis 缓存层（`app/common/cache.py`）
-- PostgreSQL + SQLAlchemy 异步 ORM（`app/common/database.py`）
-- APScheduler 定时任务（`app/common/scheduler.py`）
-
-### 2. 已集成技能（5个上线）
-| 技能 ID | 名称 | API 端点 | 状态 |
-|---|---|---|---|
-| `market-briefing` | 市场综合简报 | `/api/v1/briefing/live` | ✅ 上线 |
-| `btc-quant-predictor` | BTC 量化短线预测 | `/api/v1/analysis/btc-predict` | ✅ 上线 |
-| `news-sentiment` | 新闻情绪分析 | `/api/v1/news/history` | ✅ 上线 |
-| `defi-yield-scanner` | DeFi 收益扫描 | `/api/v1/analysis/defi-yields` | ✅ 上线 |
-| `funding-rate-monitor` | 资金费率监控 | `/api/v1/analysis/funding-rates` | ✅ 上线 |
-
-### 3. 前端页面
-| 页面 | 文件 | 路由 | 功能 |
-|---|---|---|---|
-| 首页 | `app/static/index.html` | `/` | 技能列表卡片 + 日报入口 |
-| 日报 | `app/static/daily.html` | `/daily` | 独立日报（聚合所有板块） |
-| 技能详情 | `app/static/skill.html` | `/skill?id=...` | 每个技能的完整可视化报告 |
-| 简报 | `app/static/briefing.html` | `/briefing` | 旧版简报页 |
-
-### 4. 日报板块（`daily.html`）
-1. 💰 核心价格（BTC/ETH/SOL）
-2. 😱 市场情绪（恐惧贪婪仪表盘 + 历史对比网格）
-3. 🌍 全球市场（总市值、BTC/ETH 市占率）
-4. 🔥 趋势币种
-5. 📈 BTC 技术分析 4H（RSI/MACD/布林带/均线/金叉/趋势）
-6. 🎯 BTC 15分钟量化预测（方向仪表 + 置信度条 + 牛熊比 + 信号表 + 止损止盈卡片）
-7. 💰 资金费率异常
-8. 🌾 DeFi 收益机会
-9. 📰 新闻摘要
-10. 🔄 BTC 周期综合分析
-11. 📋 30 项周期指标详细表
-12. 🪙 山寨季指数（数字 + 表格 + 总市值）
-13. 📌 综合研判（周期 + Puell + 恐惧贪婪 + BTC 市占率 + 技术面 + 15分钟预测 + 操作建议）
-14. ⚠️ 风险提示
-
----
-
-## 项目结构
-
-```
-/Users/wrok/bitinfo/
-├── app/
-│   ├── main.py              # FastAPI 入口 + 路由注册
-│   ├── config.py             # 配置
-│   ├── api/v1/router.py      # API 路由聚合
-│   ├── common/               # 公共模块（HTTP、缓存、DB、技能注册）
-│   ├── market/               # 行情数据（Binance、CoinGecko、DefiLlama、Desk3）
-│   ├── analysis/             # 分析模块（技术指标、BTC预测、资金费率、DeFi收益）
-│   ├── briefing/             # 简报生成器（聚合所有数据源）
-│   ├── news/                 # 新闻抓取 + 情绪分析
-│   ├── onchain/              # 链上数据（交易所流入流出、鲸鱼追踪）
-│   ├── trading/              # 交易执行（Binance/OKX 交易所）
-│   ├── ai/                   # AI 推理（云端 + 本地模型）
-│   └── static/               # 前端 HTML 页面
-├── tests/
-├── venv/                     # Python 虚拟环境
-├── requirements.txt
-├── docker-compose.yml
-└── CHECKPOINT.md             # 本文件
-```
-
----
-
-## 已知问题 / 注意事项
-
-1. **浏览器缓存** — 改前端后需要 `Cmd+Shift+R` 强刷
-2. **上下文丢失** — 对话总结后可能导致代码覆盖回退，已通过 git 解决
-3. **数据源限流** — CoinGecko 免费 API 有请求频率限制
-4. **Desk3 数据** — BTC 周期指标来自 Desk3 API，可能偶尔不可用
-
----
-
-## 下一步可做的事
-
-- [ ] 集成更多 OpenClaw 技能（如鲸鱼追踪、交易所流入流出等）
-- [ ] 日报定时生成 + 推送通知
-- [ ] 用户自定义看板（选择关注的板块）
-- [ ] 移动端适配优化
-- [ ] 部署到云服务器
-
----
-
-## 新对话恢复指引
-
-在 Cursor 新对话中说：
-> "请读取 /Users/wrok/bitinfo/CHECKPOINT.md 了解项目当前进度，然后继续工作"
+## 待办 / 可扩展
+- [ ] 前端页面美化（响应式优化、暗色主题微调）
+- [ ] 更多币种支持（目前 BTC/ETH/SOL）
+- [ ] OI 历史持久化（当前内存中，服务重启清空）
+- [ ] 定时任务自动收集 OI 快照（每 5 分钟）
+- [ ] WebSocket 实时推送

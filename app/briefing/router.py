@@ -38,8 +38,11 @@ async def get_briefing_history(
     limit: int = Query(10, le=50),
 ) -> list[dict[str, Any]]:
     """Get stored briefing reports from database."""
-    from app.common.database import async_session
+    from app.common.database import async_session, db_available
     from app.common.models import Briefing
+
+    if not db_available():
+        return [{"error": "Database not available. Use /live for real-time briefing."}]
 
     try:
         async with async_session() as session:
@@ -77,8 +80,11 @@ async def trigger_briefing(
 
     if save:
         try:
-            from app.common.database import async_session
+            from app.common.database import async_session, db_available
             from app.common.models import Briefing
+
+            if not db_available():
+                raise RuntimeError("DB not available")
 
             async with async_session() as session:
                 briefing = Briefing(

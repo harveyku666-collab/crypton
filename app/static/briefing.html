@@ -301,7 +301,8 @@
 </div>
 
 <script>
-const API = '/api/v1/briefing';
+const BASE=location.pathname.replace(/\/(skill|daily|briefing)?\s*$/,'').replace(/\/+$/,'');
+const API = BASE+'/api/v1/briefing';
 
 function fmt(n, dec=0) {
   if (n == null) return 'N/A';

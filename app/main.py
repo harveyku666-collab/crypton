@@ -90,3 +90,8 @@ async def daily_report_page():
 @app.get("/briefing")
 async def briefing_page():
     return FileResponse(str(STATIC_DIR / "briefing.html"))
+
+
+@app.get("/oi-signal")
+async def oi_signal_page():
+    return FileResponse(str(STATIC_DIR / "oi-signal.html"))

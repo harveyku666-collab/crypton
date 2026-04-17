@@ -7,7 +7,7 @@ from typing import Any
 
 from app.trading.exchanges.base import ExchangeBase, OrderResult
 from app.trading.risk_manager import RiskManager
-from app.common.database import async_session
+from app.common.database import async_session, db_available
 from app.common.models import TradeLog
 
 logger = logging.getLogger("bitinfo.trading.strategy")
@@ -39,19 +39,20 @@ class StrategyRunner:
 
         result = await self.exchange.place_order(symbol, side, quantity)
 
-        try:
-            async with async_session() as session:
-                session.add(TradeLog(
-                    exchange=self.exchange.name,
-                    symbol=symbol,
-                    side=side,
-                    price=price,
-                    quantity=quantity,
-                    strategy=f"signal_{confidence:.0f}pct",
-                ))
-                await session.commit()
-        except Exception:
-            logger.debug("DB store skipped for trade log", exc_info=True)
+        if db_available():
+            try:
+                async with async_session() as session:
+                    session.add(TradeLog(
+                        exchange=self.exchange.name,
+                        symbol=symbol,
+                        side=side,
+                        price=price,
+                        quantity=quantity,
+                        strategy=f"signal_{confidence:.0f}pct",
+                    ))
+                    await session.commit()
+            except Exception:
+                logger.debug("DB store skipped for trade log", exc_info=True)
 
         return {
             "executed": result.success,

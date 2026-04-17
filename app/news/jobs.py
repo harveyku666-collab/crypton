@@ -6,7 +6,7 @@ import logging
 
 from sqlalchemy import select
 
-from app.common.database import async_session
+from app.common.database import async_session, db_available
 from app.common.models import NewsItem
 from app.news.fetcher import fetch_multilang_news
 
@@ -18,6 +18,8 @@ COLLECT_CATEGORIES = ["crypto", "policy"]
 
 async def collect_all_news() -> None:
     """Fetch news in all configured languages and save to DB (skip duplicates)."""
+    if not db_available():
+        return
     try:
         all_data = await fetch_multilang_news(COLLECT_LANGUAGES, COLLECT_CATEGORIES, count=20)
         total = 0

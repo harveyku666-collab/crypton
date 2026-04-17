@@ -12,7 +12,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Any
 
-from app.market.sources import desk3, binance, coingecko
+from app.market.sources import desk3, binance, coingecko, surf
 from app.market.sources.defi_llama import scan_yields
 from app.analysis.indicators import analyze_klines
 from app.analysis.btc_predictor import predict_short_term
@@ -94,18 +94,20 @@ async def _fetch_global_market() -> dict[str, Any]:
 
 
 async def _fetch_fear_greed() -> dict[str, Any]:
-    """Fear & Greed with historical context."""
-    desk3_fg, alt_fg = await asyncio.gather(
+    """Fear & Greed with historical context — Surf primary, Desk3/Alt fallback."""
+    surf_fg, desk3_fg, alt_fg = await asyncio.gather(
+        surf.get_fear_greed(),
         desk3.get_fear_greed(),
         coingecko.get_fear_greed(),
         return_exceptions=True,
     )
-    fg = None
+    if not isinstance(surf_fg, BaseException) and surf_fg:
+        return surf_fg
     if not isinstance(desk3_fg, BaseException) and desk3_fg:
-        fg = desk3_fg
-    if not fg and not isinstance(alt_fg, BaseException) and alt_fg:
-        fg = {"now": {"score": alt_fg.get("value"), "name": alt_fg.get("value_classification")}}
-    return fg or {}
+        return desk3_fg
+    if not isinstance(alt_fg, BaseException) and alt_fg:
+        return {"now": {"score": alt_fg.get("value"), "name": alt_fg.get("value_classification")}}
+    return {}
 
 
 async def _fetch_trending() -> list[dict[str, Any]]:
@@ -260,7 +262,23 @@ async def _fetch_cycles() -> dict[str, Any]:
 
 
 async def _fetch_funding_rates() -> list[dict[str, Any]]:
-    """Top funding rates from Binance."""
+    """Top funding rates — Surf multi-exchange, Binance fallback."""
+    try:
+        surf_rates = await surf.get_funding_rates_multi()
+        if surf_rates:
+            return [
+                {
+                    "symbol": r.get("symbol", ""),
+                    "rate": round(r.get("rate_pct", 0), 4),
+                    "price": r.get("price", 0),
+                    "volume_24h": r.get("volume_24h", 0),
+                    "exchange": r.get("exchange", ""),
+                    "source": "surf",
+                }
+                for r in surf_rates[:10]
+            ]
+    except Exception:
+        logger.debug("Surf funding rates failed, falling back to Binance")
     from app.market.sources.binance import scan_funding_rates
     try:
         rates = await scan_funding_rates(min_abs_rate=0.0001, min_volume=5_000_000)
@@ -270,6 +288,7 @@ async def _fetch_funding_rates() -> list[dict[str, Any]]:
                 "rate": round(r.get("rate_pct", 0), 4),
                 "price": r.get("last_price", 0),
                 "signal": r.get("signal", ""),
+                "source": "binance",
             }
             for r in rates[:5]
         ]
@@ -304,6 +323,51 @@ async def _fetch_btc_short_prediction() -> dict[str, Any]:
         return {}
 
 
+async def _fetch_prediction_markets() -> list[dict[str, Any]]:
+    """Top Polymarket events via Gamma API (free, no credits)."""
+    try:
+        from app.market.sources.polymarket import get_events
+        return await get_events(limit=5)
+    except Exception as e:
+        logger.warning("Prediction markets fetch failed: %s", e)
+        return []
+
+
+async def _fetch_social_mindshare() -> list[dict[str, Any]]:
+    """Top crypto projects by social mindshare via Surf."""
+    try:
+        return await surf.get_social_mindshare_ranking(limit=10, time_range="24h")
+    except Exception as e:
+        logger.warning("Social mindshare fetch failed: %s", e)
+        return []
+
+
+async def _fetch_liquidations() -> dict[str, Any]:
+    """Liquidation data via Surf — chart + large orders."""
+    try:
+        chart, large_orders = await asyncio.gather(
+            surf.get_liquidation_chart("BTC", "1h", 24),
+            surf.get_large_liquidations(limit=10),
+            return_exceptions=True,
+        )
+        result: dict[str, Any] = {}
+        if not isinstance(chart, BaseException) and chart:
+            total_long = sum(float(c.get("long_liquidation_usd") or c.get("long_liquidation") or 0) for c in chart)
+            total_short = sum(float(c.get("short_liquidation_usd") or c.get("short_liquidation") or 0) for c in chart)
+            result["btc_24h"] = {
+                "long_liquidation": total_long,
+                "short_liquidation": total_short,
+                "total": total_long + total_short,
+                "chart": chart[-6:],
+            }
+        if not isinstance(large_orders, BaseException) and large_orders:
+            result["large_orders"] = large_orders[:5]
+        return result
+    except Exception as e:
+        logger.warning("Liquidation fetch failed: %s", e)
+        return {}
+
+
 async def generate_briefing(
     period: str = "daily",
     language: str = "zh",
@@ -328,15 +392,19 @@ async def generate_briefing(
         "news_highlights": _fetch_news_highlights(language, 8),
         "cycles": _fetch_cycles(),
         "funding_rates": _fetch_funding_rates(),
+        "social_mindshare": _fetch_social_mindshare(),
+        "liquidations": _fetch_liquidations(),
+        "prediction_markets": _fetch_prediction_markets(),
     }
 
     results = await asyncio.gather(*tasks.values(), return_exceptions=True)
     data: dict[str, Any] = {"title": title, "period": period, "language": language, "generated_at": now}
 
+    list_keys = ("prices", "trending", "defi_top", "news_highlights", "funding_rates", "social_mindshare", "prediction_markets")
     for key, result in zip(tasks.keys(), results):
         if isinstance(result, BaseException):
             logger.warning("Briefing section '%s' failed: %s", key, result)
-            data[key] = [] if key in ("prices", "trending", "defi_top", "news_highlights", "funding_rates") else {}
+            data[key] = [] if key in list_keys else {}
         else:
             data[key] = result
 
@@ -546,6 +614,56 @@ def _format_text(data: dict[str, Any], lang: str) -> str:
                     change = ind.get("percentChange24h")
                     change_str = f" ({change:+.1f}%)" if change is not None else ""
                     lines.append(f"    {name}: {val} / {target}{change_str}")
+
+    # Prediction Markets
+    pred = data.get("prediction_markets", [])
+    if pred:
+        lines.append(f"\n🔮 预测市场" if lang == "zh" else "\n🔮 Prediction Markets")
+        lines.append(f"{'─' * 40}")
+        for p in pred[:5]:
+            title = p.get("title") or p.get("question") or p.get("name", "")
+            if title:
+                lines.append(f"  • {title}")
+
+    # Social Mindshare
+    social = data.get("social_mindshare", [])
+    if social:
+        lines.append(f"\n🐦 社交热度 Top 10" if lang == "zh" else "\n🐦 Social Mindshare Top 10")
+        lines.append(f"{'─' * 40}")
+        for i, s in enumerate(social[:10], 1):
+            name = s.get("name") or s.get("project") or s.get("symbol", "")
+            score = s.get("mindshare") or s.get("score") or s.get("value", "")
+            sentiment = s.get("sentiment", "")
+            sent_icon = {"positive": "🟢", "negative": "🔴", "bullish": "🟢", "bearish": "🔴"}.get(str(sentiment).lower(), "⚪")
+            score_str = f"  {score}" if score else ""
+            lines.append(f"  {i}. {name}{score_str} {sent_icon}")
+
+    # Liquidations
+    liq = data.get("liquidations", {})
+    if liq:
+        lines.append(f"\n💥 清算数据" if lang == "zh" else "\n💥 Liquidations")
+        lines.append(f"{'─' * 40}")
+        btc_liq = liq.get("btc_24h", {})
+        if btc_liq:
+            total = btc_liq.get("total", 0)
+            long_l = btc_liq.get("long_liquidation", 0)
+            short_l = btc_liq.get("short_liquidation", 0)
+            if total > 0:
+                lines.append(f"  BTC 24h 总清算: ${total/1e6:.1f}M")
+                lines.append(f"  多头清算: ${long_l/1e6:.1f}M | 空头清算: ${short_l/1e6:.1f}M")
+                ratio = long_l / total * 100 if total > 0 else 50
+                dominant = "多头" if ratio > 60 else ("空头" if ratio < 40 else "均衡")
+                lines.append(f"  清算主导: {dominant} (多头占比 {ratio:.0f}%)")
+        large = liq.get("large_orders", [])
+        if large:
+            lines.append(f"  大额清算单:")
+            for order in large[:3]:
+                sym = order.get("symbol", "")
+                side = order.get("side", "")
+                amount = float(order.get("amount", 0) or order.get("quantity", 0) or 0)
+                exchange = order.get("exchange", "")
+                side_icon = "🟢" if side.lower() == "short" else "🔴"
+                lines.append(f"    {side_icon} {sym} {side} ${amount/1e3:.0f}K @ {exchange}")
 
     lines.append(f"\n{'=' * 50}")
     return "\n".join(lines)

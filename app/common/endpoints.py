@@ -78,6 +78,8 @@ BINANCE_SPOT = Endpoint(
     description="币安现货公开 API — K线、资金费率",
     paths=[
         "/api/v3/klines          # K线数据",
+        "/api/v3/ticker/price    # 现货价格",
+        "/api/v3/ticker/24hr     # 24h 行情统计",
         "/fapi/v1/fundingRate    # 资金费率",
     ],
 )
@@ -100,8 +102,13 @@ BINANCE_FUTURES = Endpoint(
     description="币安合约公开 API — 合约K线、资金费率",
     paths=[
         "/fapi/v1/klines         # 合约K线",
+        "/fapi/v1/depth          # 合约盘口深度",
+        "/fapi/v1/openInterest   # 当前持仓量",
+        "/fapi/v1/ticker/24hr    # 合约24h行情",
         "/fapi/v1/fundingRate    # 合约资金费率",
         "/fapi/v1/premiumIndex   # 资金费率预测",
+        "/futures/data/globalLongShortAccountRatio  # 全市场多空比",
+        "/futures/data/topLongShortAccountRatio     # 大户多空比",
     ],
 )
 
@@ -139,13 +146,19 @@ BINANCE_TESTNET_FUTURES = Endpoint(
 )
 
 OKX_EXCHANGE = Endpoint(
-    name="OKX 交易所 (私有)",
+    name="OKX 交易所",
     base_url="https://www.okx.com",
-    description="OKX 交易操作 — 下单/撤单/查余额（需 API Key）",
+    description="OKX API — 公开数据(OI/多空比) + 交易操作(需 API Key)",
     data_direction="bidirectional",
     allow_write=True,
     sensitive=True,
     paths=[
+        "/api/v5/public/open-interest  # 当前持仓量",
+        "/api/v5/public/funding-rate   # 当前资金费率",
+        "/api/v5/market/ticker         # 行情快照",
+        "/api/v5/market/books-full     # 深度盘口",
+        "/api/v5/rubik/stat/contracts/open-interest-volume  # OI + 成交量",
+        "/api/v5/rubik/stat/contracts/long-short-account-ratio  # 多空比",
         "/api/v5/account/balance     # 查询余额",
         "/api/v5/trade/order         # 下单",
         "/api/v5/trade/cancel-order  # 撤单",
@@ -170,6 +183,100 @@ DEFI_LLAMA_YIELDS = Endpoint(
     description="DefiLlama — DeFi 收益率池数据",
     paths=[
         "/pools                  # 全部收益池(APY/TVL)",
+    ],
+)
+
+DEFI_LLAMA_BRIDGES = Endpoint(
+    name="DefiLlama Bridges",
+    base_url="https://bridges.llama.fi",
+    description="DefiLlama — 跨链桥排行和交易量数据",
+    paths=[
+        "/bridges               # 跨链桥列表+24h交易量",
+    ],
+)
+
+# ─── DEX 数据 (只读) ─────────────────────────────────────────
+DEXSCREENER = Endpoint(
+    name="DEX Screener",
+    base_url="https://api.dexscreener.com",
+    description="DEX Screener — DEX 交易对和实时交易数据（免费公开）",
+    paths=[
+        "/latest/dex/tokens/{address}  # 代币 DEX 交易对",
+        "/latest/dex/pairs/{chain}/{address}  # 交易对详情",
+    ],
+)
+
+# ─── 预测市场 (只读) ─────────────────────────────────────────
+POLYMARKET_GAMMA = Endpoint(
+    name="Polymarket Gamma",
+    base_url="https://gamma-api.polymarket.com",
+    description="Polymarket — 预测市场事件和赔率数据（免费公开）",
+    paths=[
+        "/events                # 预测市场事件列表",
+        "/markets               # 市场详情",
+    ],
+)
+
+# ─── 衍生品数据 (只读) ─────────────────────────────────────────
+GATEIO_FUTURES = Endpoint(
+    name="Gate.io Futures (公开)",
+    base_url="https://api.gateio.ws",
+    description="Gate.io 合约公开 API — OI、多空比、清算数据（免费，无需 API Key）",
+    paths=[
+        "/api/v4/futures/usdt/contracts/{contract}  # 合约详情(含 OI)",
+        "/api/v4/futures/usdt/contract_stats         # 历史 OI + 多空比 + 清算",
+    ],
+)
+
+BITGET_FUTURES = Endpoint(
+    name="Bitget Futures (公开)",
+    base_url="https://api.bitget.com",
+    description="Bitget 合约公开 API — 持仓量（免费，无需 API Key）",
+    paths=[
+        "/api/v2/mix/market/open-interest  # 当前持仓量",
+        "/api/v2/mix/market/ticker         # 行情快照",
+        "/api/v2/mix/market/current-fund-rate  # 当前资金费率",
+    ],
+)
+
+BYBIT_FUTURES = Endpoint(
+    name="Bybit Futures (公开)",
+    base_url="https://api.bybit.com",
+    description="Bybit 合约公开 API — 持仓量（免费，需代理）",
+    paths=[
+        "/v5/market/open-interest  # 持仓量",
+        "/v5/market/tickers        # 合约行情",
+        "/v5/market/orderbook      # 深度盘口",
+        "/v5/market/account-ratio  # 多空比",
+    ],
+)
+
+COINBASE_EXCHANGE = Endpoint(
+    name="Coinbase Exchange (公开)",
+    base_url="https://api.coinbase.com",
+    description="Coinbase 公开 API — 现货价格",
+    paths=[
+        "/v2/prices/{pair}/spot   # 现货价格",
+        "/v2/exchange-rates       # 汇率",
+    ],
+)
+
+COINBASE_EXCHANGE_PRO = Endpoint(
+    name="Coinbase Exchange Pro (公开)",
+    base_url="https://api.exchange.coinbase.com",
+    description="Coinbase Exchange 公开 API — 产品统计、订单簿",
+    paths=[
+        "/products/{pair}/stats   # 24h 统计(开/高/低/收/量)",
+        "/products/{pair}/book    # 订单簿",
+    ],
+)
+
+COINBASE_ADVANCED = Endpoint(
+    name="Coinbase Advanced Trade",
+    base_url="https://advanced-api.coinbase.com",
+    description="Coinbase Advanced Trade API — 合约/衍生品数据",
+    paths=[
+        "/api/v3/brokerage/products  # 产品列表",
     ],
 )
 
@@ -212,8 +319,17 @@ ALL_ENDPOINTS: list[Endpoint] = [
     BINANCE_TESTNET_SPOT,
     BINANCE_TESTNET_FUTURES,
     OKX_EXCHANGE,
+    GATEIO_FUTURES,
+    BITGET_FUTURES,
+    BYBIT_FUTURES,
+    COINBASE_EXCHANGE,
+    COINBASE_ADVANCED,
+    COINBASE_EXCHANGE_PRO,
     DEFI_LLAMA,
     DEFI_LLAMA_YIELDS,
+    DEFI_LLAMA_BRIDGES,
+    DEXSCREENER,
+    POLYMARKET_GAMMA,
     WHALE_ALERT,
     OPENAI_API,
 ]

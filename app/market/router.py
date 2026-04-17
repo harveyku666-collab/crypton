@@ -7,9 +7,172 @@ from typing import Any
 from fastapi import APIRouter, Query
 
 from app.market import aggregator
-from app.market.sources import desk3, binance, coingecko, defi_llama
+from app.market.sources import desk3, binance, coingecko, defi_llama, surf, gateio, bitget, okx, bybit
 
 router = APIRouter(prefix="/market", tags=["market"])
+
+
+# ─── Exchange core (Surf) ──────────────────────────────────
+
+
+@router.get("/exchange/depth")
+async def exchange_depth(
+    pair: str = Query("BTC/USDT"),
+    exchange: str = Query("binance"),
+    limit: int = Query(20, le=100),
+) -> dict[str, Any]:
+    symbol = pair.replace("/", "").replace("-", "").upper()
+    result = await binance.get_order_book(symbol, limit)
+    if result:
+        return result
+    result = await surf.get_exchange_depth(pair, exchange)
+    return result or {"error": "No data"}
+
+
+@router.get("/exchange/long-short-ratio")
+async def exchange_long_short_ratio(
+    pair: str = Query("BTC/USDT"),
+    interval: str = Query("1h"),
+    limit: int = Query(24, le=200),
+) -> list[dict]:
+    symbol = pair.replace("/", "").replace("-", "").upper()
+    result = await binance.get_long_short_ratio(symbol, interval, limit)
+    if result:
+        return result
+    return await surf.get_long_short_ratio(pair, interval, limit)
+
+
+@router.get("/exchange/markets")
+async def exchange_markets(
+    exchange: str = Query("binance"),
+    market_type: str = Query("spot"),
+) -> list[dict]:
+    return await surf.get_exchange_markets(exchange, market_type)
+
+
+@router.get("/exchange/perp")
+async def exchange_perp(
+    symbol: str = Query("BTC"),
+    sort_by: str = Query("open_interest"),
+) -> list[dict]:
+    return await surf.get_exchange_perp(symbol, sort_by)
+
+
+@router.get("/exchange/price")
+async def exchange_price(
+    pair: str = Query("BTC/USDT"),
+    exchange: str = Query("binance"),
+) -> dict[str, Any]:
+    result = await surf.get_exchange_price(pair, exchange)
+    return result or {"error": "No data"}
+
+
+# ─── Open Interest (OI) — free multi-exchange ────────────────
+
+
+@router.get("/open-interest/{symbol}")
+async def open_interest(
+    symbol: str,
+    limit: int = Query(24, le=100),
+) -> dict[str, Any]:
+    """Aggregated OI from multiple exchanges (Binance, Gate.io, Bitget).
+    Binance requires PROXY_URL env var in geo-restricted regions.
+    """
+    import asyncio
+
+    sym = symbol.upper()
+    results = await asyncio.gather(
+        binance.get_open_interest(f"{sym}USDT"),
+        gateio.get_open_interest(sym),
+        bitget.get_open_interest(sym),
+        okx.get_open_interest(sym),
+        bybit.get_open_interest(sym),
+        binance.get_open_interest_history(f"{sym}USDT", limit=limit),
+        gateio.get_open_interest_history(sym, limit=limit),
+        okx.get_open_interest_history(sym, limit=limit),
+        return_exceptions=True,
+    )
+    binance_cur, gate_cur, bitget_cur, okx_cur, bybit_cur = results[:5]
+    binance_hist, gate_hist, okx_hist = results[5:]
+
+    exchanges = []
+    for result in [binance_cur, okx_cur, bybit_cur, gate_cur, bitget_cur]:
+        if isinstance(result, dict):
+            exchanges.append(result)
+
+    history = []
+    for hist in [binance_hist, okx_hist, gate_hist]:
+        if isinstance(hist, list) and hist:
+            history = hist
+            break
+
+    sources = []
+    for name, result in [
+        ("binance", binance_cur), ("okx", okx_cur), ("bybit", bybit_cur),
+        ("gate.io", gate_cur), ("bitget", bitget_cur),
+    ]:
+        if isinstance(result, dict):
+            sources.append(name)
+
+    return {
+        "symbol": sym,
+        "current": exchanges,
+        "history": history,
+        "sources": sources if sources else ["gate.io", "bitget"],
+    }
+
+
+@router.get("/open-interest-history/{symbol}")
+async def open_interest_history(
+    symbol: str,
+    limit: int = Query(48, le=100),
+) -> list[dict]:
+    """Historical OI + long/short + liquidation data from Gate.io."""
+    return await gateio.get_open_interest_history(symbol.upper(), limit=limit)
+
+
+# ─── ETF, Options, On-chain indicators ──────────────────────
+
+
+@router.get("/etf")
+async def etf_flows(
+    symbol: str = Query("BTC"),
+    limit: int = Query(30, le=100),
+) -> list[dict]:
+    return await surf.get_etf_flows(symbol, limit)
+
+
+@router.get("/options")
+async def options_data(symbol: str = Query("BTC")) -> Any:
+    result = await surf.get_options(symbol)
+    return result or {"error": "No data"}
+
+
+@router.get("/onchain-indicator")
+async def onchain_indicator(
+    indicator: str = Query(..., description="e.g. nupl, sopr, mvrv, stock-to-flow"),
+    symbol: str = Query("BTC"),
+    limit: int = Query(30, le=200),
+) -> list[dict]:
+    return await surf.get_onchain_indicator(indicator, symbol, limit)
+
+
+# ─── Events: listings, TGE, public sales ─────────────────────
+
+
+@router.get("/events/listings")
+async def listing_events(limit: int = Query(20, le=100)) -> list[dict]:
+    return await surf.get_listing_events(limit)
+
+
+@router.get("/events/tge")
+async def tge_events(limit: int = Query(20, le=100)) -> list[dict]:
+    return await surf.get_tge_events(limit)
+
+
+@router.get("/events/public-sales")
+async def public_sales(limit: int = Query(20, le=100)) -> list[dict]:
+    return await surf.get_public_sales(limit)
 
 
 @router.get("/overview")
@@ -85,3 +248,378 @@ async def cycle_indicators() -> dict[str, Any]:
 @router.get("/calendar")
 async def calendar(date: str | None = Query(None)) -> list[dict]:
     return await desk3.get_calendar(date)
+
+
+# ─── Surf-powered endpoints ─────────────────────────────────
+
+
+@router.get("/social/mindshare")
+async def social_mindshare(
+    limit: int = Query(10, le=50),
+    time_range: str = Query("24h"),
+) -> list[dict]:
+    return await surf.get_social_mindshare_ranking(limit, time_range)
+
+
+@router.get("/social/sentiment/{query}")
+async def social_sentiment(query: str) -> dict[str, Any]:
+    result = await surf.get_social_sentiment(query)
+    return result or {"error": f"No sentiment data for {query}"}
+
+
+@router.get("/social/user/{handle}")
+async def social_user(handle: str) -> dict[str, Any]:
+    result = await surf.get_social_user(handle)
+    return result or {"error": f"No data for @{handle}"}
+
+
+@router.get("/social/user/{handle}/posts")
+async def social_user_posts(handle: str, limit: int = Query(10, le=50)) -> list[dict]:
+    return await surf.get_social_user_posts(handle, limit)
+
+
+@router.get("/liquidations/chart")
+async def liquidation_chart(
+    symbol: str = Query("BTC"),
+    interval: str = Query("1h"),
+    limit: int = Query(24, le=100),
+) -> list[dict]:
+    return await surf.get_liquidation_chart(symbol, interval, limit)
+
+
+@router.get("/liquidations/exchanges")
+async def liquidation_exchanges(
+    symbol: str = Query("BTC"),
+    time_range: str = Query("24h"),
+) -> list[dict]:
+    return await surf.get_liquidation_by_exchange(symbol, time_range)
+
+
+@router.get("/liquidations/large-orders")
+async def liquidation_large_orders(
+    symbol: str | None = Query(None),
+    limit: int = Query(20, le=100),
+) -> list[dict]:
+    return await surf.get_large_liquidations(symbol, limit)
+
+
+@router.get("/funding-rates-multi")
+async def funding_rates_multi() -> list[dict]:
+    """Multi-exchange funding rates via Surf."""
+    return await surf.get_funding_rates_multi()
+
+
+# ─── Prediction markets (Surf) ──────────────────────────────
+
+
+# ─── Prediction markets — Polymarket full suite ──────────────
+
+
+@router.get("/prediction/polymarket")
+async def polymarket_events(limit: int = Query(10, le=50)) -> list[dict]:
+    from app.market.sources.polymarket import get_events
+    return await get_events(limit)
+
+
+@router.get("/prediction/polymarket/smart-money")
+async def polymarket_smart_money(limit: int = Query(10, le=50), view: str = Query("overview")) -> list[dict]:
+    return await surf.get_polymarket_smart_money(limit, view)
+
+
+@router.get("/prediction/polymarket/leaderboard")
+async def polymarket_leaderboard(limit: int = Query(20, le=100)) -> list[dict]:
+    return await surf.get_polymarket_leaderboard(limit)
+
+
+@router.get("/prediction/polymarket/markets")
+async def polymarket_markets(event_id: str | None = Query(None), limit: int = Query(20, le=100)) -> list[dict]:
+    return await surf.get_polymarket_markets(event_id, limit)
+
+
+@router.get("/prediction/polymarket/open-interest/{market_id}")
+async def polymarket_open_interest(market_id: str, interval: str = Query("1d"), limit: int = Query(30, le=100)) -> list[dict]:
+    return await surf.get_polymarket_open_interest(market_id, interval, limit)
+
+
+@router.get("/prediction/polymarket/orderbooks/{market_id}")
+async def polymarket_orderbooks(market_id: str) -> dict[str, Any]:
+    result = await surf.get_polymarket_orderbooks(market_id)
+    return result or {"error": "No data"}
+
+
+@router.get("/prediction/polymarket/positions/{address}")
+async def polymarket_positions(address: str, limit: int = Query(20, le=100)) -> list[dict]:
+    return await surf.get_polymarket_positions(address, limit)
+
+
+@router.get("/prediction/polymarket/ohlcv/{market_id}")
+async def polymarket_ohlcv(market_id: str, interval: str = Query("1d"), limit: int = Query(30, le=100)) -> list[dict]:
+    return await surf.get_polymarket_ohlcv(market_id, interval, limit)
+
+
+@router.get("/prediction/polymarket/prices/{market_id}")
+async def polymarket_prices(market_id: str, interval: str = Query("1h"), limit: int = Query(48, le=200)) -> list[dict]:
+    return await surf.get_polymarket_prices(market_id, interval, limit)
+
+
+@router.get("/prediction/polymarket/trades/{market_id}")
+async def polymarket_trades(market_id: str, limit: int = Query(50, le=200)) -> list[dict]:
+    return await surf.get_polymarket_trades(market_id, limit)
+
+
+@router.get("/prediction/polymarket/volume-split/{market_id}")
+async def polymarket_volume_split(market_id: str, interval: str = Query("1d"), limit: int = Query(30, le=100)) -> list[dict]:
+    return await surf.get_polymarket_volume_split(market_id, interval, limit)
+
+
+@router.get("/prediction/polymarket/volumes/{market_id}")
+async def polymarket_volumes(market_id: str, interval: str = Query("1d"), limit: int = Query(30, le=100)) -> list[dict]:
+    return await surf.get_polymarket_volumes(market_id, interval, limit)
+
+
+# ─── Prediction markets — Kalshi full suite ──────────────────
+
+
+@router.get("/prediction/kalshi/events")
+async def kalshi_events(limit: int = Query(20, le=100)) -> list[dict]:
+    return await surf.get_kalshi_events(limit)
+
+
+@router.get("/prediction/kalshi/markets")
+async def kalshi_markets(event_id: str | None = Query(None), limit: int = Query(20, le=100)) -> list[dict]:
+    return await surf.get_kalshi_markets(event_id, limit)
+
+
+@router.get("/prediction/kalshi/open-interest/{market_id}")
+async def kalshi_open_interest(market_id: str, interval: str = Query("1d"), limit: int = Query(30, le=100)) -> list[dict]:
+    return await surf.get_kalshi_open_interest(market_id, interval, limit)
+
+
+@router.get("/prediction/kalshi/orderbooks/{market_id}")
+async def kalshi_orderbooks(market_id: str) -> dict[str, Any]:
+    result = await surf.get_kalshi_orderbooks(market_id)
+    return result or {"error": "No data"}
+
+
+@router.get("/prediction/kalshi/prices/{market_id}")
+async def kalshi_prices(market_id: str, interval: str = Query("1h"), limit: int = Query(48, le=200)) -> list[dict]:
+    return await surf.get_kalshi_prices(market_id, interval, limit)
+
+
+@router.get("/prediction/kalshi/trades/{market_id}")
+async def kalshi_trades(market_id: str, limit: int = Query(50, le=200)) -> list[dict]:
+    return await surf.get_kalshi_trades(market_id, limit)
+
+
+@router.get("/prediction/kalshi/volumes/{market_id}")
+async def kalshi_volumes(market_id: str, interval: str = Query("1d"), limit: int = Query(30, le=100)) -> list[dict]:
+    return await surf.get_kalshi_volumes(market_id, interval, limit)
+
+
+# ─── Cross-platform prediction markets ───────────────────────
+
+
+@router.get("/prediction/cross-platform/daily")
+async def matching_market_daily() -> list[dict]:
+    return await surf.get_matching_market_daily()
+
+
+@router.get("/prediction/cross-platform/pairs")
+async def matching_market_pairs(limit: int = Query(20, le=100)) -> list[dict]:
+    return await surf.get_matching_market_pairs(limit)
+
+
+@router.get("/prediction/analytics")
+async def prediction_analytics(limit: int = Query(20, le=100)) -> list[dict]:
+    return await surf.get_prediction_analytics(limit)
+
+
+@router.get("/prediction/correlations")
+async def prediction_correlations(limit: int = Query(20, le=100)) -> list[dict]:
+    return await surf.get_prediction_correlations(limit)
+
+
+# ─── Token analysis ──────────────────────────────────────────
+
+
+@router.get("/token/holders/{address}")
+async def token_holders(address: str, chain: str = Query("ethereum"), limit: int = Query(20, le=100)) -> list[dict]:
+    return await surf.get_token_holders(address, chain, limit)
+
+
+@router.get("/token/unlocks/{symbol}")
+async def token_unlocks(symbol: str) -> list[dict]:
+    return await surf.get_token_tokenomics(symbol)
+
+
+@router.get("/token/dex-trades/{address}")
+async def token_dex_trades(address: str, chain: str = Query("ethereum"), limit: int = Query(20, le=100)) -> list[dict]:
+    from app.market.sources.dexscreener import get_token_pairs
+    return await get_token_pairs(address, limit)
+
+
+@router.get("/token/dex-trades-surf/{address}")
+async def token_dex_trades_surf(address: str, chain: str = Query("ethereum"), limit: int = Query(50, le=200)) -> list[dict]:
+    return await surf.get_token_dex_trades(address, chain, limit)
+
+
+@router.get("/token/transfers/{address}")
+async def token_transfers(address: str, chain: str = Query("ethereum"), limit: int = Query(50, le=200)) -> list[dict]:
+    return await surf.get_token_transfers(address, chain, limit)
+
+
+# ─── Social — advanced ───────────────────────────────────────
+
+
+@router.get("/social/detail/{project}")
+async def social_detail(project: str) -> dict[str, Any]:
+    result = await surf.get_social_detail(project)
+    return result or {"error": f"No data for {project}"}
+
+
+@router.get("/social/engagement-score/{handle}")
+async def social_engagement_score(handle: str) -> dict[str, Any]:
+    result = await surf.get_social_engagement_score(handle)
+    return result or {"error": f"No data for @{handle}"}
+
+
+@router.get("/social/mindshare-ts/{project}")
+async def social_mindshare_timeseries(project: str, time_range: str = Query("7d")) -> list[dict]:
+    return await surf.get_social_mindshare_timeseries(project, time_range)
+
+
+@router.get("/social/smart-followers/{handle}")
+async def social_smart_followers_history(handle: str, time_range: str = Query("30d")) -> list[dict]:
+    return await surf.get_social_smart_followers_history(handle, time_range)
+
+
+@router.get("/social/tweet-replies/{tweet_id}")
+async def social_tweet_replies(tweet_id: str, limit: int = Query(20, le=100)) -> list[dict]:
+    return await surf.get_social_tweet_replies(tweet_id, limit)
+
+
+@router.get("/social/user/{handle}/followers")
+async def social_user_followers(handle: str, limit: int = Query(20, le=100)) -> list[dict]:
+    return await surf.get_social_user_followers(handle, limit)
+
+
+@router.get("/social/user/{handle}/following")
+async def social_user_following(handle: str, limit: int = Query(20, le=100)) -> list[dict]:
+    return await surf.get_social_user_following(handle, limit)
+
+
+@router.get("/social/user/{handle}/replies")
+async def social_user_replies(handle: str, limit: int = Query(20, le=100)) -> list[dict]:
+    return await surf.get_social_user_replies(handle, limit)
+
+
+# ─── Project & Fund analysis ─────────────────────────────────
+
+
+@router.get("/project/detail/{project}")
+async def project_detail(project: str) -> dict[str, Any]:
+    result = await surf.get_project_detail(project)
+    return result or {"error": f"No data for {project}"}
+
+
+@router.get("/project/pulse/{project}")
+async def project_pulse(project: str) -> dict[str, Any]:
+    result = await surf.get_project_pulse(project)
+    return result or {"error": f"No data for {project}"}
+
+
+@router.get("/project/defi-metrics/{project}")
+async def project_defi_metrics(project: str) -> dict[str, Any]:
+    result = await surf.get_project_defi_metrics(project)
+    return result or {"error": f"No data for {project}"}
+
+
+@router.get("/project/defi-ranking")
+async def project_defi_ranking(limit: int = Query(20, le=100), sort_by: str = Query("tvl")) -> list[dict]:
+    return await surf.get_project_defi_ranking(limit, sort_by)
+
+
+@router.get("/fund/detail/{fund_id}")
+async def fund_detail(fund_id: str) -> dict[str, Any]:
+    result = await surf.get_fund_detail(fund_id)
+    return result or {"error": f"No data for {fund_id}"}
+
+
+@router.get("/fund/portfolio/{fund_id}")
+async def fund_portfolio(fund_id: str) -> list[dict]:
+    return await surf.get_fund_portfolio(fund_id)
+
+
+@router.get("/fund/ranking")
+async def fund_ranking(limit: int = Query(20, le=100), sort_by: str = Query("aum")) -> list[dict]:
+    return await surf.get_fund_ranking(limit, sort_by)
+
+
+# ─── Search ───────────────────────────────────────────────────
+
+
+@router.get("/search/project")
+async def search_project(q: str = Query(...), limit: int = Query(20, le=100)) -> list[dict]:
+    return await surf.search_project(q, limit)
+
+
+@router.get("/search/airdrop")
+async def search_airdrop(q: str = Query(""), limit: int = Query(20, le=100)) -> list[dict]:
+    return await surf.search_airdrop(q, limit)
+
+
+@router.get("/search/airdrop-activities/{project}")
+async def search_airdrop_activities(project: str) -> list[dict]:
+    return await surf.search_airdrop_activities(project)
+
+
+@router.get("/search/events")
+async def search_events(q: str = Query(""), limit: int = Query(20, le=100)) -> list[dict]:
+    return await surf.search_events(q, limit)
+
+
+@router.get("/search/fund")
+async def search_fund(q: str = Query(...), limit: int = Query(20, le=100)) -> list[dict]:
+    return await surf.search_fund(q, limit)
+
+
+@router.get("/search/news")
+async def search_news(q: str = Query(...), limit: int = Query(20, le=100)) -> list[dict]:
+    return await surf.search_news(q, limit)
+
+
+@router.get("/search/prediction-market")
+async def search_prediction_market(q: str = Query(...), limit: int = Query(20, le=100)) -> list[dict]:
+    return await surf.search_prediction_market(q, limit)
+
+
+@router.get("/search/social/people")
+async def search_social_people(q: str = Query(...), limit: int = Query(20, le=100)) -> list[dict]:
+    return await surf.search_social_people(q, limit)
+
+
+@router.get("/search/social/posts")
+async def search_social_posts(q: str = Query(...), limit: int = Query(20, le=100)) -> list[dict]:
+    return await surf.search_social_posts(q, limit)
+
+
+@router.get("/search/wallet")
+async def search_wallet(q: str = Query(...), limit: int = Query(20, le=100)) -> list[dict]:
+    return await surf.search_wallet(q, limit)
+
+
+# ─── OI Signal Engine ────────────────────────────────────
+
+@router.get("/oi-signal/{symbol}")
+async def oi_signal(
+    symbol: str,
+    timeframe: str = Query("1h"),
+    chip_interval: str | None = Query(None),
+) -> dict[str, Any]:
+    """Multi-exchange OI signal scoring with 4-quadrant model."""
+    from app.analysis.oi_signal import get_oi_signal
+    return await get_oi_signal(
+        symbol.upper(),
+        timeframe=timeframe,
+        chip_interval=chip_interval,
+    )

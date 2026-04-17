@@ -1,13 +1,14 @@
-"""On-chain monitoring API routes."""
+"""On-chain monitoring API routes — Surf-powered wallet/whale/chain data."""
 
 from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Body
 
 from app.onchain.whale_tracker import get_recent_transactions
 from app.onchain.exchange_flow import get_exchange_netflow, get_sopr
+from app.market.sources import surf
 
 router = APIRouter(prefix="/onchain", tags=["onchain"])
 
@@ -28,3 +29,81 @@ async def exchange_flow() -> dict[str, Any]:
 @router.get("/sopr")
 async def sopr() -> dict[str, Any]:
     return await get_sopr()
+
+
+# ─── Wallet suite ────────────────────────────────────────────
+
+
+@router.get("/wallet/{address}")
+async def wallet_detail(address: str, chain: str = Query("ethereum")) -> dict[str, Any]:
+    result = await surf.get_wallet_detail(address, chain)
+    return result or {"error": f"No data for {address}"}
+
+
+@router.get("/wallet/{address}/history")
+async def wallet_history(address: str, chain: str = Query("ethereum"), limit: int = Query(20, le=100)) -> list[dict]:
+    return await surf.get_wallet_history(address, chain, limit)
+
+
+@router.get("/wallet/{address}/protocols")
+async def wallet_protocols(address: str, limit: int = Query(20, le=100)) -> list[dict]:
+    from app.market.sources.surf import _run_surf, _extract_data
+    result = await _run_surf("wallet-protocols", "--address", address, "--limit", str(limit))
+    data = _extract_data(result)
+    return data if isinstance(data, list) else []
+
+
+@router.get("/wallet/{address}/transfers")
+async def wallet_transfers(address: str, chain: str = Query("ethereum"), limit: int = Query(20, le=100)) -> list[dict]:
+    return await surf.get_wallet_transfers(address, chain, limit)
+
+
+@router.get("/wallet/{address}/net-worth")
+async def wallet_net_worth(address: str, time_range: str = Query("30d")) -> list[dict]:
+    return await surf.get_wallet_net_worth(address, time_range)
+
+
+@router.post("/wallet/labels-batch")
+async def wallet_labels_batch(addresses: list[str] = Body(...)) -> list[dict]:
+    return await surf.get_wallet_labels_batch(addresses)
+
+
+# ─── Chain data ──────────────────────────────────────────────
+
+
+@router.get("/gas-price")
+async def gas_price(chain: str = Query("ethereum")) -> dict[str, Any]:
+    result = await surf.get_gas_price(chain)
+    return result or {"error": "No data"}
+
+
+@router.get("/tx/{tx_hash}")
+async def tx_detail(tx_hash: str, chain: str = Query("ethereum")) -> dict[str, Any]:
+    result = await surf.get_tx_detail(tx_hash, chain)
+    return result or {"error": f"No data for {tx_hash}"}
+
+
+@router.get("/schema")
+async def onchain_schema(chain: str = Query("ethereum")) -> Any:
+    result = await surf.get_onchain_schema(chain)
+    return result or {"error": "No schema"}
+
+
+@router.post("/sql")
+async def onchain_sql(query: str = Body(..., embed=True), chain: str = Body("ethereum", embed=True)) -> Any:
+    result = await surf.get_onchain_sql(query, chain)
+    return result or {"error": "Query failed"}
+
+
+# ─── Rankings ────────────────────────────────────────────────
+
+
+@router.get("/yield-ranking")
+async def yield_ranking(limit: int = Query(20, le=100), sort_by: str = Query("apy")) -> list[dict]:
+    from app.market.sources.defi_llama import get_yield_ranking
+    return await get_yield_ranking(limit, sort_by)
+
+
+@router.get("/bridge-ranking")
+async def bridge_ranking(limit: int = Query(20, le=100)) -> list[dict]:
+    return await surf.get_bridge_ranking(limit)

@@ -376,7 +376,7 @@ body {
 </div>
 
 <div class="container">
-  <div style="margin-bottom:24px;background:linear-gradient(135deg,rgba(88,166,255,0.08),rgba(188,140,255,0.08));border:1px solid rgba(88,166,255,0.25);border-radius:14px;padding:20px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;cursor:pointer;transition:all 0.25s" onclick="location.href='/daily'" onmouseover="this.style.borderColor='var(--accent)';this.style.transform='translateY(-1px)'" onmouseout="this.style.borderColor='rgba(88,166,255,0.25)';this.style.transform='none'">
+  <div style="margin-bottom:24px;background:linear-gradient(135deg,rgba(88,166,255,0.08),rgba(188,140,255,0.08));border:1px solid rgba(88,166,255,0.25);border-radius:14px;padding:20px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;cursor:pointer;transition:all 0.25s" onclick="location.href=(typeof BASE!=='undefined'?BASE:'')+'/daily'" onmouseover="this.style.borderColor='var(--accent)';this.style.transform='translateY(-1px)'" onmouseout="this.style.borderColor='rgba(88,166,255,0.25)';this.style.transform='none'">
     <div style="display:flex;align-items:center;gap:16px">
       <div style="font-size:36px;width:56px;height:56px;display:flex;align-items:center;justify-content:center;background:rgba(88,166,255,0.12);border-radius:12px">📊</div>
       <div>
@@ -386,6 +386,35 @@ body {
     </div>
     <div style="display:flex;align-items:center;gap:8px">
       <span style="padding:6px 14px;background:var(--accent);color:#fff;border-radius:8px;font-size:13px;font-weight:600">查看日报 →</span>
+    </div>
+  </div>
+
+  <div style="margin-bottom:24px;position:relative;overflow:hidden;background:linear-gradient(140deg,rgba(17,24,39,.96),rgba(13,20,31,.94));border:1px solid rgba(88,166,255,0.22);border-radius:18px;padding:22px 24px;box-shadow:0 18px 42px rgba(0,0,0,.2)">
+    <div style="position:absolute;right:-30px;top:-30px;width:180px;height:180px;border-radius:50%;background:radial-gradient(circle,rgba(88,166,255,.16),transparent 68%);pointer-events:none"></div>
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:18px;flex-wrap:wrap;position:relative">
+      <div style="max-width:620px">
+        <div style="font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);margin-bottom:8px">OI Quick Launch</div>
+        <div style="font-size:22px;font-weight:800;margin-bottom:8px">搜索任意代币，直接进入 OI 信号研判</div>
+        <div style="font-size:13px;color:var(--text2);line-height:1.8">输入币种符号后，一步跳转到完整 OI 仪表盘，直接看评分、Funding、盘口、筹码分布和订单流。</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;min-width:320px;flex:1">
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <input id="oi-launch-symbol" placeholder="DOGE / XRP / 1000SHIB / BNBUSDT" style="flex:1;min-width:180px;padding:12px 14px;border-radius:12px;border:1px solid var(--border);background:rgba(255,255,255,.03);color:var(--text);font-size:14px;outline:none">
+          <select id="oi-launch-timeframe" style="padding:12px 14px;border-radius:12px;border:1px solid var(--border);background:rgba(255,255,255,.03);color:var(--text);font-size:14px;outline:none">
+            <option value="15m">15m</option>
+            <option value="1h" selected>1h</option>
+            <option value="4h">4h</option>
+            <option value="1d">1d</option>
+          </select>
+          <button class="btn-primary" style="white-space:nowrap" onclick="launchOiSignal()">立即分析</button>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="tag" style="cursor:pointer" onclick="launchOiSignal('DOGE')">DOGE</button>
+          <button class="tag" style="cursor:pointer" onclick="launchOiSignal('XRP')">XRP</button>
+          <button class="tag" style="cursor:pointer" onclick="launchOiSignal('1000SHIB')">1000SHIB</button>
+          <button class="tag" style="cursor:pointer" onclick="launchOiSignal('BNB')">BNB</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -402,7 +431,8 @@ body {
 </div>
 
 <script>
-const API = '/api/v1';
+const BASE = location.pathname.replace(/\/(skill|daily|briefing)?\s*$/,'').replace(/\/+$/,'');
+const API = BASE + '/api/v1';
 let allSkills = [];
 let currentFilter = 'all';
 
@@ -428,11 +458,11 @@ function renderStats() {
 }
 
 function renderFilters() {
-  const cats = new Set(allSkills.map(s => s.category));
+  const cats = new Set(allSkills.filter(s => s.category !== 'pro').map(s => s.category));
   const catLabels = {
-    all: '全部', market: '行情', analysis: '分析',
-    defi: 'DeFi', news: '新闻', onchain: '链上',
-    ai: 'AI', trading: '交易'
+    all: '全部', trading: '交易', market: '行情', analysis: '分析',
+    onchain: '链上', social: '社交', defi: 'DeFi', news: '新闻',
+    ai: 'AI', utility: '工具'
   };
   let html = `<button class="filter-btn active" data-cat="all">全部</button>`;
   cats.forEach(c => {
@@ -452,13 +482,14 @@ function renderFilters() {
 
 function renderGrid() {
   document.getElementById('loading').style.display = 'none';
-  const filtered = currentFilter === 'all'
-    ? allSkills
-    : allSkills.filter(s => s.category === currentFilter);
+  const freeSkills = currentFilter === 'all'
+    ? allSkills.filter(s => s.category !== 'pro')
+    : allSkills.filter(s => s.category === currentFilter && s.category !== 'pro');
+  const proSkill = allSkills.find(s => s.category === 'pro');
 
   const statusLabel = { active: '已上线', beta: '测试中', planned: '规划中' };
 
-  document.getElementById('skill-grid').innerHTML = filtered.map(s => `
+  let html = freeSkills.map(s => `
     <div class="card" onclick="openDetail('${s.id}')">
       <div class="card-top">
         <div class="card-icon">${s.icon}</div>
@@ -469,6 +500,7 @@ function renderGrid() {
       </div>
       <div class="card-desc">${s.description_zh}</div>
       <div class="card-tags">
+        <span class="tag" style="background:rgba(63,185,80,0.12);color:#3fb950">免费</span>
         ${s.data_sources.map(d => `<span class="tag">${d}</span>`).join('')}
       </div>
       <div class="card-footer">
@@ -477,6 +509,29 @@ function renderGrid() {
       </div>
     </div>
   `).join('');
+
+  if (proSkill && currentFilter === 'all') {
+    html += `
+    <div class="card" onclick="viewReport('${proSkill.id}')" style="border-color:rgba(188,140,255,0.4);background:linear-gradient(135deg,#161b22 0%,#1a1930 100%);grid-column:1/-1">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px">
+        <div style="display:flex;align-items:center;gap:16px">
+          <div class="card-icon" style="font-size:36px;width:56px;height:56px;background:rgba(188,140,255,0.12)">${proSkill.icon}</div>
+          <div>
+            <div class="card-title" style="font-size:18px">${proSkill.name_zh}
+              <span style="font-size:11px;padding:2px 8px;border-radius:4px;background:rgba(188,140,255,0.15);color:var(--purple);margin-left:8px;vertical-align:middle">需要 Credits</span>
+            </div>
+            <div class="card-subtitle">${proSkill.description_zh}</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <span style="font-size:13px;color:var(--text2)">80+ 专业工具</span>
+          <span style="padding:8px 18px;background:var(--purple);color:#fff;border-radius:8px;font-size:13px;font-weight:600">查看全部 →</span>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  document.getElementById('skill-grid').innerHTML = html;
 }
 
 async function openDetail(id) {
@@ -484,6 +539,24 @@ async function openDetail(id) {
   if (!s) return;
 
   const statusLabel = { active: '已上线', beta: '测试中', planned: '规划中' };
+  const isOiSignal = s.id === 'oi-signal';
+  const primaryLabel = isOiSignal ? '进入 OI 仪表盘' : '查看实时简报';
+  const oiLaunchBlock = isOiSignal ? `
+    <div style="margin:18px 0 6px;padding:16px;border-radius:14px;border:1px solid rgba(88,166,255,.22);background:linear-gradient(135deg,rgba(88,166,255,.08),rgba(188,140,255,.08))">
+      <div style="font-size:15px;font-weight:700;margin-bottom:6px">直接搜索代币</div>
+      <div style="font-size:12px;color:var(--text2);line-height:1.7;margin-bottom:12px">输入币种后直接跳到 OI 研判页，支持快捷查看山寨币或指定交易周期。</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <input id="modal-oi-symbol" value="BTC" placeholder="DOGE / XRP / 1000SHIB" style="flex:1;min-width:180px;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px">
+        <select id="modal-oi-timeframe" style="padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px">
+          <option value="15m">15m</option>
+          <option value="1h" selected>1h</option>
+          <option value="4h">4h</option>
+          <option value="1d">1d</option>
+        </select>
+        <button class="btn-primary" onclick="launchOiSignal(document.getElementById('modal-oi-symbol').value,document.getElementById('modal-oi-timeframe').value)">打开分析页</button>
+      </div>
+    </div>
+  ` : '';
 
   document.getElementById('modal').innerHTML = `
     <button class="modal-close" onclick="closeModal()">✕</button>
@@ -506,8 +579,10 @@ async function openDetail(id) {
       ${s.data_sources.map(d => `<span class="source-tag">${d}</span>`).join('')}
     </div>
 
+    ${oiLaunchBlock}
+
     <div class="modal-actions">
-      <button class="btn-primary" onclick="viewReport('${s.id}')">查看实时简报</button>
+      <button class="btn-primary" onclick="viewReport('${s.id}')">${primaryLabel}</button>
       <button class="btn-secondary" onclick="closeModal()">关闭</button>
     </div>
     <div id="briefing-content"></div>
@@ -524,7 +599,23 @@ document.getElementById('modal-overlay').onclick = function(e) {
 };
 
 function viewReport(skillId) {
-  location.href = `/skill?id=${skillId}`;
+  const pages = {'oi-signal':'/oi-signal','market-briefing':'/briefing'};
+  location.href = pages[skillId] ? `${BASE}${pages[skillId]}` : `${BASE}/skill?id=${skillId}`;
+}
+
+function sanitizeSymbol(value){
+  if(!value)return'';
+  let symbol=String(value).trim().toUpperCase();
+  symbol=symbol.replace(/\s+/g,'').replace(/[-_/]/g,'');
+  symbol=symbol.replace(/USDT$/,'').replace(/USD$/,'').replace(/PERP$/,'').replace(/SWAP$/,'');
+  symbol=symbol.replace(/[^A-Z0-9]/g,'');
+  return symbol.slice(0,20);
+}
+
+function launchOiSignal(rawSymbol,timeframe){
+  const symbol=sanitizeSymbol(rawSymbol??document.getElementById('oi-launch-symbol')?.value)||'BTC';
+  const tf=timeframe||document.getElementById('oi-launch-timeframe')?.value||'1h';
+  location.href=`${BASE}/oi-signal?symbol=${encodeURIComponent(symbol)}&timeframe=${encodeURIComponent(tf)}`;
 }
 
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
