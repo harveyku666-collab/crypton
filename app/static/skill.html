@@ -246,6 +246,16 @@ async function init(){
       renderPredictionMarketsEntry();
       return;
     }
+    if(skill.id==='crypto-market-rank'){
+      document.getElementById('toolbar').style.display='none';
+      renderCryptoMarketRankEntry();
+      return;
+    }
+    if(skill.id==='market-intel'){
+      document.getElementById('toolbar').style.display='none';
+      renderMarketIntelEntry();
+      return;
+    }
     if(skill.id==='news-sentiment'){
       document.getElementById('toolbar').style.display='none';
       renderNewsIntelligenceEntry();
@@ -350,6 +360,46 @@ function launchPredictionAdvanced(limit='10'){
   location.href=`${BASE}/prediction-advanced?${params.toString()}`;
 }
 
+function getMarketIntelStateFromUrl(){
+  const params=new URLSearchParams(location.search);
+  const rawSymbol=String(params.get('symbol')||'BTC').trim().toUpperCase();
+  const symbol=rawSymbol||'BTC';
+  const marketType=params.get('marketType')==='SPOT'?'SPOT':'SWAP';
+  const timeframe=['1H','4H','1D'].includes(String(params.get('timeframe')||'1H').toUpperCase())
+    ? String(params.get('timeframe')||'1H').toUpperCase()
+    : '1H';
+  const language=params.get('language')==='en-US'?'en-US':'zh-CN';
+  const keyword=String(params.get('keyword')||symbol).replace(/\s+/g,' ').trim().slice(0,80) || symbol;
+  return {symbol,marketType,timeframe,language,keyword};
+}
+
+function syncMarketIntelUrl({symbol,marketType,timeframe,language='zh-CN',keyword=''}){
+  const params=new URLSearchParams(location.search);
+  params.set('id','market-intel');
+  params.set('symbol', symbol);
+  params.set('marketType', marketType);
+  params.set('timeframe', timeframe);
+  params.set('language', language);
+  if(keyword)params.set('keyword', keyword);
+  history.replaceState({},'',`${location.pathname}?${params.toString()}`);
+}
+
+function launchMarketIntel(rawSymbol,marketType='SWAP',timeframe='1H',keyword='',language='zh-CN'){
+  const raw=String(rawSymbol??document.getElementById('market-intel-symbol')?.value??'').trim().toUpperCase();
+  const symbol=raw||'BTC';
+  const type=marketType==='SPOT'?'SPOT':'SWAP';
+  const tf=['1H','4H','1D'].includes(String(timeframe).toUpperCase())?String(timeframe).toUpperCase():'1H';
+  const lang=language==='en-US'?'en-US':'zh-CN';
+  const q=String(keyword??document.getElementById('market-intel-keyword')?.value??symbol).replace(/\s+/g,' ').trim().slice(0,80)||symbol;
+  const params=new URLSearchParams();
+  params.set('symbol', symbol);
+  params.set('marketType', type);
+  params.set('timeframe', tf);
+  params.set('language', lang);
+  params.set('keyword', q);
+  location.href=`${BASE}/market-intel?${params.toString()}`;
+}
+
 function getOkxIntelligenceStateFromUrl(){
   const params=new URLSearchParams(location.search);
   const rawSymbol=String(params.get('symbol')||'BTC').trim().toUpperCase();
@@ -417,6 +467,33 @@ function launchBtcQuantPredictor(rawSymbol,timeframe){
 function sanitizeNewsKeyword(value){
   if(!value)return'';
   return String(value).replace(/\s+/g,' ').trim().slice(0,80);
+}
+
+function sanitizeMarketRankKeyword(value){
+  if(!value)return'';
+  return String(value).replace(/\s+/g,' ').trim().slice(0,40);
+}
+
+function getMarketRankStateFromUrl(){
+  const params=new URLSearchParams(location.search);
+  return {
+    keyword:sanitizeMarketRankKeyword(params.get('q')||''),
+    rankType:['10','11','20','40'].includes(params.get('rankType'))?params.get('rankType'):'10',
+    chainId:['56','8453','CT_501','1'].includes(params.get('chainId'))?params.get('chainId'):'56',
+    period:['10','20','30','40','50'].includes(params.get('period'))?params.get('period'):'50',
+    targetLanguage:params.get('targetLanguage')==='en'?'en':'zh',
+  };
+}
+
+function openCryptoMarketRank(rawKeyword,rankType,chainId,period='50',targetLanguage='zh'){
+  const q=sanitizeMarketRankKeyword(rawKeyword ?? document.getElementById('market-rank-keyword')?.value);
+  const params=new URLSearchParams();
+  if(q)params.set('q',q);
+  params.set('rankType',['10','11','20','40'].includes(String(rankType||document.getElementById('market-rank-type')?.value||'10'))?String(rankType||document.getElementById('market-rank-type')?.value||'10'):'10');
+  params.set('chainId',['56','8453','CT_501','1'].includes(String(chainId||document.getElementById('market-rank-chain')?.value||'56'))?String(chainId||document.getElementById('market-rank-chain')?.value||'56'):'56');
+  params.set('period',['10','20','30','40','50'].includes(String(period||document.getElementById('market-rank-period')?.value||'50'))?String(period||document.getElementById('market-rank-period')?.value||'50'):'50');
+  params.set('targetLanguage',targetLanguage==='en'?'en':'zh');
+  location.href=`${BASE}/market-rank?${params.toString()}`;
 }
 
 function getNewsIntelligenceStateFromUrl(){
@@ -836,6 +913,58 @@ function renderPredictionMarketsVisual(items, limit){
   return h;
 }
 
+function renderCryptoMarketRankEntry(){
+  const area=document.getElementById('report-area');
+  const state=getMarketRankStateFromUrl();
+  area.innerHTML=`
+    <div class="quick-launch">
+      <div class="quick-launch-title">直接进入加密市场榜单台</div>
+      <div class="quick-launch-sub">把趋势币、热搜、Alpha、社交热度、聪明钱流入、Meme 榜和地址 PnL 榜放在一个页面里看，适合先做热点扫描再决定深入方向。</div>
+      <div class="quick-launch-row">
+        <input id="market-rank-keyword" value="${esc(state.keyword)}" placeholder="DOGE / AI / ETF / MEME">
+        <select id="market-rank-type">
+          <option value="10"${state.rankType==='10'?' selected':''}>Trending</option>
+          <option value="11"${state.rankType==='11'?' selected':''}>Top Search</option>
+          <option value="20"${state.rankType==='20'?' selected':''}>Alpha</option>
+          <option value="40"${state.rankType==='40'?' selected':''}>Stock</option>
+        </select>
+        <select id="market-rank-chain">
+          <option value="56"${state.chainId==='56'?' selected':''}>BSC</option>
+          <option value="8453"${state.chainId==='8453'?' selected':''}>Base</option>
+          <option value="CT_501"${state.chainId==='CT_501'?' selected':''}>Solana</option>
+          <option value="1"${state.chainId==='1'?' selected':''}>Ethereum</option>
+        </select>
+        <select id="market-rank-period">
+          <option value="50"${state.period==='50'?' selected':''}>24h</option>
+          <option value="40"${state.period==='40'?' selected':''}>4h</option>
+          <option value="30"${state.period==='30'?' selected':''}>1h</option>
+          <option value="20"${state.period==='20'?' selected':''}>5m</option>
+        </select>
+        <button class="btn-load" onclick="openCryptoMarketRank()">打开榜单台</button>
+      </div>
+      <div class="mini-tags">
+        <button onclick="openCryptoMarketRank('DOGE','10','56','50')">DOGE</button>
+        <button onclick="openCryptoMarketRank('AI','20','8453','50')">AI Alpha</button>
+        <button onclick="openCryptoMarketRank('ETF','11','1','50')">ETF Search</button>
+        <button onclick="openCryptoMarketRank('MEME','10','CT_501','40')">Solana Meme</button>
+      </div>
+    </div>
+    <div class="b-section">
+      <h3>🏁 页面能力</h3>
+      <table>
+        <tr><th>模块</th><th>说明</th></tr>
+        <tr><td>统一代币榜</td><td>趋势、热搜、Alpha、股票代币共用一套筛选入口，支持关键词、链和周期切换</td></tr>
+        <tr><td>社交热度榜</td><td>看 Social Hype、情绪方向和翻译摘要，快速判断市场话题热度</td></tr>
+        <tr><td>聪明钱流入榜</td><td>观察被标签地址净买入最强的币种，以及参与地址数量和净流入金额</td></tr>
+        <tr><td>Meme 与地址 PnL 榜</td><td>一边看 Meme 爆发力，一边看高收益地址和最赚钱代币</td></tr>
+      </table>
+    </div>`;
+
+  document.getElementById('market-rank-keyword')?.addEventListener('keydown',e=>{
+    if(e.key==='Enter')openCryptoMarketRank();
+  });
+}
+
 function renderNewsIntelligenceEntry(){
   const area=document.getElementById('report-area');
   const state=getNewsIntelligenceStateFromUrl();
@@ -900,6 +1029,67 @@ function renderNewsIntelligenceEntry(){
     document.getElementById(id)?.addEventListener('change',()=>loadNewsIntelligence({resetPage:true}));
   });
   loadNewsIntelligence();
+}
+
+function renderMarketIntelEntry(){
+  const area=document.getElementById('report-area');
+  const state=getMarketIntelStateFromUrl();
+  area.innerHTML=`
+    <div class="quick-launch">
+      <div class="quick-launch-title">直接进入市场情报大师</div>
+      <div class="quick-launch-sub">这个技能复刻的是 OKX 官方 market-intel 的三层框架：Daily Brief、异动提醒和关键词研究。先填币种和关键词，再进入完整页看结构、叙事和异常信号。</div>
+      <div class="quick-launch-row">
+        <input id="market-intel-symbol" value="${state.symbol}" placeholder="BTC / ETH / DOGE / BTC-USDT-SWAP">
+        <select id="market-intel-market-type">
+          <option value="SWAP"${state.marketType==='SWAP'?' selected':''}>永续合约</option>
+          <option value="SPOT"${state.marketType==='SPOT'?' selected':''}>现货</option>
+        </select>
+        <select id="market-intel-timeframe">
+          <option value="1H"${state.timeframe==='1H'?' selected':''}>1H</option>
+          <option value="4H"${state.timeframe==='4H'?' selected':''}>4H</option>
+          <option value="1D"${state.timeframe==='1D'?' selected':''}>1D</option>
+        </select>
+        <input id="market-intel-keyword" value="${esc(state.keyword)}" placeholder="ETF / AI / SEC / 稳定币">
+        <select id="market-intel-language">
+          <option value="zh-CN"${state.language==='zh-CN'?' selected':''}>中文</option>
+          <option value="en-US"${state.language==='en-US'?' selected':''}>English</option>
+        </select>
+        <button class="btn-load" onclick="openMarketIntel()">打开情报台</button>
+      </div>
+      <div class="mini-tags">
+        <button onclick="launchMarketIntel('BTC','SWAP','1H','ETF')">BTC ETF</button>
+        <button onclick="launchMarketIntel('ETH','SPOT','4H','L2')">ETH / L2</button>
+        <button onclick="launchMarketIntel('DOGE','SWAP','1H','Meme')">DOGE Meme</button>
+        <button onclick="launchMarketIntel('SOL','SWAP','4H','AI')">SOL AI</button>
+      </div>
+    </div>
+    <div class="b-section">
+      <h3>🗞️ 页面能力</h3>
+      <table>
+        <tr><th>模块</th><th>说明</th></tr>
+        <tr><td>Daily Brief</td><td>把价格结构、情绪、OI、热点话题和重点新闻揉成一页头版判断</td></tr>
+        <tr><td>Anomaly Alerts</td><td>监测讨论量放大、情绪背离、杠杆拥挤和新叙事抬头</td></tr>
+        <tr><td>Keyword Research</td><td>围绕关键词做新闻深挖，返回主题聚类、关联币种和技术确认</td></tr>
+        <tr><td>Silent Refresh</td><td>完整页支持 AJAX 原位刷新和静默同步，适合连续盯盘时使用</td></tr>
+      </table>
+    </div>`;
+
+  const openMarketIntel=()=>{
+    const symbol=document.getElementById('market-intel-symbol')?.value||state.symbol;
+    const marketType=document.getElementById('market-intel-market-type')?.value||state.marketType;
+    const timeframe=document.getElementById('market-intel-timeframe')?.value||state.timeframe;
+    const language=document.getElementById('market-intel-language')?.value||state.language;
+    const keyword=document.getElementById('market-intel-keyword')?.value||state.keyword;
+    syncMarketIntelUrl({symbol:String(symbol).trim().toUpperCase()||'BTC',marketType,timeframe,language,keyword:String(keyword).replace(/\s+/g,' ').trim().slice(0,80)});
+    launchMarketIntel(symbol,marketType,timeframe,keyword,language);
+  };
+  window.openMarketIntel=openMarketIntel;
+
+  ['market-intel-symbol','market-intel-keyword'].forEach(id=>{
+    document.getElementById(id)?.addEventListener('keydown',e=>{
+      if(e.key==='Enter')openMarketIntel();
+    });
+  });
 }
 
 function renderOkxIntelligenceEntry(){
@@ -1317,6 +1507,46 @@ function renderInfo(){
             <option value="20">Top 20</option>
           </select>
           <button class="btn-load" onclick="launchPredictionMarkets(document.getElementById('prediction-inline-limit').value)">打开事件页</button>
+        </div>
+      </div>`
+    : skill.id==='crypto-market-rank'
+    ? `<div class="quick-launch" style="margin-top:0">
+        <div class="quick-launch-title">市场榜单台支持直接打开</div>
+        <div class="quick-launch-sub">先选链、榜单类型和关键词，再跳到完整市场榜单页，继续看社交热度、聪明钱和地址 PnL。</div>
+        <div class="quick-launch-row">
+          <input id="market-rank-inline-keyword" placeholder="DOGE / AI / ETF / MEME">
+          <select id="market-rank-inline-type">
+            <option value="10" selected>Trending</option>
+            <option value="11">Top Search</option>
+            <option value="20">Alpha</option>
+            <option value="40">Stock</option>
+          </select>
+          <select id="market-rank-inline-chain">
+            <option value="56" selected>BSC</option>
+            <option value="8453">Base</option>
+            <option value="CT_501">Solana</option>
+            <option value="1">Ethereum</option>
+          </select>
+          <button class="btn-load" onclick="openCryptoMarketRank(document.getElementById('market-rank-inline-keyword').value,document.getElementById('market-rank-inline-type').value,document.getElementById('market-rank-inline-chain').value,'50')">打开榜单页</button>
+        </div>
+      </div>`
+    : skill.id==='market-intel'
+    ? `<div class="quick-launch" style="margin-top:0">
+        <div class="quick-launch-title">市场情报大师支持直接打开</div>
+        <div class="quick-launch-sub">输入币种和关键词后，直接进入 Daily Brief、异动提醒和关键词研究一体页，适合先看叙事，再看结构。</div>
+        <div class="quick-launch-row">
+          <input id="market-intel-inline-symbol" value="BTC" placeholder="BTC / ETH / DOGE / BTC-USDT-SWAP">
+          <select id="market-intel-inline-market-type">
+            <option value="SWAP" selected>永续</option>
+            <option value="SPOT">现货</option>
+          </select>
+          <select id="market-intel-inline-timeframe">
+            <option value="1H" selected>1H</option>
+            <option value="4H">4H</option>
+            <option value="1D">1D</option>
+          </select>
+          <input id="market-intel-inline-keyword" value="ETF" placeholder="ETF / AI / 监管 / Meme">
+          <button class="btn-load" onclick="launchMarketIntel(document.getElementById('market-intel-inline-symbol').value,document.getElementById('market-intel-inline-market-type').value,document.getElementById('market-intel-inline-timeframe').value,document.getElementById('market-intel-inline-keyword').value)">打开情报台</button>
         </div>
       </div>`
     : skill.id==='okx-intelligence'

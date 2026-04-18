@@ -1,0 +1,2094 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>加密市场榜单台 - BitInfo</title>
+<style>
+:root{
+  --bg:#081018;
+  --bg-2:#0d1620;
+  --paper:#111d2a;
+  --paper-2:#162332;
+  --paper-3:#1b2b3f;
+  --line:#29384a;
+  --line-soft:rgba(255,255,255,.08);
+  --text:#edf4fb;
+  --muted:#96a8ba;
+  --muted-2:#718399;
+  --accent:#7cbcff;
+  --accent-2:#5ce0c0;
+  --accent-3:#ffca70;
+  --green:#56d48f;
+  --red:#ff7d86;
+  --shadow:0 18px 44px rgba(0,0,0,.32);
+  --headline:"Iowan Old Style","Palatino Linotype","Songti SC","STSong",serif;
+  --body:"Avenir Next","PingFang SC","Helvetica Neue",sans-serif;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  color:var(--text);
+  font:14px/1.7 var(--body);
+  background:
+    radial-gradient(circle at 14% 8%, rgba(124,188,255,.12), transparent 18%),
+    radial-gradient(circle at 88% 10%, rgba(92,224,192,.1), transparent 16%),
+    linear-gradient(180deg,#071018 0%,#09131d 40%,#081018 100%);
+}
+a{color:inherit}
+.shell{max-width:1320px;margin:0 auto;padding:28px 18px 64px}
+.hero{
+  position:relative;
+  overflow:hidden;
+  border-radius:28px;
+  border:1px solid rgba(124,188,255,.14);
+  background:
+    linear-gradient(140deg, rgba(11,19,28,.98), rgba(15,25,38,.94)),
+    linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(255,255,255,.025) 1px, transparent 1px);
+  background-size:auto, 28px 28px, 28px 28px;
+  box-shadow:var(--shadow);
+  padding:28px;
+}
+.hero::after{
+  content:"";
+  position:absolute;
+  right:-90px;
+  top:-90px;
+  width:320px;
+  height:320px;
+  border-radius:50%;
+  background:radial-gradient(circle, rgba(124,188,255,.14), transparent 68%);
+  pointer-events:none;
+}
+.hero-grid{
+  position:relative;
+  display:grid;
+  grid-template-columns:1.15fr .85fr;
+  gap:22px;
+}
+.back{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:8px 14px;
+  border-radius:999px;
+  border:1px solid var(--line);
+  background:rgba(255,255,255,.03);
+  color:var(--muted);
+  text-decoration:none;
+}
+.back:hover{color:var(--text);border-color:var(--accent)}
+.eyebrow{
+  margin-top:16px;
+  color:var(--accent);
+  font-size:12px;
+  letter-spacing:.22em;
+  text-transform:uppercase;
+}
+.hero h1{
+  margin:12px 0 10px;
+  font:700 48px/1 var(--headline);
+  letter-spacing:-.04em;
+}
+.hero p{
+  margin:0;
+  max-width:780px;
+  color:var(--muted);
+  font-size:15px;
+}
+.hero-pills{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  margin-top:18px;
+}
+.pill{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:8px 12px;
+  border-radius:999px;
+  border:1px solid var(--line-soft);
+  background:rgba(255,255,255,.03);
+  color:var(--muted);
+  font-size:12px;
+}
+.hero-side{
+  display:grid;
+  gap:14px;
+}
+.brief-card{
+  border-radius:22px;
+  border:1px solid var(--line-soft);
+  background:rgba(255,255,255,.035);
+  padding:18px;
+}
+.brief-card .label{
+  color:var(--muted);
+  font-size:12px;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
+.brief-card .value{
+  margin-top:10px;
+  font:700 28px/1.05 var(--headline);
+  letter-spacing:-.03em;
+}
+.brief-card .sub{
+  margin-top:8px;
+  color:var(--muted);
+  font-size:12px;
+  line-height:1.8;
+}
+.command{
+  position:sticky;
+  top:0;
+  z-index:10;
+  margin-top:18px;
+  border-radius:24px;
+  border:1px solid var(--line-soft);
+  background:rgba(11,19,28,.92);
+  backdrop-filter:blur(18px);
+  box-shadow:var(--shadow);
+  padding:16px;
+}
+.command-main{
+  display:grid;
+  grid-template-columns:1.2fr .8fr .8fr .7fr auto;
+  gap:12px;
+  align-items:end;
+}
+.field label,
+.field summary{
+  display:block;
+  margin-bottom:8px;
+  color:var(--muted);
+  font-size:11px;
+  letter-spacing:.09em;
+  text-transform:uppercase;
+}
+.input,.select,.button{
+  width:100%;
+  border:1px solid var(--line);
+  border-radius:14px;
+  padding:12px 14px;
+  background:rgba(255,255,255,.03);
+  color:var(--text);
+  font:inherit;
+}
+.input::placeholder{color:var(--muted-2)}
+.button{
+  cursor:pointer;
+  transition:transform .16s ease, border-color .16s ease, background .16s ease;
+}
+.button:hover{transform:translateY(-1px)}
+.button.primary{
+  border-color:transparent;
+  background:linear-gradient(135deg, var(--accent), #8ed2ff);
+  color:#071018;
+  font-weight:800;
+}
+.button.secondary{
+  background:rgba(255,255,255,.03);
+  color:var(--text);
+}
+.advanced{
+  margin-top:12px;
+  border-top:1px solid rgba(255,255,255,.06);
+  padding-top:12px;
+}
+.advanced summary{
+  list-style:none;
+  cursor:pointer;
+}
+.advanced summary::-webkit-details-marker{display:none}
+.advanced-grid{
+  display:grid;
+  grid-template-columns:repeat(6,minmax(0,1fr));
+  gap:12px;
+  margin-top:12px;
+}
+.quickbar{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  margin-top:12px;
+}
+.quick{
+  border:1px solid var(--line-soft);
+  border-radius:999px;
+  padding:7px 11px;
+  background:rgba(255,255,255,.03);
+  color:var(--muted);
+  cursor:pointer;
+  font-size:12px;
+}
+.quick:hover{color:var(--text);border-color:rgba(124,188,255,.3)}
+.status{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+  margin-top:16px;
+  padding:14px 16px;
+  border-radius:18px;
+  border:1px solid var(--line-soft);
+  background:rgba(255,255,255,.025);
+  color:var(--muted);
+}
+.status strong{color:var(--text)}
+.availability{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+}
+.tag{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:5px 10px;
+  border-radius:999px;
+  font-size:11px;
+  border:1px solid var(--line-soft);
+  color:var(--muted);
+  background:rgba(255,255,255,.03);
+}
+.tag.good{color:var(--green);border-color:rgba(86,212,143,.22)}
+.tag.warn{color:var(--accent-3);border-color:rgba(255,202,112,.24)}
+.tag.bad{color:var(--red);border-color:rgba(255,125,134,.24)}
+.overview{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:12px;
+  margin-top:18px;
+}
+.overview-card{
+  border-radius:22px;
+  border:1px solid var(--line-soft);
+  background:linear-gradient(180deg, rgba(17,29,42,.98), rgba(13,23,34,.95));
+  box-shadow:var(--shadow);
+  padding:18px;
+}
+.overview-card .label{
+  color:var(--muted);
+  font-size:12px;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+}
+.overview-card .value{
+  margin-top:10px;
+  font:700 28px/1.05 var(--headline);
+  letter-spacing:-.03em;
+}
+.overview-card .sub{
+  margin-top:10px;
+  color:var(--muted);
+  font-size:12px;
+  line-height:1.8;
+}
+.workspace{
+  display:grid;
+  grid-template-columns:1.08fr .92fr;
+  gap:18px;
+  margin-top:18px;
+}
+.panel{
+  border-radius:26px;
+  border:1px solid var(--line-soft);
+  background:linear-gradient(180deg, rgba(17,29,42,.98), rgba(13,23,34,.95));
+  box-shadow:var(--shadow);
+  padding:20px;
+}
+.panel-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:16px;
+}
+.panel h2{
+  margin:0;
+  font:700 28px/1.06 var(--headline);
+  letter-spacing:-.03em;
+}
+.panel p{
+  margin:6px 0 0;
+  color:var(--muted);
+  font-size:13px;
+}
+.lead-stage{
+  margin-top:18px;
+  padding:20px;
+  border-radius:22px;
+  border:1px solid rgba(124,188,255,.16);
+  background:
+    linear-gradient(140deg, rgba(124,188,255,.08), rgba(92,224,192,.05)),
+    rgba(255,255,255,.025);
+}
+.lead-top{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:14px;
+}
+.token-line{
+  display:flex;
+  align-items:center;
+  gap:12px;
+}
+.token-logo{
+  width:42px;
+  height:42px;
+  border-radius:50%;
+  object-fit:cover;
+  background:rgba(255,255,255,.06);
+}
+.lead-symbol{
+  font:700 34px/1 var(--headline);
+  letter-spacing:-.03em;
+}
+.token-sub{
+  margin-top:4px;
+  color:var(--muted);
+  font-size:12px;
+}
+.lead-price{
+  text-align:right;
+}
+.lead-price .main{
+  font:700 34px/1 var(--headline);
+}
+.lead-price .sub{
+  margin-top:6px;
+  font-size:12px;
+}
+.positive{color:var(--green)}
+.negative{color:var(--red)}
+.lead-metrics{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:12px;
+  margin-top:16px;
+}
+.metric{
+  border-radius:16px;
+  border:1px solid var(--line-soft);
+  background:rgba(255,255,255,.03);
+  padding:12px 14px;
+}
+.metric .label{
+  color:var(--muted);
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:.06em;
+}
+.metric .value{
+  margin-top:8px;
+  font-size:18px;
+  font-weight:700;
+}
+.lead-note{
+  margin-top:14px;
+  color:var(--muted);
+  font-size:13px;
+  line-height:1.8;
+}
+.rank-list{
+  display:grid;
+  gap:10px;
+  margin-top:16px;
+}
+.rank-row{
+  display:grid;
+  grid-template-columns:52px 1.2fr .8fr .75fr .75fr;
+  gap:12px;
+  align-items:center;
+  padding:12px 14px;
+  border-radius:18px;
+  border:1px solid var(--line-soft);
+  background:rgba(255,255,255,.025);
+}
+.rank-no{
+  color:var(--muted);
+  font:700 18px/1 var(--headline);
+}
+.rank-price{
+  font-weight:700;
+}
+.mini-note{
+  margin-top:4px;
+  color:var(--muted);
+  font-size:12px;
+}
+.pulse-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:12px;
+  margin-top:16px;
+}
+.pulse{
+  border-radius:18px;
+  border:1px solid var(--line-soft);
+  background:rgba(255,255,255,.025);
+  padding:16px;
+}
+.pulse .eyebrow{
+  margin:0;
+  color:var(--muted);
+  font-size:11px;
+  letter-spacing:.12em;
+}
+.pulse .name{
+  margin-top:8px;
+  font-size:22px;
+  font-weight:700;
+}
+.pulse .copy{
+  margin-top:8px;
+  color:var(--muted);
+  font-size:12px;
+  line-height:1.8;
+}
+.section{
+  margin-top:18px;
+}
+.section-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:14px;
+}
+.section-head h3{
+  margin:0;
+  font:700 26px/1.08 var(--headline);
+}
+.section-head p{
+  margin:6px 0 0;
+  color:var(--muted);
+  font-size:13px;
+}
+.table-wrap{
+  margin-top:16px;
+  overflow-x:auto;
+  border-radius:18px;
+  border:1px solid var(--line-soft);
+  background:rgba(255,255,255,.02);
+}
+table{
+  width:100%;
+  border-collapse:collapse;
+  min-width:920px;
+}
+th,td{
+  padding:14px 12px;
+  border-top:1px solid rgba(255,255,255,.06);
+  text-align:left;
+  vertical-align:top;
+}
+th{
+  position:sticky;
+  top:0;
+  background:#122031;
+  color:var(--muted);
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+  z-index:1;
+}
+tbody tr:hover{background:rgba(255,255,255,.025)}
+.cell-token{
+  display:flex;
+  align-items:flex-start;
+  gap:10px;
+  min-width:190px;
+}
+.cell-token .main{
+  font-weight:700;
+}
+.cell-token .sub{
+  margin-top:4px;
+  color:var(--muted);
+  font-size:12px;
+}
+.summary-text{
+  max-width:420px;
+  color:var(--muted);
+  font-size:12px;
+  line-height:1.8;
+}
+.opportunity-box{
+  margin-top:16px;
+  padding:18px;
+  border-radius:20px;
+  border:1px solid rgba(255,202,112,.18);
+  background:linear-gradient(140deg, rgba(255,202,112,.08), rgba(124,188,255,.04));
+}
+.opportunity-box h4{
+  margin:0 0 10px;
+  font:700 22px/1.1 var(--headline);
+}
+.opportunity-list{
+  display:grid;
+  gap:10px;
+}
+.opportunity{
+  border-radius:16px;
+  border:1px solid rgba(255,255,255,.08);
+  background:rgba(255,255,255,.04);
+  padding:14px 16px;
+}
+.opportunity strong{font-size:15px}
+.opportunity p{
+  margin:6px 0 0;
+  color:var(--muted);
+  font-size:12px;
+}
+.research-grid{
+  display:grid;
+  gap:16px;
+  margin-top:16px;
+}
+.research-note{
+  border-radius:20px;
+  border:1px solid rgba(255,255,255,.08);
+  background:rgba(255,255,255,.03);
+  padding:16px 18px;
+}
+.research-note h4{
+  margin:0;
+  font:700 22px/1.08 var(--headline);
+}
+.research-note p{
+  margin:8px 0 0;
+  color:var(--muted);
+  font-size:12px;
+  line-height:1.8;
+}
+.note-grid{
+  display:grid;
+  gap:10px;
+  margin-top:14px;
+}
+.note-item{
+  border-radius:16px;
+  border:1px solid rgba(255,255,255,.08);
+  background:rgba(255,255,255,.035);
+  padding:14px 16px;
+}
+.note-item strong{
+  display:block;
+  font-size:15px;
+}
+.note-item p{
+  margin:6px 0 0;
+  color:var(--muted);
+  font-size:12px;
+  line-height:1.8;
+}
+.summary-matrix{
+  margin-top:16px;
+  overflow-x:auto;
+  border-radius:18px;
+  border:1px solid rgba(255,255,255,.08);
+  background:rgba(255,255,255,.03);
+}
+.summary-matrix table{
+  min-width:760px;
+}
+.smart-summary{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:12px;
+  margin-top:16px;
+}
+.smart-card{
+  border-radius:18px;
+  border:1px solid var(--line-soft);
+  background:rgba(255,255,255,.03);
+  padding:14px 16px;
+}
+.smart-card .label{
+  color:var(--muted);
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+}
+.smart-card .value{
+  margin-top:8px;
+  font:700 24px/1 var(--headline);
+}
+.smart-card .sub{
+  margin-top:8px;
+  color:var(--muted);
+  font-size:12px;
+  line-height:1.7;
+}
+.smart-grid{
+  display:grid;
+  gap:16px;
+  margin-top:16px;
+}
+.smart-block{
+  border-radius:22px;
+  border:1px solid var(--line-soft);
+  background:rgba(255,255,255,.024);
+  padding:18px;
+}
+.smart-block h4{
+  margin:0;
+  font:700 22px/1.08 var(--headline);
+}
+.smart-block p{
+  margin:8px 0 0;
+  color:var(--muted);
+  font-size:12px;
+  line-height:1.8;
+}
+.token-tags{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+}
+.token-chip{
+  display:inline-flex;
+  align-items:center;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.08);
+  background:rgba(255,255,255,.05);
+  padding:4px 8px;
+  color:var(--muted);
+  font-size:11px;
+  line-height:1;
+}
+.token-chip.good{
+  border-color:rgba(109,230,146,.18);
+  background:rgba(109,230,146,.08);
+  color:#baf1c8;
+}
+.token-chip.warn{
+  border-color:rgba(255,202,112,.18);
+  background:rgba(255,202,112,.08);
+  color:#ffe09d;
+}
+.token-chip.bad{
+  border-color:rgba(255,125,134,.18);
+  background:rgba(255,125,134,.08);
+  color:#ffc0c6;
+}
+.signal-list{
+  display:grid;
+  gap:10px;
+  margin-top:14px;
+}
+.signal-item{
+  display:grid;
+  grid-template-columns:34px minmax(0,1fr);
+  gap:12px;
+  align-items:flex-start;
+  border-radius:16px;
+  border:1px solid rgba(255,255,255,.08);
+  background:rgba(255,255,255,.04);
+  padding:14px 16px;
+}
+.signal-index{
+  display:grid;
+  place-items:center;
+  width:34px;
+  height:34px;
+  border-radius:50%;
+  background:rgba(124,188,255,.14);
+  color:#d9e7ff;
+  font:700 15px/1 var(--headline);
+}
+.signal-body strong{
+  display:block;
+  font-size:15px;
+}
+.signal-body p{
+  margin:6px 0 0;
+  color:var(--muted);
+  font-size:12px;
+  line-height:1.8;
+}
+.error,.empty{
+  margin-top:16px;
+  padding:18px;
+  border-radius:18px;
+  border:1px dashed rgba(255,255,255,.12);
+  color:var(--muted);
+}
+.error{
+  color:#ffd5d9;
+  border-color:rgba(255,125,134,.24);
+}
+.footnote{
+  margin-top:22px;
+  color:var(--muted);
+  font-size:12px;
+  line-height:1.9;
+}
+@media (max-width:1180px){
+  .hero-grid,.workspace{grid-template-columns:1fr}
+  .command-main,.advanced-grid,.overview,.lead-metrics,.smart-summary{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:760px){
+  .shell{padding:18px 14px 46px}
+  .hero{padding:20px}
+  .hero h1{font-size:36px}
+  .command-main,.advanced-grid,.overview,.lead-metrics,.rank-row,.smart-summary,.signal-item{grid-template-columns:1fr}
+  .status,.section-head,.panel-head,.lead-top{flex-direction:column;align-items:flex-start}
+  .lead-price{text-align:left}
+  .signal-index{width:28px;height:28px}
+  .pulse-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div class="shell">
+  <section class="hero">
+    <div class="hero-grid">
+      <div>
+        <a class="back" href="/">← 返回首页</a>
+        <div class="eyebrow">Crypto Market Rank Notebook</div>
+        <h1>加密市场榜单台</h1>
+        <p>这页不再做成碎片仪表盘，而是按“研究排行榜”的方式整理。每个模块先给结论，再给表格，最后给出值得继续跟踪的线索，适合快速做盘前扫描和热点整理。</p>
+        <div class="hero-pills">
+          <span class="pill">统一榜单</span>
+          <span class="pill">社交热度</span>
+          <span class="pill">聪明钱流入</span>
+          <span class="pill">Meme 脉冲</span>
+          <span class="pill">地址 PnL</span>
+        </div>
+      </div>
+      <div class="hero-side">
+        <div class="brief-card">
+          <div class="label">阅读方式</div>
+          <div class="value">先结论，后细节</div>
+          <div class="sub">默认先看主榜单焦点和八个雷达，再决定要不要往下读完整表格。这样打开页面时不需要同时消化五块等权重的表。</div>
+        </div>
+        <div class="brief-card">
+          <div class="label">刷新策略</div>
+          <div class="value">90s 静默同步</div>
+          <div class="sub">页面会后台无感刷新；如果某个上游源站临时不可用，会明确标成“源站受限”，而不是让整页显得像坏掉。</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="command">
+    <div class="command-main">
+      <div class="field">
+        <label for="keyword">关键词</label>
+        <input id="keyword" class="input" placeholder="DOGE / AI / ETF / MEME">
+      </div>
+      <div class="field">
+        <label for="rankType">主榜单</label>
+        <select id="rankType" class="select">
+          <option value="10">Trending</option>
+          <option value="11">Top Search</option>
+          <option value="20">Alpha</option>
+          <option value="40">Stock</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="chainId">主链</label>
+        <select id="chainId" class="select">
+          <option value="56">BSC</option>
+          <option value="8453">Base</option>
+          <option value="CT_501">Solana</option>
+          <option value="1">Ethereum</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="period">观察周期</label>
+        <select id="period" class="select">
+          <option value="50">24h</option>
+          <option value="40">4h</option>
+          <option value="30">1h</option>
+          <option value="20">5m</option>
+          <option value="10">1m</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>&nbsp;</label>
+        <button id="refreshBtn" class="button primary">刷新榜单</button>
+      </div>
+    </div>
+
+    <details class="advanced">
+      <summary>高级筛选</summary>
+      <div class="advanced-grid">
+        <div class="field">
+          <label for="socialSentiment">社交情绪</label>
+          <select id="socialSentiment" class="select">
+            <option value="All">全部</option>
+            <option value="Positive">Positive</option>
+            <option value="Neutral">Neutral</option>
+            <option value="Negative">Negative</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="targetLanguage">语言</label>
+          <select id="targetLanguage" class="select">
+            <option value="zh">中文</option>
+            <option value="en">English</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="smartMoneyPeriod">聪明钱周期</label>
+          <select id="smartMoneyPeriod" class="select">
+            <option value="24h">24h</option>
+            <option value="4h">4h</option>
+            <option value="1h">1h</option>
+            <option value="5m">5m</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="pnlPeriod">PnL 周期</label>
+          <select id="pnlPeriod" class="select">
+            <option value="30d">30d</option>
+            <option value="7d">7d</option>
+            <option value="90d">90d</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="pnlTag">地址标签</label>
+          <select id="pnlTag" class="select">
+            <option value="ALL">ALL</option>
+            <option value="KOL">KOL</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="limit">每块条数</label>
+          <select id="limit" class="select">
+            <option value="8">8</option>
+            <option value="10">10</option>
+            <option value="12">12</option>
+            <option value="15">15</option>
+            <option value="20">20</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>&nbsp;</label>
+          <button id="resetBtn" class="button secondary">重置筛选</button>
+        </div>
+      </div>
+    </details>
+
+    <div class="quickbar">
+      <button class="quick" data-keyword="">清空关键词</button>
+      <button class="quick" data-keyword="DOGE">DOGE</button>
+      <button class="quick" data-keyword="AI">AI</button>
+      <button class="quick" data-keyword="ETF">ETF</button>
+      <button class="quick" data-keyword="MEME">MEME</button>
+      <button class="quick" data-rank-type="10">趋势榜</button>
+      <button class="quick" data-rank-type="11">热搜榜</button>
+      <button class="quick" data-rank-type="20">Alpha 榜</button>
+    </div>
+  </section>
+
+  <div class="status">
+    <div id="statusText"><strong>准备加载 Binance Web3 榜单数据…</strong></div>
+    <div class="availability" id="availabilityTags"></div>
+    <div id="updatedText">自动同步已开启 · 90s</div>
+  </div>
+
+  <section class="overview" id="overviewCards"></section>
+
+  <section class="workspace">
+    <article class="panel">
+      <div class="panel-head">
+        <div>
+          <h2>主榜单焦点</h2>
+          <p>把当前主榜单头部代币拉出来单看，再用一列清楚的排行列表补充背景，不再一上来就是整页表格。</p>
+        </div>
+      </div>
+      <div id="leadPanel" class="empty">等待加载主榜单焦点…</div>
+    </article>
+
+    <aside class="panel">
+      <div class="panel-head">
+        <div>
+          <h2>八个雷达</h2>
+          <p>按八条固定规则生成：主榜、社交共振、社交分歧、BSC 聪明钱、Solana 聪明钱、净流出、Meme 和地址 PnL。</p>
+        </div>
+      </div>
+      <div id="pulsePanel" class="pulse-grid"></div>
+    </aside>
+  </section>
+
+  <section class="panel section">
+    <div class="section-head">
+      <div>
+        <h3 id="unifiedTitle">统一代币榜</h3>
+        <p id="unifiedSubtitle">趋势、热搜、Alpha、股票代币会共用一套表头，阅读路径保持一致。</p>
+      </div>
+      <div id="unifiedMeta" class="availability"></div>
+    </div>
+    <div id="unifiedPanel" class="empty">等待加载统一榜单…</div>
+  </section>
+
+  <section class="panel section">
+    <div class="section-head">
+      <div>
+        <h3>社交热度排行榜</h3>
+        <p>按你给的示例方式组织：先看排名，再看情绪、涨跌和一句摘要，最后补“值得关注的机会”。</p>
+      </div>
+      <div id="socialMeta" class="availability"></div>
+    </div>
+    <div id="socialPanel" class="empty">等待加载社交热度榜…</div>
+  </section>
+
+  <section class="panel section">
+    <div class="section-head">
+      <div>
+        <h3>聪明钱流入排行榜</h3>
+        <p>这块改成双链研究页：先看 BSC 和 Solana 的净流入，再补净流出和重点信号，避免只给半张表。</p>
+      </div>
+      <div id="smartMeta" class="availability"></div>
+    </div>
+    <div id="smartMoneyPanel" class="empty">等待加载聪明钱榜…</div>
+  </section>
+
+  <section class="panel section">
+    <div class="section-head">
+      <div>
+        <h3>Meme 脉冲榜</h3>
+        <p>不把它做成满屏卡片，只保留最关键的分数、涨跌和持有人信息，让阅读节奏更稳。</p>
+      </div>
+      <div id="memeMeta" class="availability"></div>
+    </div>
+    <div id="memePanel" class="empty">等待加载 Meme 榜…</div>
+  </section>
+
+  <section class="panel section">
+    <div class="section-head">
+      <div>
+        <h3>地址 PnL 排行榜</h3>
+        <p>这里改成 BSC + Solana 双链对照，再补关键发现和稳定盈利型地址，方便你直接挑监控名单。</p>
+      </div>
+      <div id="pnlMeta" class="availability"></div>
+    </div>
+    <div id="pnlPanel" class="empty">等待加载地址 PnL 榜…</div>
+  </section>
+
+  <section class="panel section">
+    <div class="section-head">
+      <div>
+        <h3>综合值得关注的机会</h3>
+        <p>自动从主榜单、社交、聪明钱和 Meme 脉冲里挑出几条最值得继续跟的线索。</p>
+      </div>
+    </div>
+    <div id="opportunityPanel" class="empty">等待生成机会摘要…</div>
+    <div class="footnote">说明：当前环境如果无法访问 Binance Web3 源站，各板块仍会返回结构化空结果和错误说明，页面不会整块消失。Meme 榜默认来自 BSC Pulse，聪明钱和地址 PnL 也只支持部分链，所以它们更适合作为互补线索，而不是强行做横向绝对比较。</div>
+  </section>
+</div>
+
+<script>
+const API='/api/v1';
+const REFRESH_MS=90000;
+let autoTimer=null;
+
+function esc(value){
+  return String(value ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function fmtMoney(value, digits=2){
+  if(value==null || Number.isNaN(Number(value))) return '—';
+  const n=Number(value);
+  if(Math.abs(n)>=1e12) return `$${(n/1e12).toFixed(2)}T`;
+  if(Math.abs(n)>=1e9) return `$${(n/1e9).toFixed(2)}B`;
+  if(Math.abs(n)>=1e6) return `$${(n/1e6).toFixed(2)}M`;
+  if(Math.abs(n)>=1e3) return `$${n.toLocaleString(undefined,{maximumFractionDigits:0})}`;
+  return `$${n.toLocaleString(undefined,{maximumFractionDigits:Math.abs(n)<1?6:digits})}`;
+}
+
+function fmtMoneyText(value, digits=2){
+  return fmtMoney(value, digits).replace('$','');
+}
+
+function fmtNum(value, digits=0){
+  if(value==null || Number.isNaN(Number(value))) return '—';
+  return Number(value).toLocaleString(undefined,{maximumFractionDigits:digits});
+}
+
+function fmtPct(value, digits=2){
+  if(value==null || Number.isNaN(Number(value))) return '—';
+  const n=Number(value);
+  const cls=n>=0?'positive':'negative';
+  const prefix=n>=0?'+':'';
+  return `<span class="${cls}">${prefix}${n.toFixed(digits)}%</span>`;
+}
+
+function fmtPctText(value, digits=2){
+  if(value==null || Number.isNaN(Number(value))) return '—';
+  const n=Number(value);
+  const prefix=n>=0?'+':'';
+  return `${prefix}${n.toFixed(digits)}%`;
+}
+
+function shortAddr(value){
+  if(!value) return '—';
+  const text=String(value);
+  if(text.length<=14) return text;
+  return `${text.slice(0,6)}...${text.slice(-4)}`;
+}
+
+function formatWhen(ts){
+  if(!ts) return '—';
+  const d=new Date(Number(ts));
+  if(Number.isNaN(d.getTime())) return '—';
+  return d.toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
+}
+
+function sanitizeKeyword(value){
+  return String(value || '').replace(/\s+/g,' ').trim().slice(0,40);
+}
+
+function proxyIconUrl(rawUrl, symbol=''){
+  const params=new URLSearchParams();
+  if(rawUrl) params.set('url', rawUrl);
+  if(symbol) params.set('symbol', String(symbol).trim().toUpperCase().slice(0,8));
+  return `${API}/market/binance/rank/icon?${params.toString()}`;
+}
+
+function renderTokenLogo(rawUrl, symbol=''){
+  return `<img class="token-logo" src="${esc(proxyIconUrl(rawUrl, symbol))}" alt="${esc(symbol || '')}" loading="lazy">`;
+}
+
+function normalizeError(message){
+  const text=String(message || '').trim();
+  if(!text) return '源站暂时不可用';
+  if(text.includes('nodename nor servname') || text.includes('ConnectError')){
+    return '当前环境无法访问 Binance Web3 源站';
+  }
+  return text;
+}
+
+function rankTypeLabel(value){
+  return {10:'Trending',11:'Top Search',20:'Alpha',40:'Stock'}[Number(value)] || 'Trending';
+}
+
+function chainLabel(value){
+  return {'56':'BSC','8453':'Base','CT_501':'Solana','1':'Ethereum'}[String(value)] || String(value || '—');
+}
+
+function smartTokenName(item){
+  return item?.token_name || item?.symbol || '—';
+}
+
+function sentimentLabel(value){
+  const text=String(value || 'Neutral').toLowerCase();
+  if(text.includes('positive')) return '😊 正向';
+  if(text.includes('negative')) return '😞 负向';
+  return '😐 中性';
+}
+
+function sectionItems(section){
+  if(Array.isArray(section?.combined)) return section.combined;
+  return Array.isArray(section?.items) ? section.items : [];
+}
+
+function sectionStatus(section, title=''){
+  const items=sectionItems(section);
+  if(section?.bsc || section?.solana || Array.isArray(section?.combined)){
+    const bscCount=Array.isArray(section?.bsc?.items) ? section.bsc.items.length : 0;
+    const solCount=Array.isArray(section?.solana?.items) ? section.solana.items.length : 0;
+    const outflowCount=Array.isArray(section?.outflows) ? section.outflows.length : 0;
+    const isSmartMoney=Array.isArray(section?.outflows) || section?.metrics?.total_inflow!=null;
+    const detail=isSmartMoney
+      ? (outflowCount ? `${outflowCount} 个净流出标的` : '双链资金流已更新')
+      : '双链交易员数据已更新';
+    if(section?.error && !items.length){
+      return {tone:'bad', label:`${title || '模块'}受限`, detail:normalizeError(section.error)};
+    }
+    if(items.length){
+      return {
+        tone:'good',
+        label:`BSC ${bscCount} · SOL ${solCount}`,
+        detail,
+      };
+    }
+    return {tone:'warn', label:'暂无结果', detail:isSmartMoney ? '双链聪明钱暂时没有命中' : '双链交易员暂时没有命中'};
+  }
+  if(section?.error){
+    return {tone:'bad', label:`${title || '模块'}受限`, detail:normalizeError(section.error)};
+  }
+  if(items.length){
+    return {tone:'good', label:`${items.length} 条`, detail:'数据已更新'};
+  }
+  return {tone:'warn', label:'暂无结果', detail:'当前筛选下没有命中'};
+}
+
+function renderStatusTag(item){
+  return `<span class="tag ${item.tone}">${esc(item.label)}${item.detail?` · ${esc(item.detail)}`:''}</span>`;
+}
+
+function getStateFromUrl(){
+  const params=new URLSearchParams(location.search);
+  return {
+    keyword:sanitizeKeyword(params.get('q') || ''),
+    rankType:['10','11','20','40'].includes(params.get('rankType')) ? params.get('rankType') : '10',
+    chainId:['56','8453','CT_501','1'].includes(params.get('chainId')) ? params.get('chainId') : '56',
+    period:['10','20','30','40','50'].includes(params.get('period')) ? params.get('period') : '50',
+    targetLanguage:params.get('targetLanguage') === 'en' ? 'en' : 'zh',
+    socialSentiment:['All','Positive','Neutral','Negative'].includes(params.get('socialSentiment')) ? params.get('socialSentiment') : 'All',
+    smartMoneyPeriod:['5m','1h','4h','24h'].includes(params.get('smartMoneyPeriod')) ? params.get('smartMoneyPeriod') : '24h',
+    pnlPeriod:['7d','30d','90d'].includes(params.get('pnlPeriod')) ? params.get('pnlPeriod') : '7d',
+    pnlTag:params.get('pnlTag') === 'KOL' ? 'KOL' : 'ALL',
+    limit:['8','10','12','15','20'].includes(params.get('limit')) ? params.get('limit') : '20',
+  };
+}
+
+function syncUrl(state){
+  const params=new URLSearchParams();
+  if(state.keyword) params.set('q', state.keyword);
+  params.set('rankType', state.rankType);
+  params.set('chainId', state.chainId);
+  params.set('period', state.period);
+  params.set('targetLanguage', state.targetLanguage);
+  params.set('socialSentiment', state.socialSentiment);
+  params.set('smartMoneyPeriod', state.smartMoneyPeriod);
+  params.set('pnlPeriod', state.pnlPeriod);
+  params.set('pnlTag', state.pnlTag);
+  params.set('limit', state.limit);
+  history.replaceState({},'',`${location.pathname}?${params.toString()}`);
+}
+
+function applyStateToControls(state){
+  document.getElementById('keyword').value=state.keyword;
+  document.getElementById('rankType').value=state.rankType;
+  document.getElementById('chainId').value=state.chainId;
+  document.getElementById('period').value=state.period;
+  document.getElementById('targetLanguage').value=state.targetLanguage;
+  document.getElementById('socialSentiment').value=state.socialSentiment;
+  document.getElementById('smartMoneyPeriod').value=state.smartMoneyPeriod;
+  document.getElementById('pnlPeriod').value=state.pnlPeriod;
+  document.getElementById('pnlTag').value=state.pnlTag;
+  document.getElementById('limit').value=state.limit;
+}
+
+function readStateFromControls(){
+  return {
+    keyword:sanitizeKeyword(document.getElementById('keyword').value),
+    rankType:document.getElementById('rankType').value,
+    chainId:document.getElementById('chainId').value,
+    period:document.getElementById('period').value,
+    targetLanguage:document.getElementById('targetLanguage').value,
+    socialSentiment:document.getElementById('socialSentiment').value,
+    smartMoneyPeriod:document.getElementById('smartMoneyPeriod').value,
+    pnlPeriod:document.getElementById('pnlPeriod').value,
+    pnlTag:document.getElementById('pnlTag').value,
+    limit:document.getElementById('limit').value,
+  };
+}
+
+function renderAvailability(payload){
+  const sections=payload.sections || {};
+  const tags=[
+    renderStatusTag(sectionStatus(sections.unified, '主榜单')),
+    renderStatusTag(sectionStatus(sections.social_hype, '社交热度')),
+    renderStatusTag(sectionStatus(sections.smart_money, '聪明钱')),
+    renderStatusTag(sectionStatus(sections.meme, 'Meme')),
+    renderStatusTag(sectionStatus(sections.address_pnl, 'PnL')),
+  ];
+  document.getElementById('availabilityTags').innerHTML=tags.join('');
+}
+
+function renderOverview(payload){
+  const summary=payload.summary || {};
+  const sections=payload.sections || {};
+  const liveCount=[
+    sections.unified,
+    sections.social_hype,
+    sections.smart_money,
+    sections.meme,
+    sections.address_pnl,
+  ].filter(section=>sectionItems(section).length).length;
+  const cards=[
+    {
+      label:'可用模块',
+      value:`${liveCount}/5`,
+      sub:liveCount===0 ? '当前环境对 Binance Web3 源站访问受限，页面会保留结构化空态。' : '至少有部分模块拿到了数据，页面会优先突出可用部分。'
+    },
+    {
+      label:'主榜单头部',
+      value:summary.top_unified?.symbol || '—',
+      sub:summary.top_unified ? `${fmtPct(summary.top_unified.price_change_pct)} · 市值 ${fmtMoney(summary.top_unified.market_cap)}` : '当前没有主榜单头部数据'
+    },
+    {
+      label:'社交热度头部',
+      value:summary.top_social?.symbol || '—',
+      sub:summary.top_social ? `热度 ${fmtNum(summary.top_social.social_hype,0)} · ${esc(sentimentLabel(summary.top_social.sentiment))}` : '当前没有社交热度头部数据'
+    },
+    {
+      label:'聪明钱头部',
+      value:smartTokenName(summary.top_smart_money),
+      sub:summary.top_smart_money ? `${summary.top_smart_money.chain_label || '—'} · 净流入 ${fmtMoney(summary.top_smart_money.inflow)} · ${fmtNum(summary.top_smart_money.traders,0)} 个地址` : '当前没有聪明钱头部数据'
+    },
+  ];
+  document.getElementById('overviewCards').innerHTML=cards.map(card=>`
+    <article class="overview-card">
+      <div class="label">${card.label}</div>
+      <div class="value">${esc(card.value)}</div>
+      <div class="sub">${card.sub}</div>
+    </article>
+  `).join('');
+}
+
+function renderLeadPanel(payload){
+  const section=payload.sections?.unified || {};
+  const items=sectionItems(section);
+  const top=items[0] || payload.summary?.top_unified;
+  if(section.error && !top){
+    return `<div class="error">主榜单当前不可用：${esc(normalizeError(section.error))}</div>`;
+  }
+  if(!top){
+    return `<div class="empty">当前筛选下没有主榜单数据。</div>`;
+  }
+  const rankType=section.filters?.rank_type_label || rankTypeLabel(payload.filters?.unified_rank_type);
+  const periodLabel=section.filters?.period_label || payload.filters?.unified_period || '24h';
+  const topNoteParts=[
+    `当前 ${esc(rankType)} 榜头部代币是 <strong>${esc(top.symbol || '—')}</strong>`,
+    top.price_change_pct!=null ? `24h 变化 <strong>${fmtPct(top.price_change_pct)}</strong>` : '',
+    top.volume!=null ? `成交额 <strong>${fmtMoney(top.volume)}</strong>` : '',
+    top.unique_traders!=null ? `独立交易者 <strong>${fmtNum(top.unique_traders,0)}</strong>` : '',
+  ].filter(Boolean);
+  const list=items.slice(0,8).map((item, index)=>`
+    <div class="rank-row">
+      <div class="rank-no">#${index+1}</div>
+      <div class="cell-token">
+        ${renderTokenLogo(item.icon, item.symbol)}
+        <div>
+          <div class="main">${esc(item.symbol || '—')}</div>
+          <div class="sub">${esc(item.chain_label || '—')} · 持有人 ${fmtNum(item.holders,0)}</div>
+        </div>
+      </div>
+      <div>
+        <div class="rank-price">${fmtMoney(item.price)}</div>
+        <div class="mini-note">${fmtPct(item.price_change_pct)}</div>
+      </div>
+      <div>
+        <div class="rank-price">${fmtMoney(item.volume)}</div>
+        <div class="mini-note">流动性 ${fmtMoney(item.liquidity)}</div>
+      </div>
+      <div>
+        <div class="rank-price">${fmtNum(item.unique_traders,0)}</div>
+        <div class="mini-note">Top10 集中度 ${item.holders_top10_percent!=null?fmtPctText(item.holders_top10_percent,1):'—'}</div>
+      </div>
+    </div>
+  `).join('');
+
+  return `
+    <div class="lead-stage">
+      <div class="lead-top">
+        <div class="token-line">
+          ${renderTokenLogo(top.icon, top.symbol)}
+          <div>
+            <div class="lead-symbol">${esc(top.symbol || '—')}</div>
+            <div class="token-sub">${esc(top.chain_label || '—')} · ${esc(rankType)} · ${esc(String(periodLabel))}</div>
+          </div>
+        </div>
+        <div class="lead-price">
+          <div class="main">${fmtMoney(top.price)}</div>
+          <div class="sub">${fmtPct(top.price_change_pct)}</div>
+        </div>
+      </div>
+      <div class="lead-metrics">
+        <div class="metric"><div class="label">市值</div><div class="value">${fmtMoney(top.market_cap)}</div></div>
+        <div class="metric"><div class="label">成交额</div><div class="value">${fmtMoney(top.volume)}</div></div>
+        <div class="metric"><div class="label">流动性</div><div class="value">${fmtMoney(top.liquidity)}</div></div>
+        <div class="metric"><div class="label">独立交易者</div><div class="value">${fmtNum(top.unique_traders,0)}</div></div>
+      </div>
+      <div class="lead-note">${topNoteParts.join('，')}。</div>
+    </div>
+    <div class="rank-list">${list}</div>
+  `;
+}
+
+function toneFromDelta(value){
+  if(value==null || Number.isNaN(Number(value))) return 'warn';
+  return Number(value) >= 0 ? 'good' : 'bad';
+}
+
+function fallbackRadar(title, section, rule, emptyCopy='当前没有命中'){
+  const status=sectionStatus(section, title);
+  return {
+    rule,
+    title,
+    top:status.label || '—',
+    copy:status.detail || emptyCopy,
+    tone:status.tone,
+  };
+}
+
+function buildRadarCards(payload){
+  const sections=payload.sections || {};
+  const summary=payload.summary || {};
+  const socialItems=sectionItems(sections.social_hype);
+  const smartBsc=smartChainItems(sections.smart_money, 'bsc');
+  const smartSol=smartChainItems(sections.smart_money, 'solana');
+  const smartOutflows=Array.isArray(sections.smart_money?.outflows) ? sections.smart_money.outflows : [];
+  const negativeSocial=socialItems.find(item=>String(item.sentiment || '').toLowerCase().includes('negative'));
+  const socialMomentum=socialItems.find(item=>String(item.sentiment || '').toLowerCase().includes('positive') && Number(item.price_change_pct || 0) > 0 && item !== summary.top_social);
+  const cards=[
+    summary.top_unified ? {
+      rule:'规则 1',
+      title:'主榜焦点',
+      top:summary.top_unified.symbol || '—',
+      copy:`${summary.top_unified.chain_label || '—'} · 24h ${fmtPctText(summary.top_unified.price_change_pct)} · 成交额 ${fmtMoney(summary.top_unified.volume)} · 市值 ${fmtMoney(summary.top_unified.market_cap)}`,
+      tone:toneFromDelta(summary.top_unified.price_change_pct),
+    } : fallbackRadar('主榜焦点', sections.unified, '规则 1'),
+    summary.top_social ? {
+      rule:'规则 2',
+      title:'社交共振',
+      top:summary.top_social.symbol || '—',
+      copy:`热度 ${fmtNum(summary.top_social.social_hype,0)} · ${sentimentLabel(summary.top_social.sentiment)} · ${fmtPctText(summary.top_social.price_change_pct)}`,
+      tone:String(summary.top_social.sentiment || '').toLowerCase().includes('negative') ? 'bad' : 'good',
+    } : fallbackRadar('社交共振', sections.social_hype, '规则 2'),
+    (negativeSocial || socialMomentum) ? {
+      rule:'规则 3',
+      title:'社交分歧',
+      top:(negativeSocial || socialMomentum).symbol || '—',
+      copy:negativeSocial
+        ? `高讨论但情绪偏负，热度 ${fmtNum(negativeSocial.social_hype,0)} · ${fmtPctText(negativeSocial.price_change_pct)}，适合观察大波动。`
+        : `正向情绪叠加价格上行，热度 ${fmtNum(socialMomentum.social_hype,0)} · ${fmtPctText(socialMomentum.price_change_pct)}。`,
+      tone:negativeSocial ? 'bad' : 'good',
+    } : fallbackRadar('社交分歧', sections.social_hype, '规则 3', '当前没有明显的社交分歧信号'),
+    smartBsc[0] ? {
+      rule:'规则 4',
+      title:'BSC 聪明钱',
+      top:smartTokenName(smartBsc[0]),
+      copy:`净流入 ${fmtMoney(smartBsc[0].inflow)} · ${fmtNum(smartBsc[0].traders,0)} 个地址 · ${fmtPctText(smartBsc[0].price_change_pct)}`,
+      tone:smartBsc[0].inflow > 0 ? 'good' : 'warn',
+    } : fallbackRadar('BSC 聪明钱', sections.smart_money?.bsc || {}, '规则 4'),
+    smartSol[0] ? {
+      rule:'规则 5',
+      title:'Solana 聪明钱',
+      top:smartTokenName(smartSol[0]),
+      copy:`净流入 ${fmtMoney(smartSol[0].inflow)} · ${fmtNum(smartSol[0].traders,0)} 个地址 · ${fmtPctText(smartSol[0].price_change_pct)}`,
+      tone:smartSol[0].inflow > 0 ? 'good' : 'warn',
+    } : fallbackRadar('Solana 聪明钱', sections.smart_money?.solana || {}, '规则 5'),
+    smartOutflows[0] ? {
+      rule:'规则 6',
+      title:'净流出预警',
+      top:smartTokenName(smartOutflows[0]),
+      copy:`净流出 ${fmtMoney(Math.abs(Number(smartOutflows[0].inflow || 0)))} · ${fmtPctText(smartOutflows[0].price_change_pct)} · ${fmtNum(smartOutflows[0].traders,0)} 个地址撤退`,
+      tone:'bad',
+    } : fallbackRadar('净流出预警', sections.smart_money || {}, '规则 6', '当前没有明显的资金撤退标的'),
+    summary.top_meme ? {
+      rule:'规则 7',
+      title:'Meme 脉冲',
+      top:summary.top_meme.symbol || '—',
+      copy:`评分 ${fmtNum(summary.top_meme.score,1)} · 24h ${fmtPctText(summary.top_meme.percent_change_pct)} · 7d ${fmtPctText(summary.top_meme.percent_change_7d_pct)}`,
+      tone:toneFromDelta(summary.top_meme.percent_change_pct),
+    } : fallbackRadar('Meme 脉冲', sections.meme, '规则 7'),
+    summary.top_trader ? {
+      rule:'规则 8',
+      title:'地址 PnL',
+      top:summary.top_trader.address_label || '—',
+      copy:`实现盈亏 ${fmtMoney(summary.top_trader.realized_pnl)} · 胜率 ${fmtPctText(summary.top_trader.win_rate,1)} · 最近活跃 ${formatWhen(summary.top_trader.last_activity)}`,
+      tone:'good',
+    } : fallbackRadar('地址 PnL', sections.address_pnl, '规则 8'),
+  ];
+  return cards.slice(0,8);
+}
+
+function renderPulsePanel(payload){
+  const cards=buildRadarCards(payload);
+  document.getElementById('pulsePanel').innerHTML=cards.map(card=>`
+    <article class="pulse">
+      <div class="eyebrow">${esc(card.rule || '')}</div>
+      <div class="tag ${card.tone}">${esc(card.title)}</div>
+      <div class="name">${esc(card.top)}</div>
+      <div class="copy">${card.copy}</div>
+    </article>
+  `).join('');
+}
+
+function renderSectionMeta(targetId, section){
+  const status=sectionStatus(section);
+  document.getElementById(targetId).innerHTML=renderStatusTag(status);
+}
+
+function renderErrorOrEmpty(section, emptyCopy){
+  if(section?.error) return `<div class="error">当前不可用：${esc(normalizeError(section.error))}</div>`;
+  return `<div class="empty">${esc(emptyCopy)}</div>`;
+}
+
+function buildUnifiedNotes(items){
+  return items.slice(0,3).map(item=>{
+    const volumeToCap = item.market_cap ? Number(item.volume || 0) / Number(item.market_cap || 1) : null;
+    const buyVolume=item.volume_buy!=null ? fmtMoney(item.volume_buy) : null;
+    const sellVolume=item.volume_sell!=null ? fmtMoney(item.volume_sell) : null;
+    const riskLevel=item.audit_info?.riskLevel;
+    const tags = Array.isArray(item.tags) ? item.tags.slice(0,2).join('、') : '';
+    const flags=[
+      item.volume!=null ? `24h 交易量 ${fmtMoney(item.volume)}` : '',
+      item.count!=null ? `${fmtNum(item.count,0)} 笔交易` : '',
+      item.unique_traders!=null ? `${fmtNum(item.unique_traders,0)} 个独立交易者` : '',
+      buyVolume && sellVolume ? `买 ${buyVolume} vs 卖 ${sellVolume}` : '',
+      volumeToCap!=null ? `交易量/市值比 ${fmtNum(volumeToCap,1)} 倍` : '',
+      item.holders_top10_percent!=null ? `前 10 持有人占 ${fmtPctText(item.holders_top10_percent,1)}` : '',
+      riskLevel!=null ? `风险等级 ${riskLevel}` : '',
+      tags ? `标签 ${tags}` : '',
+    ].filter(Boolean);
+    return {
+      title:`${item.symbol}（${item.chain_label || '—'}）`,
+      reason:flags.join(' · '),
+    };
+  });
+}
+
+function renderUnifiedSection(section, state){
+  const items=sectionItems(section);
+  renderSectionMeta('unifiedMeta', section);
+  document.getElementById('unifiedTitle').textContent=`${rankTypeLabel(state.rankType)} 统一代币榜`;
+  document.getElementById('unifiedSubtitle').textContent=`主链 ${chainLabel(state.chainId)} · 周期 ${state.period==='50'?'24h':state.period==='40'?'4h':state.period==='30'?'1h':state.period==='20'?'5m':'1m'}。同一套表头下看价格、成交、持有人和摘要性指标。`;
+  if(!items.length) return renderErrorOrEmpty(section, '当前筛选下没有统一榜单结果。');
+  const rows=items.map((item, idx)=>`
+    <tr>
+      <td>${idx+1}</td>
+      <td>
+        <div class="cell-token">
+          ${renderTokenLogo(item.icon, item.symbol)}
+          <div>
+            <div class="main">${esc(item.symbol || '—')}</div>
+            <div class="sub">${esc(item.chain_label || '—')} · 持有人 ${fmtNum(item.holders,0)}</div>
+          </div>
+        </div>
+      </td>
+      <td>${fmtMoney(item.price)}</td>
+      <td>${fmtPct(item.price_change_pct)}</td>
+      <td>${fmtMoney(item.volume)}</td>
+      <td>${fmtMoney(item.market_cap)}</td>
+      <td>${fmtMoney(item.liquidity)}</td>
+      <td>${fmtNum(item.unique_traders,0)}</td>
+      <td class="summary-text">${renderTagChips(item.tags)}</td>
+    </tr>
+  `).join('');
+  const notes=buildUnifiedNotes(items);
+  const noteHtml=notes.length ? `
+    <div class="research-note">
+      <h4>📊 关键数据对比</h4>
+      <p>把主榜前几名的交易量、集中度、独立交易者和标签拉出来横向比较，能更快看出“是真热度”还是“异常活跃”。</p>
+      <div class="note-grid">
+        ${notes.map(note=>`<div class="note-item"><strong>${esc(note.title)}</strong><p>${esc(note.reason)}</p></div>`).join('')}
+      </div>
+    </div>` : '';
+  return `<div class="table-wrap"><table><thead><tr><th>排名</th><th>代币</th><th>价格</th><th>涨跌</th><th>24h交易量</th><th>市值</th><th>流动性</th><th>独立交易者</th><th>标签</th></tr></thead><tbody>${rows}</tbody></table></div>${noteHtml}`;
+}
+
+function buildSocialOpportunities(items){
+  const result=[];
+  if(items[0]){
+    result.push({
+      title:items[0].symbol,
+      reason:`当前社交热度最高，热度指数 ${fmtNum(items[0].social_hype,0)}，${sentimentLabel(items[0].sentiment)}，适合继续跟踪叙事扩散。`
+    });
+  }
+  const positiveMover=items.find(item=>String(item.sentiment).toLowerCase().includes('positive') && Number(item.price_change_pct) > 1.5 && item !== items[0]);
+  if(positiveMover){
+    result.push({
+      title:positiveMover.symbol,
+      reason:`情绪偏正向且价格同步上行，24h ${fmtPctText(positiveMover.price_change_pct)}，热度不低于 ${fmtNum(positiveMover.social_hype,0)}。`
+    });
+  }
+  const disputed=items.find(item=>String(item.sentiment).toLowerCase().includes('negative'));
+  if(disputed){
+    result.push({
+      title:disputed.symbol,
+      reason:`情绪分歧明显，${sentimentLabel(disputed.sentiment)}，但仍有较高讨论度，适合观察是否出现高波动机会。`
+    });
+  }
+  return result.slice(0,4);
+}
+
+function renderSocialSection(section){
+  const items=sectionItems(section);
+  renderSectionMeta('socialMeta', section);
+  if(!items.length) return renderErrorOrEmpty(section, '当前筛选下没有社交热度结果。');
+  const rows=items.map((item, idx)=>`
+    <tr>
+      <td>${idx+1}</td>
+      <td>
+        <div class="cell-token">
+          ${renderTokenLogo(item.logo, item.symbol)}
+          <div>
+            <div class="main">${esc(item.symbol || '—')}</div>
+            <div class="sub">${esc(item.chain_label || '—')}</div>
+          </div>
+        </div>
+      </td>
+      <td>${fmtNum(item.social_hype,0)}</td>
+      <td>${esc(sentimentLabel(item.sentiment))}</td>
+      <td>${fmtMoney(item.market_cap)}</td>
+      <td>${fmtPct(item.price_change_pct)}</td>
+      <td class="summary-text">${esc(item.summary_brief || item.summary_detail || '暂无摘要')}</td>
+    </tr>
+  `).join('');
+  const opportunities=buildSocialOpportunities(items);
+  const oppHtml=opportunities.length ? `
+    <div class="opportunity-box">
+      <h4>📌 值得关注的机会</h4>
+      <div class="opportunity-list">
+        ${opportunities.map(item=>`<div class="opportunity"><strong>${esc(item.title)}</strong><p>${esc(item.reason)}</p></div>`).join('')}
+      </div>
+    </div>` : '';
+  return `<div class="table-wrap"><table><thead><tr><th>排名</th><th>代币</th><th>热度指数</th><th>情绪</th><th>市值</th><th>24h涨跌</th><th>摘要</th></tr></thead><tbody>${rows}</tbody></table></div>${oppHtml}`;
+}
+
+function buildSmartOpportunities(items){
+  const result=[];
+  if(items[0]){
+    result.push({
+      title:smartTokenName(items[0]),
+      reason:`聪明钱净流入最高，达到 ${fmtMoneyText(items[0].inflow)}，共 ${fmtNum(items[0].traders,0)} 个地址参与。`
+    });
+  }
+  const crowded=items.find(item=>Number(item.traders) >= 20 && item !== items[0]);
+  if(crowded){
+    result.push({
+      title:smartTokenName(crowded),
+      reason:`参与地址数较多，说明不是单个大户脉冲，而更像是一组资金在持续关注。`
+    });
+  }
+  return result.slice(0,3);
+}
+
+function smartChainItems(section, key){
+  return Array.isArray(section?.[key]?.items) ? section[key].items : [];
+}
+
+function smartTags(item){
+  const tags=Array.isArray(item?.tags) ? item.tags.filter(Boolean).slice(0,3) : [];
+  const extras=[];
+  if(item?.buy_sell_ratio!=null) extras.push({label:`买卖比 ${fmtNum(item.buy_sell_ratio,2)}:1`, tone:item.buy_sell_ratio >= 3 ? 'good' : 'warn'});
+  if(item?.flow_direction==='outflow') extras.push({label:'净流出', tone:'bad'});
+  return [...tags.map(tag=>({label:tag, tone:'default'})), ...extras].slice(0,4);
+}
+
+function chipTone(label){
+  const text=String(label || '').toLowerCase();
+  if(text.includes('alpha') || text.includes('smart money') || text.includes('ai')) return 'good';
+  if(text.includes('wash') || text.includes('high tax') || text.includes('高税') || text.includes('risk') || text.includes('warning')) return 'bad';
+  if(text.includes('volume') || text.includes('surging') || text.includes('fourmeme') || text.includes('flap')) return 'warn';
+  return 'default';
+}
+
+function renderTagChips(tags){
+  const list=Array.isArray(tags) ? tags.filter(Boolean).slice(0,4) : [];
+  if(!list.length) return '—';
+  return `<div class="token-tags">${list.map(label=>`<span class="token-chip ${chipTone(label)==='default' ? '' : chipTone(label)}">${esc(label)}</span>`).join('')}</div>`;
+}
+
+function renderSmartTagChips(item){
+  const chips=smartTags(item);
+  if(!chips.length) return '—';
+  return `<div class="token-tags">${chips.map(chip=>`<span class="token-chip ${chip.tone==='default' ? '' : chip.tone}">${esc(chip.label)}</span>`).join('')}</div>`;
+}
+
+function renderSmartFlowTable(items, mode='inflow'){
+  if(!items.length){
+    return `<div class="empty">这一段暂时没有命中的代币。</div>`;
+  }
+  const rows=items.map((item, idx)=>`
+    <tr>
+      <td>${idx+1}</td>
+      <td>
+        <div class="cell-token">
+          ${renderTokenLogo(item.token_icon, smartTokenName(item))}
+          <div>
+            <div class="main">${esc(smartTokenName(item))}</div>
+            <div class="sub">${esc(item.chain_label || '—')} · 市价 ${fmtMoney(item.price)} · 持有人 ${fmtNum(item.holders,0)}</div>
+          </div>
+        </div>
+      </td>
+      <td>${mode==='outflow' ? `-${fmtMoney(Math.abs(Number(item.inflow || 0)))}` : fmtMoney(item.inflow)}</td>
+      <td>${fmtPct(item.price_change_pct)}</td>
+      <td>${fmtMoney(item.market_cap)}</td>
+      <td>${fmtNum(item.traders,0)}</td>
+      <td class="summary-text">${renderSmartTagChips(item)}</td>
+    </tr>
+  `).join('');
+  const headers=mode==='outflow'
+    ? '<tr><th>排名</th><th>代币</th><th>净流出($)</th><th>24h涨跌</th><th>市值</th><th>聪明钱地址数</th><th>标签</th></tr>'
+    : '<tr><th>排名</th><th>代币</th><th>净流入($)</th><th>24h涨跌</th><th>市值</th><th>聪明钱地址数</th><th>标签</th></tr>';
+  return `<div class="table-wrap"><table><thead>${headers}</thead><tbody>${rows}</tbody></table></div>`;
+}
+
+function renderSmartSection(section){
+  const items=sectionItems(section);
+  const bscItems=smartChainItems(section,'bsc');
+  const solanaItems=smartChainItems(section,'solana');
+  const outflows=Array.isArray(section?.outflows) ? section.outflows : [];
+  const highlights=Array.isArray(section?.highlights) ? section.highlights : [];
+  const metrics=section?.metrics || {};
+  renderSectionMeta('smartMeta', section);
+  if(!items.length) return renderErrorOrEmpty(section, '当前筛选下没有聪明钱结果。');
+  const opportunities=highlights.length ? highlights : buildSmartOpportunities(items).map(item=>({title:item.title, reason:item.reason}));
+  const summaryHtml=`
+    <div class="smart-summary">
+      <article class="smart-card">
+        <div class="label">BSC 净流入标的</div>
+        <div class="value">${fmtNum(bscItems.length,0)}</div>
+        <div class="sub">${bscItems[0] ? `${smartTokenName(bscItems[0])} 领跑，净流入 ${fmtMoney(bscItems[0].inflow)}。` : '当前 BSC 段暂时没有命中。'}</div>
+      </article>
+      <article class="smart-card">
+        <div class="label">Solana 净流入标的</div>
+        <div class="value">${fmtNum(solanaItems.length,0)}</div>
+        <div class="sub">${solanaItems[0] ? `${smartTokenName(solanaItems[0])} 领跑，净流入 ${fmtMoney(solanaItems[0].inflow)}。` : '当前 Solana 段暂时没有命中。'}</div>
+      </article>
+      <article class="smart-card">
+        <div class="label">双链总净流入</div>
+        <div class="value">${fmtMoney(metrics.total_inflow)}</div>
+        <div class="sub">${fmtNum(metrics.positive_count,0)} 个正流入标的在被持续买入，适合和主榜单交叉观察。</div>
+      </article>
+      <article class="smart-card">
+        <div class="label">净流出观察</div>
+        <div class="value">${fmtMoney(metrics.total_outflow)}</div>
+        <div class="sub">${fmtNum(metrics.outflow_count,0)} 个标的出现净流出，用来识别大户撤退会很直接。</div>
+      </article>
+    </div>
+  `;
+  const signalsHtml=opportunities.length ? `
+    <div class="opportunity-box">
+      <h4>🔍 重点信号</h4>
+      <div class="signal-list">
+        ${opportunities.map((item, index)=>`
+          <div class="signal-item">
+            <div class="signal-index">${index+1}</div>
+            <div class="signal-body">
+              <strong>${esc(item.title)}</strong>
+              <p>${esc(item.reason)}</p>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>` : '';
+  return `
+    ${summaryHtml}
+    <div class="smart-grid">
+      <section class="smart-block">
+        <h4>🟡 BSC 链聪明钱净流入（${section?.bsc?.filters?.period || section?.period || '24h'}）</h4>
+        <p>优先看净流入、涨跌和聪明钱地址数，最后用标签判断“开发者加仓 / 叙事标签 / 买卖比”这些补充线索。</p>
+        ${renderSmartFlowTable(bscItems, 'inflow')}
+      </section>
+      <section class="smart-block">
+        <h4>🟣 Solana 链聪明钱净流入（${section?.solana?.filters?.period || section?.period || '24h'}）</h4>
+        <p>这段更适合捕捉 Pumpfun、社区叙事和小市值高波动标的，和 BSC 一起看会完整很多。</p>
+        ${renderSmartFlowTable(solanaItems, 'inflow')}
+      </section>
+      <section class="smart-block">
+        <h4>⚠️ 聪明钱净流出（大户在跑）</h4>
+        <p>净流出不一定代表立刻下跌，但通常意味着筹码正在从强手里流出，值得降低优先级或切到风险观察名单。</p>
+        ${renderSmartFlowTable(outflows, 'outflow')}
+      </section>
+    </div>
+    ${signalsHtml}
+  `;
+}
+
+function buildMemeOpportunities(items){
+  const result=[];
+  if(items[0]){
+    result.push({
+      title:items[0].symbol,
+      reason:`当前 Meme 评分最高 ${fmtNum(items[0].score,2)}，价格 ${fmtMoney(items[0].price)}，7 日 ${fmtPctText(items[0].percent_change_7d_pct)}，适合继续跟踪是否从爆发走向扩散。`
+    });
+  }
+  const concentrationRisk=items.find(item=>Number(item.holders_top10_percent) >= 80);
+  if(concentrationRisk && concentrationRisk !== items[0]){
+    result.push({
+      title:concentrationRisk.symbol,
+      reason:`市值 ${fmtMoney(concentrationRisk.market_cap)}，但前 10 持有人占 ${fmtPctText(concentrationRisk.holders_top10_percent,1)}，集中度偏高，要防冲高回落和洗盘。`
+    });
+  }
+  const crowd=items.find(item=>Number(item.bn_unique_holders) > 500 && item !== items[0] && item !== concentrationRisk);
+  if(crowd && crowd !== items[0]){
+    result.push({
+      title:crowd.symbol,
+      reason:`Binance 独立持有人 ${fmtNum(crowd.bn_unique_holders,0)}，流动性 ${fmtMoney(crowd.liquidity)}，说明并不只是极小圈层交易。`
+    });
+  }
+  return result.slice(0,3);
+}
+
+function renderMemeSection(section){
+  const items=sectionItems(section);
+  renderSectionMeta('memeMeta', section);
+  if(!items.length) return renderErrorOrEmpty(section, '当前筛选下没有 Meme 榜结果。');
+  const rows=items.map(item=>`
+    <tr>
+      <td>${item.rank ?? '—'}</td>
+      <td>
+        <div class="cell-token">
+          ${renderTokenLogo(item.icon, item.symbol)}
+          <div>
+            <div class="main">${esc(item.symbol || '—')}</div>
+            <div class="sub">${esc(item.name || '—')}</div>
+          </div>
+        </div>
+      </td>
+      <td>${fmtNum(item.score,1)}</td>
+      <td>${fmtMoney(item.price)}</td>
+      <td>${fmtPct(item.percent_change_pct)}</td>
+      <td>${fmtPct(item.percent_change_7d_pct)}</td>
+      <td>${fmtMoney(item.market_cap)}</td>
+      <td>${fmtMoney(item.liquidity)}</td>
+      <td class="summary-text">${renderTagChips(item.tags)}</td>
+    </tr>
+  `).join('');
+  const opportunities=buildMemeOpportunities(items);
+  const oppHtml=opportunities.length ? `
+    <div class="opportunity-box">
+      <h4>🔥 重点关注</h4>
+      <div class="opportunity-list">
+        ${opportunities.map(item=>`<div class="opportunity"><strong>${esc(item.title)}</strong><p>${esc(item.reason)}</p></div>`).join('')}
+      </div>
+    </div>` : '';
+  return `<div class="table-wrap"><table><thead><tr><th>排名</th><th>代币</th><th>评分</th><th>价格</th><th>24h</th><th>7d</th><th>市值</th><th>流动性</th><th>标签</th></tr></thead><tbody>${rows}</tbody></table></div>${oppHtml}`;
+}
+
+function buildPnlOpportunities(items){
+  const result=[];
+  if(items[0]){
+    result.push({
+      title:items[0].address_label || shortAddr(items[0].address),
+      reason:`当前地址 PnL 榜头部，实现盈亏 ${fmtMoneyText(items[0].realized_pnl)}，胜率 ${fmtPctText(items[0].win_rate,1)}。`
+    });
+  }
+  const highWin=items.find(item=>Number(item.win_rate) >= 70 && item !== items[0]);
+  if(highWin){
+    result.push({
+      title:highWin.address_label || shortAddr(highWin.address),
+      reason:`胜率更高，适合列入持续观察名单，看看其后续重点交易代币是否出现重复。`
+    });
+  }
+  return result.slice(0,3);
+}
+
+function pnlChainItems(section, key){
+  return Array.isArray(section?.[key]?.items) ? section[key].items : [];
+}
+
+function pnlTraderName(item){
+  return item?.address_label || shortAddr(item?.address);
+}
+
+function pnlTopTokenText(item){
+  if(!item?.top_earning_tokens?.length) return '—';
+  const top=item.top_earning_tokens[0];
+  return `${top.token_symbol || '—'} · ${fmtMoney(top.realized_pnl)}`;
+}
+
+function renderPnlChainTable(items){
+  if(!items.length) return `<div class="empty">这一段暂时没有命中的交易员。</div>`;
+  const rows=items.map((item, idx)=>`
+    <tr>
+      <td>${idx+1}</td>
+      <td>
+        <div class="main">${esc(pnlTraderName(item))}</div>
+        <div class="sub">${esc(shortAddr(item.address))} · ${esc(item.chain_label || '—')}</div>
+      </td>
+      <td>${fmtMoney(item.realized_pnl)}</td>
+      <td>${fmtPct(item.win_rate,1)}</td>
+      <td>${fmtMoney(item.total_volume)}</td>
+      <td>${esc(pnlTopTokenText(item))}</td>
+      <td class="summary-text">${renderTagChips(item.trader_tags)}</td>
+    </tr>
+  `).join('');
+  return `<div class="table-wrap"><table><thead><tr><th>排名</th><th>地址 / 昵称</th><th>PnL</th><th>胜率</th><th>交易量</th><th>最赚代币</th><th>标签</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+
+function renderPnlSection(section){
+  const items=sectionItems(section);
+  const bscItems=pnlChainItems(section,'bsc');
+  const solanaItems=pnlChainItems(section,'solana');
+  const highlights=Array.isArray(section?.highlights) ? section.highlights : buildPnlOpportunities(items).map(item=>({title:item.title, reason:item.reason}));
+  const stable=Array.isArray(section?.stable) ? section.stable : [];
+  const metrics=section?.metrics || {};
+  renderSectionMeta('pnlMeta', section);
+  if(!items.length) return renderErrorOrEmpty(section, '当前筛选下没有地址 PnL 结果。');
+  const summaryHtml=`
+    <div class="smart-summary">
+      <article class="smart-card">
+        <div class="label">BSC 头部交易员</div>
+        <div class="value">${esc(pnlTraderName(bscItems[0]))}</div>
+        <div class="sub">${bscItems[0] ? `PnL ${fmtMoney(bscItems[0].realized_pnl)} · 胜率 ${fmtPctText(bscItems[0].win_rate,1)}` : '当前 BSC 段暂时没有命中。'}</div>
+      </article>
+      <article class="smart-card">
+        <div class="label">Solana 头部交易员</div>
+        <div class="value">${esc(pnlTraderName(solanaItems[0]))}</div>
+        <div class="sub">${solanaItems[0] ? `PnL ${fmtMoney(solanaItems[0].realized_pnl)} · 胜率 ${fmtPctText(solanaItems[0].win_rate,1)}` : '当前 Solana 段暂时没有命中。'}</div>
+      </article>
+      <article class="smart-card">
+        <div class="label">稳定盈利型</div>
+        <div class="value">${fmtNum(stable.length,0)}</div>
+        <div class="sub">${stable[0] ? `${pnlTraderName(stable[0])} 这类高胜率地址更适合持续观察。` : '当前没有明显的稳定盈利地址。'}</div>
+      </article>
+      <article class="smart-card">
+        <div class="label">双链最佳 PnL</div>
+        <div class="value">${fmtMoney(metrics.best_pnl)}</div>
+        <div class="sub">${fmtNum(metrics.profitable_count,0)} 个盈利地址进入双链样本，适合继续做跟单名单。</div>
+      </article>
+    </div>
+  `;
+  const findingsHtml=(highlights.length || stable.length) ? `
+    <div class="research-grid">
+      ${highlights.length ? `
+        <div class="research-note">
+          <h4>🔍 关键发现</h4>
+          <p>优先看“赚得最多”“胜率更稳”“盈利过于集中”这三种地址，三者代表的行为模式完全不同。</p>
+          <div class="note-grid">
+            ${highlights.map(item=>`<div class="note-item"><strong>${esc(item.title)}</strong><p>${esc(item.reason)}</p></div>`).join('')}
+          </div>
+        </div>` : ''}
+      ${stable.length ? `
+        <div class="research-note">
+          <h4>⭐ 持续稳定盈利型</h4>
+          <p>这些地址更适合加到长期观察名单里，因为它们不是一次性暴利，而是更像持续稳定输出。</p>
+          <div class="note-grid">
+            ${stable.slice(0,5).map(item=>`<div class="note-item"><strong>${esc(pnlTraderName(item))} · ${esc(item.chain_label || '—')}</strong><p>胜率 ${fmtPctText(item.win_rate,1)} · PnL ${fmtMoney(item.realized_pnl)} · 最赚代币 ${esc(pnlTopTokenText(item))}</p></div>`).join('')}
+          </div>
+        </div>` : ''}
+    </div>` : '';
+  return `
+    ${summaryHtml}
+    <div class="smart-grid">
+      <section class="smart-block">
+        <h4>🟡 BSC 链 Top 交易员（${section?.bsc?.filters?.period || section?.period || '30d'}）</h4>
+        <p>更看实现盈亏、胜率、交易量和最赚钱代币，方便区分是“高频滚动盈利”还是“单币重仓爆发”。</p>
+        ${renderPnlChainTable(bscItems)}
+      </section>
+      <section class="smart-block">
+        <h4>🟣 Solana 链 Top 交易员（${section?.solana?.filters?.period || section?.period || '30d'}）</h4>
+        <p>Solana 段更适合看社区地址、KOL 和高波动小币的盈利来源，通常和 BSC 的风格差异很大。</p>
+        ${renderPnlChainTable(solanaItems)}
+      </section>
+    </div>
+    ${findingsHtml}
+  `;
+}
+
+function buildOverallOpportunities(payload){
+  const summary=payload.summary || {};
+  const sections=payload.sections || {};
+  const cards=[];
+  if(summary.top_unified){
+    cards.push({
+      title:`${summary.top_unified.symbol} · 主榜单焦点`,
+      reason:`当前 ${rankTypeLabel(payload.filters?.unified_rank_type)} 榜头部，价格 ${fmtMoneyText(summary.top_unified.price)}，24h ${fmtPctText(summary.top_unified.price_change_pct)}，成交额 ${fmtMoneyText(summary.top_unified.volume)}。`
+    });
+  }
+  if(summary.top_social){
+    cards.push({
+      title:`${summary.top_social.symbol} · 社交热度头部`,
+      reason:`社交热度指数 ${fmtNum(summary.top_social.social_hype,0)}，${sentimentLabel(summary.top_social.sentiment)}，摘要显示 ${String(summary.top_social.summary_brief || '暂无摘要').slice(0,54)}。`
+    });
+  }
+  if(summary.top_smart_money){
+    cards.push({
+      title:`${smartTokenName(summary.top_smart_money)} · 聪明钱净流入`,
+      reason:`${summary.top_smart_money.chain_label || '—'} 上净流入 ${fmtMoneyText(summary.top_smart_money.inflow)}，参与地址 ${fmtNum(summary.top_smart_money.traders,0)} 个，适合和主榜单交叉观察。`
+    });
+  }
+  const smartWarning=(sections.smart_money?.outflows || [])[0];
+  if(smartWarning){
+    cards.push({
+      title:`${smartTokenName(smartWarning)} · 聪明钱净流出`,
+      reason:`出现 ${fmtMoneyText(Math.abs(Number(smartWarning.inflow || 0)))} 的净流出，说明部分大户在撤退，适合转入风险观察名单。`
+    });
+  }
+  if(summary.top_meme){
+    cards.push({
+      title:`${summary.top_meme.symbol} · Meme 脉冲`,
+      reason:`评分 ${fmtNum(summary.top_meme.score,1)}，24h ${fmtPctText(summary.top_meme.percent_change_pct)}，若和社交热度共振值得提高优先级。`
+    });
+  }
+  if(summary.top_trader){
+    cards.push({
+      title:`${pnlTraderName(summary.top_trader)} · 顶级交易员`,
+      reason:`${summary.top_trader.chain_label || '—'} 上实现盈亏 ${fmtMoneyText(summary.top_trader.realized_pnl)}，胜率 ${fmtPctText(summary.top_trader.win_rate,1)}，适合列入重点跟踪名单。`
+    });
+  }
+  const negativeSocial = sectionItems(sections.social_hype).find(item=>String(item.sentiment).toLowerCase().includes('negative'));
+  if(negativeSocial){
+    cards.push({
+      title:`${negativeSocial.symbol} · 高分歧标的`,
+      reason:`社交情绪偏负，但依然进入热度榜，说明市场分歧较大，这类标的更容易出现大幅波动。`
+    });
+  }
+  return cards.slice(0,5);
+}
+
+function buildApiSummaryRows(payload){
+  const summary=payload.summary || {};
+  const sections=payload.sections || {};
+  return [
+    {
+      api:'社交热度',
+      target:summary.top_social?.symbol || '—',
+      note:summary.top_social ? `${sentimentLabel(summary.top_social.sentiment)} · 热度 ${fmtNum(summary.top_social.social_hype,0)}，摘要显示 ${String(summary.top_social.summary_brief || '暂无摘要').slice(0,28)}。` : normalizeError(sections.social_hype?.error || '暂无数据'),
+    },
+    {
+      api:'聪明钱流入',
+      target:smartTokenName(summary.top_smart_money),
+      note:summary.top_smart_money ? `${summary.top_smart_money.chain_label || '—'} 上净流入 ${fmtMoney(summary.top_smart_money.inflow)}，${fmtNum(summary.top_smart_money.traders,0)} 个地址参与。` : normalizeError(sections.smart_money?.error || '暂无数据'),
+    },
+    {
+      api:'Meme 排行',
+      target:summary.top_meme?.symbol || '—',
+      note:summary.top_meme ? `评分 ${fmtNum(summary.top_meme.score,1)} · 7 日 ${fmtPctText(summary.top_meme.percent_change_7d_pct)} · 市值 ${fmtMoney(summary.top_meme.market_cap)}。` : normalizeError(sections.meme?.error || '暂无数据'),
+    },
+    {
+      api:`${rankTypeLabel(payload.filters?.unified_rank_type)} 趋势`,
+      target:summary.top_unified?.symbol || '—',
+      note:summary.top_unified ? `24h 交易量 ${fmtMoney(summary.top_unified.volume)} · 市值 ${fmtMoney(summary.top_unified.market_cap)} · ${fmtPctText(summary.top_unified.price_change_pct)}。` : normalizeError(sections.unified?.error || '暂无数据'),
+    },
+    {
+      api:'交易员 PnL',
+      target:pnlTraderName(summary.top_trader),
+      note:summary.top_trader ? `${summary.top_trader.chain_label || '—'} 上实现盈亏 ${fmtMoney(summary.top_trader.realized_pnl)}，最赚代币 ${pnlTopTokenText(summary.top_trader)}。` : normalizeError(sections.address_pnl?.error || '暂无数据'),
+    },
+  ];
+}
+
+function renderOpportunities(payload){
+  const cards=buildOverallOpportunities(payload);
+  const rows=buildApiSummaryRows(payload);
+  if(!cards.length && !rows.length){
+    document.getElementById('opportunityPanel').innerHTML='<div class="empty">当前还没有足够的数据生成综合机会摘要。</div>';
+    return;
+  }
+  document.getElementById('opportunityPanel').innerHTML=`
+    <div class="summary-matrix">
+      <table>
+        <thead><tr><th>API</th><th>最值得关注</th><th>一句话</th></tr></thead>
+        <tbody>
+          ${rows.map(row=>`<tr><td>${esc(row.api)}</td><td>${esc(row.target)}</td><td class="summary-text">${esc(row.note)}</td></tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+    ${cards.length ? `
+      <div class="opportunity-box">
+        <h4>🎯 总结</h4>
+        <div class="opportunity-list">
+          ${cards.map(item=>`<div class="opportunity"><strong>${esc(item.title)}</strong><p>${esc(item.reason)}</p></div>`).join('')}
+        </div>
+      </div>` : ''}
+  `;
+}
+
+function renderDashboard(payload){
+  renderAvailability(payload);
+  renderOverview(payload);
+  document.getElementById('leadPanel').innerHTML=renderLeadPanel(payload);
+  renderPulsePanel(payload);
+  document.getElementById('unifiedPanel').innerHTML=renderUnifiedSection(payload.sections?.unified || {}, readStateFromControls());
+  document.getElementById('socialPanel').innerHTML=renderSocialSection(payload.sections?.social_hype || {});
+  document.getElementById('smartMoneyPanel').innerHTML=renderSmartSection(payload.sections?.smart_money || {});
+  document.getElementById('memePanel').innerHTML=renderMemeSection(payload.sections?.meme || {});
+  document.getElementById('pnlPanel').innerHTML=renderPnlSection(payload.sections?.address_pnl || {});
+  renderOpportunities(payload);
+}
+
+async function loadDashboard({silent=false}={}){
+  const state=readStateFromControls();
+  syncUrl(state);
+  const status=document.getElementById('statusText');
+  const updated=document.getElementById('updatedText');
+  if(!silent){
+    status.innerHTML='<strong>正在加载 Binance Web3 榜单…</strong>';
+  }
+  const params=new URLSearchParams();
+  if(state.keyword) params.set('keyword', state.keyword);
+  params.set('chain_id', state.chainId);
+  params.set('target_language', state.targetLanguage);
+  params.set('social_sentiment', state.socialSentiment);
+  params.set('unified_rank_type', state.rankType);
+  params.set('unified_period', state.period);
+  params.set('unified_sort_by', '70');
+  params.set('smart_money_period', state.smartMoneyPeriod);
+  params.set('pnl_period', state.pnlPeriod);
+  params.set('pnl_tag', state.pnlTag);
+  params.set('limit', state.limit);
+
+  const t0=Date.now();
+  try{
+    const resp=await fetch(`${API}/market/binance/rank/dashboard?${params.toString()}`);
+    const data=await resp.json();
+    if(!resp.ok) throw new Error(data.detail || data.error || `HTTP ${resp.status}`);
+    renderDashboard(data);
+    const took=((Date.now()-t0)/1000).toFixed(1);
+    const sections=data.sections || {};
+    const liveCount=[sections.unified, sections.social_hype, sections.smart_money, sections.meme, sections.address_pnl].filter(section=>sectionItems(section).length).length;
+    status.innerHTML=`<strong>${silent ? '后台同步完成' : '榜单已更新'}</strong> · 当前可用模块 ${liveCount}/5 · 用时 ${took}s`;
+    updated.textContent=`最近更新 ${new Date().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit',second:'2-digit'})} · 自动同步已开启 · 90s`;
+  }catch(error){
+    if(!silent){
+      const message=normalizeError(error && error.message ? error.message : String(error));
+      status.innerHTML=`<strong>榜单加载失败</strong> · ${esc(message)}`;
+    }
+  }
+}
+
+function resetState(){
+  const state={
+    keyword:'',
+    rankType:'10',
+    chainId:'56',
+    period:'50',
+    targetLanguage:'zh',
+    socialSentiment:'All',
+    smartMoneyPeriod:'24h',
+    pnlPeriod:'7d',
+    pnlTag:'ALL',
+    limit:'20',
+  };
+  applyStateToControls(state);
+  loadDashboard();
+}
+
+function bindEvents(){
+  document.getElementById('refreshBtn').addEventListener('click',()=>loadDashboard());
+  document.getElementById('resetBtn').addEventListener('click',resetState);
+  document.getElementById('keyword').addEventListener('keydown',event=>{
+    if(event.key==='Enter') loadDashboard();
+  });
+  document.querySelectorAll('[data-keyword]').forEach(node=>{
+    node.addEventListener('click',()=>{
+      document.getElementById('keyword').value=node.dataset.keyword || '';
+      loadDashboard();
+    });
+  });
+  document.querySelectorAll('[data-rank-type]').forEach(node=>{
+    node.addEventListener('click',()=>{
+      document.getElementById('rankType').value=node.dataset.rankType;
+      loadDashboard();
+    });
+  });
+  window.addEventListener('popstate',()=>{
+    const state=getStateFromUrl();
+    applyStateToControls(state);
+    loadDashboard({silent:false});
+  });
+}
+
+function startAutoRefresh(){
+  if(autoTimer) clearInterval(autoTimer);
+  autoTimer=setInterval(()=>loadDashboard({silent:true}), REFRESH_MS);
+}
+
+function init(){
+  const state=getStateFromUrl();
+  applyStateToControls(state);
+  bindEvents();
+  loadDashboard();
+  startAutoRefresh();
+}
+
+init();
+</script>
+</body>
+</html>

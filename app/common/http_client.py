@@ -92,6 +92,17 @@ async def get_proxy_client() -> httpx.AsyncClient | None:
     return _proxy_client
 
 
+async def _select_client(url: str) -> httpx.AsyncClient:
+    use_proxy = _needs_proxy(url)
+    if use_proxy:
+        client = await get_proxy_client()
+        if client is None:
+            logger.warning("No proxy configured for restricted host: %s", urlparse(url).hostname)
+            return await get_client()
+        return client
+    return await get_client()
+
+
 async def close_client() -> None:
     global _client, _proxy_client
     if _client and not _client.is_closed:
@@ -113,15 +124,7 @@ async def _request_json(
 ) -> Any:
     """Request JSON from url with shared whitelist, retry, timeout, and proxy rules."""
     _check_host_allowed(url)
-
-    use_proxy = _needs_proxy(url)
-    if use_proxy:
-        client = await get_proxy_client()
-        if client is None:
-            logger.warning("No proxy configured for restricted host: %s", urlparse(url).hostname)
-            client = await get_client()
-    else:
-        client = await get_client()
+    client = await _select_client(url)
 
     last_exc: Exception | None = None
     for attempt in range(retries):
@@ -129,6 +132,33 @@ async def _request_json(
             resp = await client.request(method, url, params=params, json=json_body, headers=headers)
             resp.raise_for_status()
             return resp.json()
+        except (httpx.HTTPStatusError, httpx.ConnectError, httpx.ReadTimeout) as exc:
+            last_exc = exc
+            if attempt < retries - 1:
+                wait = BACKOFF_BASE * (2 ** attempt)
+                logger.warning("Retry %d for %s %s: %s (wait %.1fs)", attempt + 1, method, url, exc, wait)
+                await asyncio.sleep(wait)
+    raise last_exc  # type: ignore[misc]
+
+
+async def _request_bytes(
+    method: str,
+    url: str,
+    *,
+    params: dict[str, Any] | None = None,
+    headers: dict[str, str] | None = None,
+    retries: int = MAX_RETRIES,
+) -> tuple[bytes, str | None]:
+    """Request raw bytes from url with shared whitelist, timeout, retry, and proxy rules."""
+    _check_host_allowed(url)
+    client = await _select_client(url)
+
+    last_exc: Exception | None = None
+    for attempt in range(retries):
+        try:
+            resp = await client.request(method, url, params=params, headers=headers)
+            resp.raise_for_status()
+            return resp.content, resp.headers.get("content-type")
         except (httpx.HTTPStatusError, httpx.ConnectError, httpx.ReadTimeout) as exc:
             last_exc = exc
             if attempt < retries - 1:
@@ -166,3 +196,14 @@ async def fetch_json_post(
         headers=headers,
         retries=retries,
     )
+
+
+async def fetch_bytes(
+    url: str,
+    *,
+    params: dict[str, Any] | None = None,
+    headers: dict[str, str] | None = None,
+    retries: int = MAX_RETRIES,
+) -> tuple[bytes, str | None]:
+    """GET raw bytes from url. Host must be registered in endpoints.py."""
+    return await _request_bytes("GET", url, params=params, headers=headers, retries=retries)

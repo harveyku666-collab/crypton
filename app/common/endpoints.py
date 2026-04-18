@@ -96,6 +96,28 @@ BINANCE_DATA_VISION = Endpoint(
     description="币安数据节点备用（同上，故障切换用）",
 )
 
+BINANCE_WEB3 = Endpoint(
+    name="Binance Web3 Rankings",
+    base_url="https://web3.binance.com",
+    description="Binance Web3 公共榜单接口 — 趋势币、热搜、Alpha、社交热度、聪明钱流入、Meme 榜和地址 PnL 榜",
+    paths=[
+        "/bapi/defi/v1/public/wallet-direct/buw/wallet/market/token/pulse/social/hype/rank/leaderboard  # 社交热度榜",
+        "/bapi/defi/v1/public/wallet-direct/buw/wallet/market/token/pulse/unified/rank/list             # 统一代币榜",
+        "/bapi/defi/v1/public/wallet-direct/tracker/wallet/token/inflow/rank/query                       # 聪明钱流入榜",
+        "/bapi/defi/v1/public/wallet-direct/buw/wallet/market/token/pulse/exclusive/rank/list           # Meme 榜",
+        "/bapi/defi/v1/public/wallet-direct/market/leaderboard/query                                     # 地址 PnL 榜",
+    ],
+)
+
+BINANCE_STATIC = Endpoint(
+    name="Binance Static CDN",
+    base_url="https://bin.bnbstatic.com",
+    description="Binance Web3 图标静态资源 CDN",
+    paths=[
+        "/static/assets  # 代币 logo 和静态图标",
+    ],
+)
+
 BINANCE_FUTURES = Endpoint(
     name="Binance Futures (公开)",
     base_url="https://fapi.binance.com",
@@ -314,6 +336,8 @@ ALL_ENDPOINTS: list[Endpoint] = [
     BINANCE_SPOT,
     BINANCE_SPOT_MIRRORS,
     BINANCE_DATA_VISION,
+    BINANCE_WEB3,
+    BINANCE_STATIC,
     BINANCE_FUTURES,
     BINANCE_TRADE,
     BINANCE_TESTNET_SPOT,

@@ -13,6 +13,7 @@ from app.analysis.funding_scan import scan_and_store as scan_funding
 from app.analysis.strategy import score_opportunity
 from app.analysis.yield_scan import scan_and_store as scan_defi
 from app.analysis.btc_predictor import predict_short_term
+from app.analysis.okx_market_intel import build_market_intel_master
 from app.market.sources import okx
 from app.news import okx_orbit
 
@@ -237,3 +238,31 @@ async def okx_overview(
         "coin_sentiment": _section(coin_sentiment, "coin sentiment"),
         "sentiment_ranking": _section(ranking, "sentiment ranking"),
     }
+
+
+@router.get("/okx/market-intel")
+async def okx_market_intel_master(
+    symbol: str = Query("BTC", description="基础币种，或完整 instId"),
+    market_type: str = Query("SWAP", description="SWAP / SPOT"),
+    timeframe: str = Query("1H", description="1H / 4H / 1D"),
+    language: str = Query("zh-CN", description="zh-CN / en-US"),
+    keyword: str | None = Query(None, description="关键词研究，如 ETF、AI、监管"),
+    platform: str | None = Query(None, description="Orbit platform source filter"),
+    news_limit: int = Query(8, ge=1, le=20),
+    important_limit: int = Query(6, ge=1, le=20),
+    search_limit: int = Query(12, ge=1, le=24),
+    ranking_limit: int = Query(8, ge=1, le=20),
+) -> dict[str, Any]:
+    """Replicate the public-facing OKX market-intel skill workflow."""
+    return await build_market_intel_master(
+        symbol=symbol,
+        market_type=market_type,
+        timeframe=timeframe,
+        language=language,
+        keyword=keyword,
+        platform=platform,
+        news_limit=news_limit,
+        important_limit=important_limit,
+        search_limit=search_limit,
+        ranking_limit=ranking_limit,
+    )

@@ -92,6 +92,11 @@ async def briefing_page():
     return FileResponse(str(STATIC_DIR / "briefing.html"))
 
 
+@app.get("/market-rank")
+async def market_rank_page():
+    return FileResponse(str(STATIC_DIR / "market-rank.html"))
+
+
 @app.get("/oi-signal")
 async def oi_signal_page():
     return FileResponse(str(STATIC_DIR / "oi-signal.html"))
@@ -110,3 +115,8 @@ async def prediction_advanced_page():
 @app.get("/okx-intelligence")
 async def okx_intelligence_page():
     return FileResponse(str(STATIC_DIR / "okx-intelligence.html"))
+
+
+@app.get("/market-intel")
+async def market_intel_page():
+    return FileResponse(str(STATIC_DIR / "market-intel.html"))

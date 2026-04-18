@@ -2,14 +2,48 @@
 
 from __future__ import annotations
 
+from html import escape
 from typing import Any
+from urllib.parse import urlparse
 
 from fastapi import APIRouter, Query
+from fastapi.responses import Response
 
 from app.market import aggregator
-from app.market.sources import desk3, binance, coingecko, defi_llama, surf, gateio, bitget, okx, bybit
+from app.common.http_client import fetch_bytes
+from app.market.sources import (
+    desk3,
+    binance,
+    binance_rank,
+    coingecko,
+    defi_llama,
+    surf,
+    gateio,
+    bitget,
+    okx,
+    bybit,
+)
 
 router = APIRouter(prefix="/market", tags=["market"])
+
+
+def _binance_icon_placeholder(label: str | None) -> bytes:
+    raw = "".join(ch for ch in str(label or "?").upper() if ch.isalnum())[:4] or "?"
+    safe = escape(raw)
+    svg = f"""
+    <svg xmlns="http://www.w3.org/2000/svg" width="72" height="72" viewBox="0 0 72 72">
+      <defs>
+        <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#20354a"/>
+          <stop offset="100%" stop-color="#152536"/>
+        </linearGradient>
+      </defs>
+      <rect width="72" height="72" rx="36" fill="url(#g)"/>
+      <circle cx="36" cy="36" r="35" fill="none" stroke="rgba(255,255,255,0.08)"/>
+      <text x="36" y="41" text-anchor="middle" font-family="Arial, sans-serif" font-size="22" font-weight="700" fill="#d9e7f4">{safe}</text>
+    </svg>
+    """.strip()
+    return svg.encode("utf-8")
 
 
 # ─── Exchange core (Surf) ──────────────────────────────────
@@ -65,6 +99,307 @@ async def exchange_price(
 ) -> dict[str, Any]:
     result = await surf.get_exchange_price(pair, exchange)
     return result or {"error": "No data"}
+
+
+# ─── Binance Web3 Market Rank ───────────────────────────────
+
+
+@router.get("/binance/rank/icon")
+async def binance_rank_icon(
+    url: str | None = Query(None),
+    symbol: str | None = Query(None),
+) -> Response:
+    normalized = binance_rank.normalize_static_asset_url(url)
+    if not normalized or (urlparse(normalized).hostname or "") != "bin.bnbstatic.com":
+        return Response(
+            content=_binance_icon_placeholder(symbol),
+            media_type="image/svg+xml",
+            headers={"Cache-Control": "public, max-age=3600"},
+        )
+    try:
+        content, content_type = await fetch_bytes(
+            normalized,
+            headers={
+                "User-Agent": "Mozilla/5.0",
+                "Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+                "Referer": "https://web3.binance.com/",
+            },
+            retries=2,
+        )
+        return Response(
+            content=content,
+            media_type=content_type or "image/png",
+            headers={"Cache-Control": "public, max-age=86400"},
+        )
+    except Exception:
+        return Response(
+            content=_binance_icon_placeholder(symbol),
+            media_type="image/svg+xml",
+            headers={"Cache-Control": "public, max-age=3600"},
+        )
+
+
+@router.get("/binance/rank/social-hype")
+async def binance_social_hype_rank(
+    chain_id: str = Query("56"),
+    sentiment: str = Query("All"),
+    target_language: str = Query("zh"),
+    time_range: int = Query(1, ge=1, le=7),
+    social_language: str = Query("ALL"),
+    limit: int = Query(20, ge=1, le=100),
+) -> dict[str, Any]:
+    try:
+        return await binance_rank.get_social_hype_leaderboard(
+            chain_id=chain_id,
+            sentiment=sentiment,
+            target_language=target_language,
+            time_range=time_range,
+            social_language=social_language,
+            limit=limit,
+        )
+    except Exception as exc:
+        return {
+            "items": [],
+            "count": 0,
+            "error": str(exc),
+            "filters": {
+                "chain_id": chain_id,
+                "sentiment": sentiment,
+                "target_language": target_language,
+                "time_range": time_range,
+                "social_language": social_language,
+            },
+            "source": "binance_web3",
+        }
+
+
+@router.get("/binance/rank/unified")
+async def binance_unified_rank(
+    rank_type: int = Query(10),
+    chain_id: str | None = Query(None),
+    period: int = Query(50),
+    sort_by: int = Query(0),
+    order_asc: bool = Query(False),
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=200),
+    keywords: str | None = Query(None, description="Comma-separated symbols"),
+    excludes: str | None = Query(None, description="Comma-separated symbols to exclude"),
+    socials: str | None = Query(None, description="Comma-separated social filters"),
+    alpha_tag_filter: str | None = Query(None, description="Comma-separated Alpha tags"),
+    audit_filter: str | None = Query(None, description="Comma-separated audit flags"),
+    tag_filter: str | None = Query(None, description="Comma-separated token tag ids"),
+    percent_change_min: float | None = Query(None),
+    percent_change_max: float | None = Query(None),
+    market_cap_min: float | None = Query(None),
+    market_cap_max: float | None = Query(None),
+    volume_min: float | None = Query(None),
+    volume_max: float | None = Query(None),
+    liquidity_min: float | None = Query(None),
+    liquidity_max: float | None = Query(None),
+    holders_min: int | None = Query(None),
+    holders_max: int | None = Query(None),
+    unique_trader_min: int | None = Query(None),
+    unique_trader_max: int | None = Query(None),
+    launch_time_min: int | None = Query(None),
+    launch_time_max: int | None = Query(None),
+) -> dict[str, Any]:
+    filters = binance_rank.build_unified_filters_from_strings(
+        keywords=keywords,
+        excludes=excludes,
+        socials=socials,
+        alpha_tag_filter=alpha_tag_filter,
+        audit_filter=audit_filter,
+        tag_filter=tag_filter,
+        percent_change_min=percent_change_min,
+        percent_change_max=percent_change_max,
+        market_cap_min=market_cap_min,
+        market_cap_max=market_cap_max,
+        volume_min=volume_min,
+        volume_max=volume_max,
+        liquidity_min=liquidity_min,
+        liquidity_max=liquidity_max,
+        holders_min=holders_min,
+        holders_max=holders_max,
+        unique_trader_min=unique_trader_min,
+        unique_trader_max=unique_trader_max,
+        launch_time_min=launch_time_min,
+        launch_time_max=launch_time_max,
+    )
+    try:
+        return await binance_rank.get_unified_token_rank(
+            rank_type=rank_type,
+            chain_id=chain_id,
+            period=period,
+            sort_by=sort_by,
+            order_asc=order_asc,
+            page=page,
+            size=size,
+            filters=filters,
+        )
+    except Exception as exc:
+        return {
+            "items": [],
+            "pagination": {
+                "page": page,
+                "size": size,
+                "total": 0,
+                "total_pages": 0,
+                "has_prev": False,
+                "has_next": False,
+            },
+            "error": str(exc),
+            "filters": {
+                "rank_type": rank_type,
+                "chain_id": chain_id,
+                "period": period,
+                "sort_by": sort_by,
+                "order_asc": order_asc,
+            },
+            "source": "binance_web3",
+        }
+
+
+@router.get("/binance/rank/smart-money")
+async def binance_smart_money_rank(
+    chain_id: str = Query("56"),
+    period: str = Query("24h"),
+    tag_type: int | None = Query(2),
+    limit: int = Query(20, ge=1, le=100),
+) -> dict[str, Any]:
+    try:
+        return await binance_rank.get_smart_money_inflow_rank(
+            chain_id=chain_id,
+            period=period,
+            tag_type=tag_type,
+            limit=limit,
+        )
+    except Exception as exc:
+        return {
+            "items": [],
+            "count": 0,
+            "error": str(exc),
+            "filters": {
+                "chain_id": chain_id,
+                "period": period,
+                "tag_type": tag_type,
+            },
+            "source": "binance_web3",
+        }
+
+
+@router.get("/binance/rank/meme")
+async def binance_meme_rank(
+    chain_id: str = Query("56"),
+    limit: int = Query(20, ge=1, le=100),
+) -> dict[str, Any]:
+    try:
+        return await binance_rank.get_meme_rank(chain_id=chain_id, limit=limit)
+    except Exception as exc:
+        return {
+            "items": [],
+            "count": 0,
+            "error": str(exc),
+            "filters": {
+                "chain_id": chain_id,
+            },
+            "source": "binance_web3",
+        }
+
+
+@router.get("/binance/rank/address-pnl")
+async def binance_address_pnl_rank(
+    chain_id: str = Query("CT_501"),
+    period: str = Query("30d"),
+    tag: str = Query("ALL"),
+    sort_by: int = Query(0),
+    order_by: int = Query(0),
+    page_no: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=25),
+    pnl_min: float | None = Query(None),
+    pnl_max: float | None = Query(None),
+    win_rate_min: float | None = Query(None),
+    win_rate_max: float | None = Query(None),
+    tx_min: int | None = Query(None),
+    tx_max: int | None = Query(None),
+    volume_min: float | None = Query(None),
+    volume_max: float | None = Query(None),
+) -> dict[str, Any]:
+    filters = binance_rank.build_pnl_filters(
+        pnl_min=pnl_min,
+        pnl_max=pnl_max,
+        win_rate_min=win_rate_min,
+        win_rate_max=win_rate_max,
+        tx_min=tx_min,
+        tx_max=tx_max,
+        volume_min=volume_min,
+        volume_max=volume_max,
+    )
+    try:
+        return await binance_rank.get_address_pnl_rank(
+            chain_id=chain_id,
+            period=period,
+            tag=tag,
+            sort_by=sort_by,
+            order_by=order_by,
+            page_no=page_no,
+            page_size=page_size,
+            filters=filters,
+        )
+    except Exception as exc:
+        return {
+            "items": [],
+            "pagination": {
+                "page": page_no,
+                "size": page_size,
+                "total_pages": 0,
+                "has_prev": False,
+                "has_next": False,
+            },
+            "error": str(exc),
+            "filters": {
+                "chain_id": chain_id,
+                "period": period,
+                "tag": tag,
+                "sort_by": sort_by,
+                "order_by": order_by,
+            },
+            "source": "binance_web3",
+        }
+
+
+@router.get("/binance/rank/dashboard")
+async def binance_rank_dashboard(
+    chain_id: str = Query("56"),
+    target_language: str = Query("zh"),
+    social_sentiment: str = Query("All"),
+    social_language: str = Query("ALL"),
+    unified_rank_type: int = Query(10),
+    unified_period: int = Query(50),
+    unified_sort_by: int = Query(70),
+    keyword: str | None = Query(None),
+    smart_money_chain_id: str = Query("56"),
+    smart_money_period: str = Query("24h"),
+    pnl_chain_id: str = Query("CT_501"),
+    pnl_period: str = Query("30d"),
+    pnl_tag: str = Query("ALL"),
+    limit: int = Query(10, ge=3, le=25),
+) -> dict[str, Any]:
+    return await binance_rank.get_rank_dashboard(
+        chain_id=chain_id,
+        target_language=target_language,
+        social_sentiment=social_sentiment,
+        social_language=social_language,
+        unified_rank_type=unified_rank_type,
+        unified_period=unified_period,
+        unified_sort_by=unified_sort_by,
+        keyword=keyword,
+        smart_money_chain_id=smart_money_chain_id,
+        smart_money_period=smart_money_period,
+        pnl_chain_id=pnl_chain_id,
+        pnl_period=pnl_period,
+        pnl_tag=pnl_tag,
+        limit=limit,
+    )
 
 
 # ─── OKX Public Intelligence ────────────────────────────────

@@ -543,8 +543,10 @@ async function openDetail(id) {
   const isDefiYield = s.id === 'defi-yield-scanner';
   const isTechnicalAnalysis = s.id === 'technical-analysis';
   const isPredictionMarkets = s.id === 'prediction-markets';
+  const isMarketRank = s.id === 'crypto-market-rank';
+  const isMarketIntel = s.id === 'market-intel';
   const isOkxIntelligence = s.id === 'okx-intelligence';
-  const primaryLabel = isOiSignal ? '进入 OI 仪表盘' : isDefiYield ? '进入收益仪表盘' : isTechnicalAnalysis ? '进入技术分析' : isPredictionMarkets ? '进入预测市场' : isOkxIntelligence ? '进入 OKX 情报台' : '查看实时简报';
+  const primaryLabel = isOiSignal ? '进入 OI 仪表盘' : isDefiYield ? '进入收益仪表盘' : isTechnicalAnalysis ? '进入技术分析' : isPredictionMarkets ? '进入预测市场' : isMarketRank ? '进入市场榜单台' : isMarketIntel ? '进入市场情报大师' : isOkxIntelligence ? '进入 OKX 情报台' : '查看实时简报';
   const oiLaunchBlock = isOiSignal ? `
     <div style="margin:18px 0 6px;padding:16px;border-radius:14px;border:1px solid rgba(88,166,255,.22);background:linear-gradient(135deg,rgba(88,166,255,.08),rgba(188,140,255,.08))">
       <div style="font-size:15px;font-weight:700;margin-bottom:6px">直接搜索代币</div>
@@ -610,6 +612,28 @@ async function openDetail(id) {
       </div>
     </div>
   ` : '';
+  const marketRankLaunchBlock = isMarketRank ? `
+    <div style="margin:18px 0 6px;padding:16px;border-radius:14px;border:1px solid rgba(101,183,255,.22);background:linear-gradient(135deg,rgba(101,183,255,.10),rgba(85,210,141,.08))">
+      <div style="font-size:15px;font-weight:700;margin-bottom:6px">直接打开市场榜单台</div>
+      <div style="font-size:12px;color:var(--text2);line-height:1.7;margin-bottom:12px">从趋势币、热搜、Alpha、社交热度和聪明钱流入几个维度一起看市场。可以先选链和榜单类型，再跳到完整页面。</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <input id="modal-rank-keyword" placeholder="DOGE / AI / ETF / MEME" style="flex:1;min-width:170px;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px">
+        <select id="modal-rank-type" style="padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px">
+          <option value="10" selected>Trending</option>
+          <option value="11">Top Search</option>
+          <option value="20">Alpha</option>
+          <option value="40">Stock</option>
+        </select>
+        <select id="modal-rank-chain" style="padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px">
+          <option value="56" selected>BSC</option>
+          <option value="8453">Base</option>
+          <option value="CT_501">Solana</option>
+          <option value="1">Ethereum</option>
+        </select>
+        <button class="btn-primary" onclick="launchCryptoMarketRank({keyword:document.getElementById('modal-rank-keyword').value,rankType:document.getElementById('modal-rank-type').value,chainId:document.getElementById('modal-rank-chain').value})">打开榜单页</button>
+      </div>
+    </div>
+  ` : '';
   const okxLaunchBlock = isOkxIntelligence ? `
     <div style="margin:18px 0 6px;padding:16px;border-radius:14px;border:1px solid rgba(97,217,255,.22);background:linear-gradient(135deg,rgba(97,217,255,.09),rgba(117,222,143,.08))">
       <div style="font-size:15px;font-weight:700;margin-bottom:6px">直接打开 OKX 市场情报台</div>
@@ -626,6 +650,26 @@ async function openDetail(id) {
           <option value="1D">1D</option>
         </select>
         <button class="btn-primary" onclick="launchOkxIntelligence(document.getElementById('modal-okx-symbol').value,document.getElementById('modal-okx-market-type').value,document.getElementById('modal-okx-timeframe').value)">打开情报台</button>
+      </div>
+    </div>
+  ` : '';
+  const marketIntelLaunchBlock = isMarketIntel ? `
+    <div style="margin:18px 0 6px;padding:16px;border-radius:14px;border:1px solid rgba(217,143,55,.24);background:linear-gradient(135deg,rgba(217,143,55,.10),rgba(15,143,143,.08))">
+      <div style="font-size:15px;font-weight:700;margin-bottom:6px">直接打开市场情报大师</div>
+      <div style="font-size:12px;color:var(--text2);line-height:1.7;margin-bottom:12px">用一个币种 + 一个关键词，直接生成 Daily Brief、异动提醒和关键词研究，适合先判断叙事，再决定是否继续深挖。</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <input id="modal-market-intel-symbol" value="BTC" placeholder="BTC / ETH / DOGE / BTC-USDT-SWAP" style="flex:1;min-width:190px;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px">
+        <select id="modal-market-intel-type" style="padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px">
+          <option value="SWAP" selected>永续合约</option>
+          <option value="SPOT">现货</option>
+        </select>
+        <select id="modal-market-intel-timeframe" style="padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px">
+          <option value="1H" selected>1H</option>
+          <option value="4H">4H</option>
+          <option value="1D">1D</option>
+        </select>
+        <input id="modal-market-intel-keyword" value="ETF" placeholder="ETF / AI / 监管 / Meme" style="flex:1;min-width:160px;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px">
+        <button class="btn-primary" onclick="launchMarketIntel(document.getElementById('modal-market-intel-symbol').value,document.getElementById('modal-market-intel-type').value,document.getElementById('modal-market-intel-timeframe').value,document.getElementById('modal-market-intel-keyword').value)">打开情报台</button>
       </div>
     </div>
   ` : '';
@@ -655,6 +699,8 @@ async function openDetail(id) {
     ${yieldLaunchBlock}
     ${technicalLaunchBlock}
     ${predictionLaunchBlock}
+    ${marketRankLaunchBlock}
+    ${marketIntelLaunchBlock}
     ${okxLaunchBlock}
 
     <div class="modal-actions">
@@ -675,7 +721,7 @@ document.getElementById('modal-overlay').onclick = function(e) {
 };
 
 function viewReport(skillId) {
-  const pages = {'oi-signal':'/oi-signal','market-briefing':'/briefing','defi-yield-scanner':'/defi-yield-scanner','okx-intelligence':'/okx-intelligence'};
+  const pages = {'oi-signal':'/oi-signal','market-briefing':'/briefing','defi-yield-scanner':'/defi-yield-scanner','crypto-market-rank':'/market-rank','market-intel':'/market-intel','okx-intelligence':'/okx-intelligence'};
   location.href = pages[skillId] ? `${BASE}${pages[skillId]}` : `${BASE}/skill?id=${skillId}`;
 }
 
@@ -691,6 +737,11 @@ function sanitizeSymbol(value){
 function sanitizeYieldKeyword(value){
   if(!value)return'';
   return String(value).trim().toUpperCase().replace(/\s+/g,'').replace(/[^A-Z0-9:/_-]/g,'').slice(0,32);
+}
+
+function sanitizeMarketRankKeyword(value){
+  if(!value)return'';
+  return String(value).replace(/\s+/g,' ').trim().slice(0,40);
 }
 
 function launchOiSignal(rawSymbol,timeframe){
@@ -717,6 +768,17 @@ function launchPredictionMarkets(limit='10'){
   location.href=`${BASE}/skill?${params.toString()}`;
 }
 
+function launchCryptoMarketRank({keyword='',rankType='10',chainId='56',period='50',targetLanguage='zh'}={}){
+  const params=new URLSearchParams();
+  const q=sanitizeMarketRankKeyword(keyword);
+  if(q)params.set('q',q);
+  params.set('rankType',['10','11','20','40'].includes(String(rankType))?String(rankType):'10');
+  params.set('chainId',['56','8453','CT_501','1'].includes(String(chainId))?String(chainId):'56');
+  params.set('period',['10','20','30','40','50'].includes(String(period))?String(period):'50');
+  params.set('targetLanguage',targetLanguage==='en'?'en':'zh');
+  location.href=`${BASE}/market-rank?${params.toString()}`;
+}
+
 function launchOkxIntelligence(rawSymbol,marketType='SWAP',timeframe='1H'){
   const raw=String(rawSymbol??'').trim().toUpperCase();
   const symbol=raw||'BTC';
@@ -727,6 +789,20 @@ function launchOkxIntelligence(rawSymbol,marketType='SWAP',timeframe='1H'){
   params.set('marketType',type);
   params.set('timeframe',tf);
   location.href=`${BASE}/okx-intelligence?${params.toString()}`;
+}
+
+function launchMarketIntel(rawSymbol,marketType='SWAP',timeframe='1H',keyword=''){
+  const raw=String(rawSymbol??'').trim().toUpperCase();
+  const symbol=raw||'BTC';
+  const type=marketType==='SPOT'?'SPOT':'SWAP';
+  const tf=['1H','4H','1D'].includes(String(timeframe).toUpperCase())?String(timeframe).toUpperCase():'1H';
+  const q=String(keyword??'').replace(/\s+/g,' ').trim()||symbol;
+  const params=new URLSearchParams();
+  params.set('symbol',symbol);
+  params.set('marketType',type);
+  params.set('timeframe',tf);
+  params.set('keyword',q);
+  location.href=`${BASE}/market-intel?${params.toString()}`;
 }
 
 function launchDefiYieldScanner({chain='',symbol='',minApy='5',minTvl='10000000',limit='30'}={}){

@@ -1,0 +1,988 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>市场情报大师 - BitInfo</title>
+<style>
+:root{
+  --bg:#0c1116;
+  --paper:#f3ead9;
+  --paper-2:#e7dbc4;
+  --ink:#17191d;
+  --muted:#6b6c70;
+  --line:#d5c7ac;
+  --bronze:#b56d33;
+  --amber:#d98f37;
+  --teal:#0f8f8f;
+  --red:#b74d4d;
+  --green:#18725a;
+  --shadow:0 28px 60px rgba(0,0,0,.28);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;
+  color:var(--ink);
+  background:
+    radial-gradient(circle at top left, rgba(217,143,55,.14), transparent 22%),
+    radial-gradient(circle at top right, rgba(15,143,143,.12), transparent 18%),
+    linear-gradient(180deg,#0c1116 0%, #11171d 100%);
+  font:15px/1.65 "Avenir Next","PingFang SC","Noto Sans SC",sans-serif;
+}
+a{color:inherit}
+.page{max-width:1480px;margin:0 auto;padding:28px 20px 64px}
+.sheet{
+  background:
+    linear-gradient(180deg,rgba(255,255,255,.18),rgba(255,255,255,.06)),
+    linear-gradient(180deg,var(--paper),#efe2cb 56%, #e7d8be 100%);
+  border:1px solid rgba(213,199,172,.44);
+  border-radius:34px;
+  box-shadow:var(--shadow);
+  overflow:hidden;
+}
+.masthead{
+  padding:26px 28px 18px;
+  border-bottom:1px solid rgba(23,25,29,.12);
+  background:
+    radial-gradient(circle at top left, rgba(217,143,55,.08), transparent 38%),
+    linear-gradient(180deg, rgba(255,255,255,.45), rgba(255,255,255,.18));
+}
+.masthead-top{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+  flex-wrap:wrap;
+}
+.back-link{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:9px 14px;
+  border-radius:999px;
+  text-decoration:none;
+  border:1px solid rgba(23,25,29,.12);
+  background:rgba(255,255,255,.46);
+  color:var(--muted);
+}
+.back-link:hover{color:var(--ink)}
+.live{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:8px 12px;
+  border-radius:999px;
+  background:rgba(23,25,29,.08);
+  border:1px solid rgba(23,25,29,.08);
+  color:var(--muted);
+  font-size:12px;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
+.live-dot{width:8px;height:8px;border-radius:50%;background:var(--green)}
+.eyebrow{
+  margin-top:18px;
+  font-size:12px;
+  letter-spacing:.22em;
+  text-transform:uppercase;
+  color:var(--bronze);
+}
+.masthead h1{
+  margin:10px 0 12px;
+  font-family:"Iowan Old Style","Baskerville","Songti SC",serif;
+  font-size:54px;
+  line-height:.98;
+  letter-spacing:-.05em;
+}
+.masthead p{
+  margin:0;
+  max-width:920px;
+  color:rgba(23,25,29,.72);
+  font-size:15px;
+}
+.hero-grid{
+  display:grid;
+  grid-template-columns:1.2fr .8fr;
+  gap:18px;
+  padding:22px 28px 28px;
+}
+.lead{
+  padding:22px;
+  border:1px solid rgba(23,25,29,.12);
+  border-radius:28px;
+  background:rgba(255,255,255,.34);
+}
+.lead-meta{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex-wrap:wrap;
+}
+.badge{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:6px 11px;
+  border-radius:999px;
+  font-size:12px;
+  border:1px solid rgba(23,25,29,.1);
+  background:rgba(255,255,255,.55);
+}
+.badge.bullish{color:var(--green)}
+.badge.bearish{color:var(--red)}
+.badge.neutral{color:var(--muted)}
+.lead-title{
+  margin-top:14px;
+  font-family:"Iowan Old Style","Baskerville","Songti SC",serif;
+  font-size:34px;
+  line-height:1.08;
+  letter-spacing:-.04em;
+}
+.lead-summary{
+  margin-top:12px;
+  color:rgba(23,25,29,.74);
+}
+.lead-takeaways{
+  margin:18px 0 0;
+  padding:0;
+  list-style:none;
+  display:grid;
+  gap:10px;
+}
+.lead-takeaways li{
+  padding:12px 14px;
+  border-radius:16px;
+  background:rgba(255,255,255,.58);
+  border:1px solid rgba(23,25,29,.08);
+}
+.hero-side{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:14px;
+}
+.metric{
+  padding:16px;
+  border-radius:22px;
+  background:rgba(23,25,29,.94);
+  color:#f7f1e7;
+  box-shadow:0 18px 32px rgba(0,0,0,.15);
+}
+.metric .label{
+  color:rgba(247,241,231,.58);
+  font-size:12px;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
+.metric .value{
+  margin-top:10px;
+  font-size:30px;
+  font-weight:700;
+  line-height:1.02;
+  font-variant-numeric:tabular-nums;
+}
+.metric .sub{
+  margin-top:10px;
+  color:rgba(247,241,231,.66);
+  font-size:12px;
+  line-height:1.7;
+}
+.metric.good .value{color:#8de3ba}
+.metric.bad .value{color:#ffad98}
+.metric.accent .value{color:#f2c36f}
+.control-bar{
+  padding:0 28px 26px;
+  display:grid;
+  grid-template-columns:1.1fr .7fr .6fr 1fr .65fr .8fr auto;
+  gap:12px;
+}
+.field{
+  padding:14px;
+  border-radius:18px;
+  background:rgba(255,255,255,.38);
+  border:1px solid rgba(23,25,29,.1);
+}
+.field label{
+  display:block;
+  margin-bottom:8px;
+  font-size:11px;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+  color:var(--muted);
+}
+.field input,.field select,.action{
+  width:100%;
+  border:1px solid rgba(23,25,29,.12);
+  background:rgba(255,255,255,.68);
+  color:var(--ink);
+  padding:12px 14px;
+  border-radius:14px;
+  font:inherit;
+  outline:none;
+}
+.action{
+  align-self:end;
+  cursor:pointer;
+  background:linear-gradient(135deg,#1c272f,#0f1419);
+  color:#f8efe2;
+  border-color:#1c272f;
+  font-weight:700;
+}
+.action:hover{transform:translateY(-1px)}
+.quick-strip{
+  padding:0 28px 26px;
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  flex-wrap:wrap;
+  align-items:center;
+}
+.chips{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+}
+.chip{
+  padding:8px 12px;
+  border-radius:999px;
+  border:1px solid rgba(23,25,29,.1);
+  background:rgba(255,255,255,.48);
+  color:var(--muted);
+  cursor:pointer;
+  font-size:12px;
+}
+.chip:hover{color:var(--ink)}
+.sync-note{font-size:12px;color:var(--muted)}
+.content{
+  padding:0 28px 32px;
+  display:grid;
+  grid-template-columns:1.1fr .9fr;
+  gap:18px;
+}
+.panel{
+  padding:22px;
+  border-radius:28px;
+  border:1px solid rgba(23,25,29,.12);
+  background:rgba(255,255,255,.4);
+}
+.panel.dark{
+  background:#15191d;
+  color:#f7f2e8;
+}
+.section-title{
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap:14px;
+  margin-bottom:18px;
+}
+.section-title h2{
+  margin:0;
+  font-family:"Iowan Old Style","Baskerville","Songti SC",serif;
+  font-size:28px;
+  line-height:1.02;
+  letter-spacing:-.03em;
+}
+.section-title span{
+  color:var(--muted);
+  font-size:12px;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
+.split{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:14px;
+}
+.stack{display:grid;gap:14px}
+.news-card,.alert-card,.topic-card,.pair-card,.research-card{
+  border-radius:20px;
+  padding:16px;
+  border:1px solid rgba(23,25,29,.1);
+  background:rgba(255,255,255,.56);
+}
+.dark .news-card,.dark .alert-card,.dark .topic-card,.dark .pair-card,.dark .research-card{
+  background:rgba(255,255,255,.04);
+  border-color:rgba(255,255,255,.08);
+}
+.news-card h3,.topic-card h3,.pair-card h3,.alert-card h3,.research-card h3{
+  margin:0 0 8px;
+  font-size:18px;
+  line-height:1.35;
+}
+.meta-line{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  align-items:center;
+  font-size:12px;
+  color:var(--muted);
+}
+.dark .meta-line{color:rgba(247,242,232,.62)}
+.excerpt{margin-top:10px;color:rgba(23,25,29,.74);font-size:14px;line-height:1.72}
+.dark .excerpt{color:rgba(247,242,232,.72)}
+.alert-card{position:relative;padding-top:18px}
+.alert-severity{
+  display:inline-flex;
+  padding:5px 10px;
+  border-radius:999px;
+  font-size:11px;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  border:1px solid rgba(23,25,29,.08);
+}
+.sev-high{background:rgba(183,77,77,.14);color:var(--red)}
+.sev-medium{background:rgba(217,143,55,.14);color:var(--amber)}
+.sev-low{background:rgba(15,143,143,.14);color:var(--teal)}
+.evidence{
+  margin:12px 0 0;
+  padding-left:18px;
+  color:rgba(23,25,29,.72);
+}
+.dark .evidence{color:rgba(247,242,232,.7)}
+.pair-grid,.topic-grid,.article-grid{display:grid;gap:12px}
+.pair-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.topic-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.pair-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+}
+.pair-price{
+  font-size:24px;
+  font-weight:700;
+  font-variant-numeric:tabular-nums;
+}
+.mono{font-variant-numeric:tabular-nums}
+.up{color:var(--green)}
+.down{color:var(--red)}
+.topic-count{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-top:10px;
+  font-variant-numeric:tabular-nums;
+}
+.delta-up{color:var(--green)}
+.delta-down{color:var(--red)}
+.delta-flat{color:var(--muted)}
+.distribution{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:12px;
+}
+.dist-card{
+  padding:14px;
+  border-radius:18px;
+  background:rgba(255,255,255,.52);
+  border:1px solid rgba(23,25,29,.1);
+}
+.dark .dist-card{
+  background:rgba(255,255,255,.04);
+  border-color:rgba(255,255,255,.08);
+}
+.dist-card .label{font-size:12px;color:var(--muted)}
+.dark .dist-card .label{color:rgba(247,242,232,.6)}
+.dist-card .value{margin-top:10px;font-size:28px;font-weight:700}
+.trend-bars{
+  display:flex;
+  align-items:flex-end;
+  gap:8px;
+  min-height:120px;
+  padding:16px 0 4px;
+}
+.trend-bar{
+  flex:1;
+  border-radius:12px 12px 4px 4px;
+  background:linear-gradient(180deg, rgba(217,143,55,.95), rgba(181,109,51,.65));
+  position:relative;
+  min-height:10px;
+}
+.trend-bar span{
+  position:absolute;
+  bottom:calc(100% + 8px);
+  left:50%;
+  transform:translateX(-50%);
+  font-size:10px;
+  color:var(--muted);
+}
+.dark .trend-bar span{color:rgba(247,242,232,.6)}
+.status{
+  margin-top:12px;
+  font-size:12px;
+  color:var(--muted);
+}
+.empty{
+  padding:34px 18px;
+  border-radius:20px;
+  border:1px dashed rgba(23,25,29,.18);
+  color:var(--muted);
+  text-align:center;
+}
+.dark .empty{
+  border-color:rgba(255,255,255,.12);
+  color:rgba(247,242,232,.56);
+}
+@media (max-width:1180px){
+  .hero-grid,.content{grid-template-columns:1fr}
+  .control-bar{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:860px){
+  .masthead h1{font-size:40px}
+  .hero-side,.pair-grid,.topic-grid,.distribution,.split{grid-template-columns:1fr}
+  .control-bar{grid-template-columns:1fr}
+  .page{padding:14px 12px 40px}
+  .masthead,.hero-grid,.control-bar,.quick-strip,.content{padding-left:16px;padding-right:16px}
+}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="sheet">
+    <section class="masthead">
+      <div class="masthead-top">
+        <a class="back-link" href="/">← 返回技能列表</a>
+        <div class="live"><span class="live-dot"></span><span id="sync-label">静默同步已开启 · 120s</span></div>
+      </div>
+      <div class="eyebrow">OKX Narrative Desk</div>
+      <h1>市场情报大师</h1>
+      <p>把官方 skill 页里的三条主线复刻成一个真正能用的前台：`Daily Brief` 看一页判断，`Anomaly Alerts` 盯异动，`Keyword Research` 拿关键词往下追。数据全部来自你现在项目里的 OKX 公共行情和 Orbit 新闻栈。</p>
+    </section>
+
+    <section class="hero-grid">
+      <div class="lead">
+        <div class="lead-meta">
+          <span class="badge neutral" id="lead-bias">等待加载</span>
+          <span class="badge neutral" id="lead-symbol">BTC · SWAP</span>
+          <span class="badge neutral" id="lead-query">关键词：BTC</span>
+        </div>
+        <div class="lead-title" id="lead-title">准备生成 Daily Brief</div>
+        <div class="lead-summary" id="lead-summary">输入币种、周期和关键词后，这里会生成一份面向研究的市场情报头版。</div>
+        <ul class="lead-takeaways" id="lead-takeaways">
+          <li>等待加载情报面板。</li>
+        </ul>
+      </div>
+      <div class="hero-side" id="hero-metrics">
+        <div class="metric accent"><div class="label">Pulse Score</div><div class="value">—</div><div class="sub">综合情绪、结构、指标和 OI</div></div>
+        <div class="metric"><div class="label">24H Price</div><div class="value">—</div><div class="sub">价格、成交额与结构</div></div>
+        <div class="metric"><div class="label">Mention</div><div class="value">—</div><div class="sub">提及量与情绪标签</div></div>
+        <div class="metric"><div class="label">Alerts</div><div class="value">—</div><div class="sub">异动提醒数量</div></div>
+      </div>
+    </section>
+
+    <section class="control-bar">
+      <div class="field">
+        <label>Symbol / InstId</label>
+        <input id="symbol-input" placeholder="BTC / ETH / DOGE / BTC-USDT-SWAP">
+      </div>
+      <div class="field">
+        <label>Market Type</label>
+        <select id="market-type-select">
+          <option value="SWAP">永续合约</option>
+          <option value="SPOT">现货</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Timeframe</label>
+        <select id="timeframe-select">
+          <option value="1H">1H</option>
+          <option value="4H">4H</option>
+          <option value="1D">1D</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Keyword Research</label>
+        <input id="keyword-input" placeholder="ETF / AI / SEC / 稳定币">
+      </div>
+      <div class="field">
+        <label>Language</label>
+        <select id="language-select">
+          <option value="zh-CN">中文</option>
+          <option value="en-US">English</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Platform</label>
+        <select id="platform-select">
+          <option value="">全部来源</option>
+        </select>
+      </div>
+      <button class="action" id="refresh-btn">生成情报台</button>
+    </section>
+
+    <section class="quick-strip">
+      <div class="chips">
+        <button class="chip" data-symbol="BTC" data-type="SWAP" data-keyword="ETF">BTC ETF</button>
+        <button class="chip" data-symbol="ETH" data-type="SPOT" data-keyword="L2">ETH / L2</button>
+        <button class="chip" data-symbol="DOGE" data-type="SWAP" data-keyword="Meme">DOGE Meme</button>
+        <button class="chip" data-symbol="SOL" data-type="SWAP" data-keyword="AI">SOL AI</button>
+        <button class="chip" data-symbol="XRP" data-type="SWAP" data-keyword="监管">XRP 监管</button>
+      </div>
+      <div class="sync-note" id="last-updated">等待首次加载</div>
+    </section>
+
+    <section class="content">
+      <div class="stack">
+        <div class="panel">
+          <div class="section-title">
+            <h2>Daily Brief</h2>
+            <span>头版判断</span>
+          </div>
+          <div class="split">
+            <div>
+              <div class="section-title">
+                <h2 style="font-size:22px">Focus Pairs</h2>
+                <span>关联交易对</span>
+              </div>
+              <div class="pair-grid" id="focus-pairs"><div class="empty">等待情报加载</div></div>
+            </div>
+            <div>
+              <div class="section-title">
+                <h2 style="font-size:22px">Hot Topics</h2>
+                <span>24h vs prev 24h</span>
+              </div>
+              <div class="topic-grid" id="hot-topics"><div class="empty">等待情报加载</div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="section-title">
+            <h2>Important News</h2>
+            <span>高优先级快讯</span>
+          </div>
+          <div class="article-grid" id="important-news"><div class="empty">等待情报加载</div></div>
+        </div>
+
+        <div class="panel">
+          <div class="section-title">
+            <h2>Coin News</h2>
+            <span>币种主线</span>
+          </div>
+          <div class="article-grid" id="coin-news"><div class="empty">等待情报加载</div></div>
+        </div>
+      </div>
+
+      <div class="stack">
+        <div class="panel dark">
+          <div class="section-title">
+            <h2>Anomaly Alerts</h2>
+            <span>异动雷达</span>
+          </div>
+          <div class="stack" id="alert-list"><div class="empty">等待情报加载</div></div>
+          <div class="status">后台刷新时不会打断阅读，只有手动刷新才会显示明显状态。</div>
+        </div>
+
+        <div class="panel dark">
+          <div class="section-title">
+            <h2>Sentiment Trend</h2>
+            <span>提及量样本</span>
+          </div>
+          <div class="trend-bars" id="trend-bars"></div>
+        </div>
+
+        <div class="panel">
+          <div class="section-title">
+            <h2>Keyword Research</h2>
+            <span>关键词深挖</span>
+          </div>
+          <div class="research-card">
+            <h3 id="research-title">等待关键词研究</h3>
+            <div class="excerpt" id="research-summary">输入关键词后，这里会给出主导情绪、主题、关联币种和新闻样本。</div>
+          </div>
+          <div class="distribution" id="research-distribution" style="margin-top:14px">
+            <div class="dist-card"><div class="label">Bullish</div><div class="value">—</div></div>
+            <div class="dist-card"><div class="label">Neutral</div><div class="value">—</div></div>
+            <div class="dist-card"><div class="label">Bearish</div><div class="value">—</div></div>
+          </div>
+          <div class="split" style="margin-top:14px">
+            <div>
+              <div class="section-title">
+                <h2 style="font-size:22px">Associated Coins</h2>
+                <span>关联币种</span>
+              </div>
+              <div class="topic-grid" id="associated-coins"><div class="empty">等待加载</div></div>
+            </div>
+            <div>
+              <div class="section-title">
+                <h2 style="font-size:22px">Topic Clusters</h2>
+                <span>主题聚类</span>
+              </div>
+              <div class="topic-grid" id="research-topics"><div class="empty">等待加载</div></div>
+            </div>
+          </div>
+          <div class="section-title" style="margin-top:18px">
+            <h2 style="font-size:22px">Research Articles</h2>
+            <span>关键词结果</span>
+          </div>
+          <div class="article-grid" id="research-articles"><div class="empty">等待加载</div></div>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+const BASE = location.pathname.replace(/\/(market-intel|skill|daily|briefing|oi-signal|defi-yield-scanner|prediction-advanced|okx-intelligence)?\s*$/, '').replace(/\/+$/, '');
+const API = `${BASE}/api/v1`;
+const state = {
+  symbol: 'BTC',
+  marketType: 'SWAP',
+  timeframe: '1H',
+  keyword: 'BTC',
+  language: 'zh-CN',
+  platform: '',
+  payload: null,
+};
+
+function $(id){ return document.getElementById(id); }
+
+function escapeHtml(value){
+  return String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+
+function sanitizeSymbol(value){
+  const raw = String(value ?? '').trim().toUpperCase();
+  if(!raw) return 'BTC';
+  if(raw.includes('-')) return raw.replace(/\s+/g,'');
+  return raw.replace(/[^A-Z0-9]/g,'').slice(0,24) || 'BTC';
+}
+
+function sanitizeKeyword(value, fallback='BTC'){
+  const raw = String(value ?? '').replace(/\s+/g,' ').trim().slice(0,80);
+  return raw || fallback;
+}
+
+function formatCompact(value){
+  const num = Number(value);
+  if(!Number.isFinite(num)) return '—';
+  return new Intl.NumberFormat('en-US', {notation:'compact', maximumFractionDigits:2}).format(num);
+}
+
+function formatUsd(value){
+  const num = Number(value);
+  if(!Number.isFinite(num)) return '—';
+  if(Math.abs(num) >= 1_000_000_000) return `$${(num / 1_000_000_000).toFixed(2)}B`;
+  if(Math.abs(num) >= 1_000_000) return `$${(num / 1_000_000).toFixed(2)}M`;
+  if(Math.abs(num) >= 1_000) return `$${(num / 1_000).toFixed(2)}K`;
+  if(Math.abs(num) >= 100) return `$${num.toFixed(0)}`;
+  if(Math.abs(num) >= 1) return `$${num.toFixed(2)}`;
+  if(num === 0) return '$0';
+  return `$${num.toFixed(Math.abs(num) < 0.01 ? 6 : 4)}`;
+}
+
+function formatPrice(value){
+  const num = Number(value);
+  if(!Number.isFinite(num)) return '—';
+  if(Math.abs(num) >= 1000) return `$${num.toLocaleString('en-US',{maximumFractionDigits:2})}`;
+  if(Math.abs(num) >= 1) return `$${num.toLocaleString('en-US',{minimumFractionDigits:2, maximumFractionDigits:4})}`;
+  if(num === 0) return '$0';
+  return `$${num.toLocaleString('en-US',{minimumFractionDigits:4, maximumFractionDigits:6})}`;
+}
+
+function formatPct(value){
+  const num = Number(value);
+  if(!Number.isFinite(num)) return '—';
+  const prefix = num > 0 ? '+' : '';
+  return `${prefix}${num.toFixed(2)}%`;
+}
+
+function formatTime(ts){
+  const num = Number(ts);
+  if(!Number.isFinite(num) || num <= 0) return '—';
+  return new Date(num).toLocaleString('zh-CN', {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'});
+}
+
+function toneClass(value){
+  const num = Number(value);
+  if(!Number.isFinite(num)) return '';
+  return num > 0 ? 'up' : num < 0 ? 'down' : '';
+}
+
+function severityClass(severity){
+  if(severity === 'high') return 'sev-high';
+  if(severity === 'medium') return 'sev-medium';
+  return 'sev-low';
+}
+
+function getStateFromUrl(){
+  const params = new URLSearchParams(location.search);
+  state.symbol = sanitizeSymbol(params.get('symbol') || 'BTC');
+  state.marketType = params.get('marketType') === 'SPOT' ? 'SPOT' : 'SWAP';
+  state.timeframe = ['1H','4H','1D'].includes(String(params.get('timeframe') || '1H').toUpperCase()) ? String(params.get('timeframe') || '1H').toUpperCase() : '1H';
+  state.language = params.get('language') === 'en-US' ? 'en-US' : 'zh-CN';
+  state.keyword = sanitizeKeyword(params.get('keyword') || state.symbol, state.symbol);
+  state.platform = String(params.get('platform') || '').trim();
+}
+
+function syncUrl(){
+  const params = new URLSearchParams();
+  params.set('symbol', state.symbol);
+  params.set('marketType', state.marketType);
+  params.set('timeframe', state.timeframe);
+  params.set('language', state.language);
+  if(state.keyword) params.set('keyword', state.keyword);
+  if(state.platform) params.set('platform', state.platform);
+  history.replaceState({}, '', `${BASE}/market-intel?${params.toString()}`);
+}
+
+function syncInputs(){
+  $('symbol-input').value = state.symbol;
+  $('market-type-select').value = state.marketType;
+  $('timeframe-select').value = state.timeframe;
+  $('keyword-input').value = state.keyword;
+  $('language-select').value = state.language;
+}
+
+function readInputs(){
+  state.symbol = sanitizeSymbol($('symbol-input').value);
+  state.marketType = $('market-type-select').value === 'SPOT' ? 'SPOT' : 'SWAP';
+  state.timeframe = ['1H','4H','1D'].includes($('timeframe-select').value) ? $('timeframe-select').value : '1H';
+  state.language = $('language-select').value === 'en-US' ? 'en-US' : 'zh-CN';
+  state.keyword = sanitizeKeyword($('keyword-input').value, state.symbol);
+  state.platform = $('platform-select').value;
+}
+
+async function fetchJson(url){
+  const res = await fetch(url);
+  if(!res.ok) throw new Error(`HTTP ${res.status}`);
+  return await res.json();
+}
+
+function renderHero(payload){
+  const brief = payload?.daily_brief || {};
+  const pulse = brief.market_pulse || {};
+  const sentiment = brief.sentiment || {};
+  const bias = brief.bias || 'neutral';
+  $('lead-bias').className = `badge ${bias}`;
+  $('lead-bias').textContent = `Bias · ${brief.bias_label || '中性'}`;
+  $('lead-symbol').textContent = `${payload?.symbol || 'BTC'} · ${payload?.market_type || 'SWAP'}`;
+  $('lead-query').textContent = `关键词：${payload?.query || payload?.symbol || 'BTC'}`;
+  $('lead-title').textContent = brief.headline || '情报标题生成失败';
+  $('lead-summary').textContent = brief.summary || '暂无情报摘要';
+  $('lead-takeaways').innerHTML = Array.isArray(brief.takeaways) && brief.takeaways.length
+    ? brief.takeaways.map(item => `<li>${escapeHtml(item)}</li>`).join('')
+    : '<li>当前没有可展示的研究结论。</li>';
+
+  const mention = Number(pulse.mention_count);
+  const alertCount = payload?.anomaly_alerts?.count ?? 0;
+  $('hero-metrics').innerHTML = [
+    `<div class="metric accent"><div class="label">Pulse Score</div><div class="value">${brief.pulse_score ?? '—'}</div><div class="sub">技术确认 ${escapeHtml(brief.technical_validation?.bias_label || '中性')} · ${escapeHtml(brief.technical_validation?.price_oi_regime || 'neutral')}</div></div>`,
+    `<div class="metric ${toneClass(pulse.price_change_pct_24h) === 'up' ? 'good' : toneClass(pulse.price_change_pct_24h) === 'down' ? 'bad' : ''}"><div class="label">24H Price</div><div class="value">${formatPct(pulse.price_change_pct_24h)}</div><div class="sub">现价 ${formatPrice(pulse.last)} · OI ${formatPct(pulse.oi_delta_pct)}</div></div>`,
+    `<div class="metric"><div class="label">Mention</div><div class="value">${Number.isFinite(mention) ? mention.toLocaleString('en-US') : '—'}</div><div class="sub">Bull ${Number(pulse.bullish_ratio || 0).toFixed(2)} · Bear ${Number(pulse.bearish_ratio || 0).toFixed(2)}</div></div>`,
+    `<div class="metric ${alertCount > 0 ? 'bad' : ''}"><div class="label">Alerts</div><div class="value">${alertCount}</div><div class="sub">Funding ${escapeHtml(pulse.funding_bias || 'neutral')} · 盘口 ${escapeHtml(pulse.orderbook_bias || 'balanced')}</div></div>`
+  ].join('');
+}
+
+function renderFocusPairs(items){
+  if(!Array.isArray(items) || !items.length){
+    $('focus-pairs').innerHTML = '<div class="empty">没有可用的联动交易对。</div>';
+    return;
+  }
+  $('focus-pairs').innerHTML = items.map(item => `
+    <article class="pair-card">
+      <div class="pair-head">
+        <div>
+          <div class="meta-line"><span>${escapeHtml(item.label || 'Watch')}</span></div>
+          <h3>${escapeHtml(item.symbol || item.inst_id || '—')}</h3>
+        </div>
+        <div class="pair-price ${toneClass(item.change_pct_24h)}">${formatPrice(item.last)}</div>
+      </div>
+      <div class="meta-line">
+        <span>${escapeHtml(item.inst_id || '—')}</span>
+        <span class="${toneClass(item.change_pct_24h)}">${formatPct(item.change_pct_24h)}</span>
+        <span>${formatUsd(item.volume_24h_quote)}</span>
+      </div>
+      <div class="excerpt">${escapeHtml(item.note || '暂无补充说明')}</div>
+    </article>
+  `).join('');
+}
+
+function renderTopics(items, targetId){
+  if(!Array.isArray(items) || !items.length){
+    $(targetId).innerHTML = '<div class="empty">这一块当前没有可聚类的话题。</div>';
+    return;
+  }
+  $(targetId).innerHTML = items.map(item => `
+    <article class="topic-card">
+      <div class="meta-line"><span>${escapeHtml(item.topic || item.symbol || '—')}</span></div>
+      <h3>${escapeHtml(item.topic || item.symbol || '—')}</h3>
+      <div class="topic-count">
+        <strong class="mono">${item.count ?? '—'}</strong>
+        <span class="mono ${item.direction === 'up' ? 'delta-up' : item.direction === 'down' ? 'delta-down' : 'delta-flat'}">${item.delta != null ? `${item.delta > 0 ? '+' : ''}${item.delta}` : '—'}</span>
+      </div>
+      <div class="excerpt">${escapeHtml((item.sample_titles || []).join(' · ') || item.note || '暂无样本说明')}</div>
+    </article>
+  `).join('');
+}
+
+function renderNews(items, targetId){
+  if(!Array.isArray(items) || !items.length){
+    $(targetId).innerHTML = '<div class="empty">当前没有可显示的新闻样本。</div>';
+    return;
+  }
+  $(targetId).innerHTML = items.slice(0, 6).map(item => `
+    <article class="news-card">
+      <div class="meta-line">
+        <span>${escapeHtml(item.importance || 'normal')}</span>
+        <span>${escapeHtml(item.sentiment || 'neutral')}</span>
+        <span>${formatTime(item.published_at)}</span>
+      </div>
+      <h3>${escapeHtml(item.title || 'Untitled')}</h3>
+      <div class="excerpt">${escapeHtml(item.summary || item.excerpt || '暂无摘要')}</div>
+      <div class="meta-line" style="margin-top:12px">
+        <span>${escapeHtml((item.coins || []).join(' / ') || '—')}</span>
+        <span>${escapeHtml((item.platforms || []).slice(0, 2).join(' / ') || 'okx_orbit')}</span>
+        ${item.source_url ? `<a href="${escapeHtml(item.source_url)}" target="_blank" rel="noreferrer">原文 ↗</a>` : ''}
+      </div>
+    </article>
+  `).join('');
+}
+
+function renderAlerts(payload){
+  const alerts = payload?.anomaly_alerts?.items || [];
+  if(!alerts.length){
+    $('alert-list').innerHTML = '<div class="empty">当前没有触发明显异动规则。</div>';
+    return;
+  }
+  $('alert-list').innerHTML = alerts.map(item => `
+    <article class="alert-card">
+      <span class="alert-severity ${severityClass(item.severity)}">${escapeHtml(item.severity || 'low')}</span>
+      <h3 style="margin-top:12px">${escapeHtml(item.title || 'Alert')}</h3>
+      <div class="excerpt">${escapeHtml(item.summary || '暂无说明')}</div>
+      <ul class="evidence">
+        ${(item.evidence || []).map(line => `<li>${escapeHtml(line)}</li>`).join('')}
+      </ul>
+    </article>
+  `).join('');
+}
+
+function renderTrend(payload){
+  const trend = payload?.anomaly_alerts?.trend || [];
+  if(!Array.isArray(trend) || !trend.length){
+    $('trend-bars').innerHTML = '<div class="empty" style="width:100%">没有可展示的情绪时间样本。</div>';
+    return;
+  }
+  const maxMention = Math.max(...trend.map(point => Number(point.mention_count || 0)), 1);
+  $('trend-bars').innerHTML = trend.slice(-10).map(point => {
+    const mention = Number(point.mention_count || 0);
+    const height = Math.max(12, (mention / maxMention) * 100);
+    return `<div class="trend-bar" style="height:${height}%"><span>${mention || 0}</span></div>`;
+  }).join('');
+}
+
+function renderResearch(payload){
+  const research = payload?.keyword_research || {};
+  $('research-title').textContent = `关键词：${research.query || payload?.query || state.keyword}`;
+  $('research-summary').textContent = research.summary || '暂无关键词研究摘要。';
+
+  const dist = research.sentiment_distribution || {};
+  $('research-distribution').innerHTML = [
+    `<div class="dist-card"><div class="label">Bullish</div><div class="value">${dist.bullish ?? '—'}</div></div>`,
+    `<div class="dist-card"><div class="label">Neutral</div><div class="value">${dist.neutral ?? '—'}</div></div>`,
+    `<div class="dist-card"><div class="label">Bearish</div><div class="value">${dist.bearish ?? '—'}</div></div>`
+  ].join('');
+
+  renderTopics((research.associated_coins || []).map(item => ({
+    symbol: item.symbol,
+    count: item.count,
+    direction: 'flat',
+    note: `共出现 ${item.count} 次`,
+  })), 'associated-coins');
+  renderTopics(research.top_topics || [], 'research-topics');
+  renderNews(research.articles || [], 'research-articles');
+}
+
+function updatePlatformOptions(items){
+  const select = $('platform-select');
+  const current = state.platform || '';
+  const options = ['<option value="">全部来源</option>'].concat((items || []).map(item => {
+    const value = String(item || '');
+    return `<option value="${escapeHtml(value)}"${value === current ? ' selected' : ''}>${escapeHtml(value)}</option>`;
+  }));
+  select.innerHTML = options.join('');
+  select.value = current;
+}
+
+async function loadDashboard({silent=false} = {}){
+  if(!silent){
+    $('refresh-btn').disabled = true;
+    $('refresh-btn').textContent = '生成中...';
+  }
+  readInputs();
+  syncUrl();
+
+  const params = new URLSearchParams({
+    symbol: state.symbol,
+    market_type: state.marketType,
+    timeframe: state.timeframe,
+    language: state.language,
+    keyword: state.keyword,
+  });
+  if(state.platform) params.set('platform', state.platform);
+
+  try{
+    const payload = await fetchJson(`${API}/analysis/okx/market-intel?${params.toString()}`);
+    state.payload = payload;
+    updatePlatformOptions(payload.available_platforms || []);
+    renderHero(payload);
+    renderFocusPairs(payload?.daily_brief?.focus_pairs || []);
+    renderTopics(payload?.daily_brief?.hot_topics || [], 'hot-topics');
+    renderNews(payload?.daily_brief?.important_news || [], 'important-news');
+    renderNews(payload?.daily_brief?.coin_news || [], 'coin-news');
+    renderAlerts(payload);
+    renderTrend(payload);
+    renderResearch(payload);
+    $('last-updated').textContent = `上次更新 ${new Date().toLocaleTimeString('zh-CN', {hour:'2-digit', minute:'2-digit', second:'2-digit'})}${payload.status === 'partial' ? ' · 部分模块降级' : ''}`;
+    $('sync-label').textContent = silent ? '静默同步已开启 · 120s' : '情报已更新 · 120s 静默同步';
+  }catch(error){
+    const message = error?.message || '未知错误';
+    $('lead-title').textContent = '情报加载失败';
+    $('lead-summary').textContent = `当前无法完成聚合请求：${message}`;
+    $('alert-list').innerHTML = `<div class="empty">接口异常：${escapeHtml(message)}</div>`;
+    $('last-updated').textContent = `加载失败 · ${new Date().toLocaleTimeString('zh-CN', {hour:'2-digit', minute:'2-digit'})}`;
+    $('sync-label').textContent = '自动同步已暂停，请手动刷新';
+  }finally{
+    $('refresh-btn').disabled = false;
+    $('refresh-btn').textContent = '生成情报台';
+  }
+}
+
+function applyQuickChip(button){
+  state.symbol = sanitizeSymbol(button.dataset.symbol || state.symbol);
+  state.marketType = button.dataset.type === 'SPOT' ? 'SPOT' : 'SWAP';
+  state.keyword = sanitizeKeyword(button.dataset.keyword || state.symbol, state.symbol);
+  syncInputs();
+  loadDashboard();
+}
+
+function init(){
+  getStateFromUrl();
+  syncInputs();
+  $('platform-select').addEventListener('change', () => loadDashboard());
+  $('refresh-btn').addEventListener('click', () => loadDashboard());
+  ['symbol-input','keyword-input'].forEach(id => {
+    $(id).addEventListener('keydown', event => {
+      if(event.key === 'Enter') loadDashboard();
+    });
+  });
+  ['market-type-select','timeframe-select','language-select'].forEach(id => {
+    $(id).addEventListener('change', () => loadDashboard());
+  });
+  document.querySelectorAll('.chip').forEach(button => {
+    button.addEventListener('click', () => applyQuickChip(button));
+  });
+  window.addEventListener('popstate', () => {
+    getStateFromUrl();
+    syncInputs();
+    loadDashboard({silent:true});
+  });
+  loadDashboard();
+  setInterval(() => loadDashboard({silent:true}), 120000);
+}
+
+init();
+</script>
+</body>
+</html>
