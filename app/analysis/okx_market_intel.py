@@ -36,6 +36,32 @@ TOPIC_RULES = [
     ("stablecoin", "稳定币 / 支付", ("stablecoin", "usdt", "usdc", "rlusd", "支付", "稳定币")),
 ]
 
+ORDERBOOK_BIAS_LABELS = {
+    "bid_support": "买盘支撑",
+    "ask_pressure": "卖压偏强",
+    "balanced": "相对均衡",
+}
+
+FUNDING_BIAS_LABELS = {
+    "crowded_longs": "多头拥挤",
+    "crowded_shorts": "空头拥挤",
+    "neutral": "中性",
+}
+
+SENTIMENT_LABELS = {
+    "bullish": "偏多",
+    "bearish": "偏空",
+    "neutral": "中性",
+}
+
+REGIME_LABELS = {
+    "price_up_oi_up": "上涨增仓",
+    "price_up_oi_down": "上涨减仓",
+    "price_down_oi_up": "下跌增仓",
+    "price_down_oi_down": "下跌减仓",
+    "neutral": "中性结构",
+}
+
 
 def _safe_float(value: Any) -> float | None:
     try:
@@ -44,6 +70,13 @@ def _safe_float(value: Any) -> float | None:
         return float(value)
     except Exception:
         return None
+
+
+def _labelize(mapping: dict[str, str], value: Any, fallback: str = "中性") -> str:
+    key = str(value or "").strip().lower()
+    if not key:
+        return fallback
+    return mapping.get(key, str(value))
 
 
 def _normalize_language(language: str | None) -> str:
@@ -300,8 +333,11 @@ def _technical_validation(
             "position": bb_position,
         },
         "price_oi_regime": diagnosis.get("price_oi_regime"),
+        "price_oi_regime_label": _labelize(REGIME_LABELS, diagnosis.get("price_oi_regime"), "中性结构"),
         "orderbook_bias": diagnosis.get("orderbook_bias"),
+        "orderbook_bias_label": _labelize(ORDERBOOK_BIAS_LABELS, diagnosis.get("orderbook_bias"), "暂无信号"),
         "funding_bias": diagnosis.get("funding_bias"),
+        "funding_bias_label": _labelize(FUNDING_BIAS_LABELS, diagnosis.get("funding_bias"), "暂无信号"),
     }
 
 
@@ -317,9 +353,12 @@ def _daily_takeaways(
 
     takeaways.append(str(diagnosis.get("price_oi_comment") or "价格与持仓尚未形成明确的单边结构。"))
 
-    mention_count = int((sentiment_item or {}).get("mention_count") or 0)
-    label = (sentiment_item or {}).get("label") or "neutral"
-    takeaways.append(f"社交情绪标签为 {label}，当前提及量 {mention_count}，适合与盘口和 OI 一起交叉确认。")
+    mention_count = (sentiment_item or {}).get("mention_count")
+    label = _labelize(SENTIMENT_LABELS, (sentiment_item or {}).get("label"), "中性")
+    if mention_count is None:
+        takeaways.append("当前情绪样本还不够稳定，建议把盘口、Funding 和新闻标题一起交叉看。")
+    else:
+        takeaways.append(f"社交情绪标签为 {label}，当前提及量 {int(mention_count)}，适合与盘口和 OI 一起交叉确认。")
 
     rising_topic = next((topic for topic in topics if topic.get("delta", 0) > 0), None)
     if rising_topic:
@@ -330,7 +369,7 @@ def _daily_takeaways(
     funding_rate = _safe_float(snapshot.get("funding_rate"))
     if funding_rate is not None:
         takeaways.append(
-            f"资金费率为 {funding_rate * 100:.4f}% ，当前拥挤方向是 {diagnosis.get('funding_bias') or 'neutral'}。"
+            f"资金费率为 {funding_rate * 100:.4f}% ，当前拥挤方向是 {_labelize(FUNDING_BIAS_LABELS, diagnosis.get('funding_bias'))}。"
         )
 
     if technicals.get("bias_label"):
@@ -407,12 +446,12 @@ def _build_alerts(
             "severity": "medium",
             "title": "价格上行但舆论开始谨慎",
             "summary": "价格上升同时 bearish 讨论没有同步退潮，说明追高情绪并不稳固。",
-            "evidence": [
-                f"24h 涨跌 {price_change:.2f}%",
-                f"Bearish ratio {bearish_ratio:.2%}",
-                f"盘口偏向 {diagnosis.get('orderbook_bias') or 'neutral'}",
-            ],
-        })
+                "evidence": [
+                    f"24h 涨跌 {price_change:.2f}%",
+                    f"Bearish ratio {bearish_ratio:.2%}",
+                    f"盘口偏向 {_labelize(ORDERBOOK_BIAS_LABELS, diagnosis.get('orderbook_bias'))}",
+                ],
+            })
 
     oi_delta = _safe_float(snapshot.get("oi_delta_pct")) or 0.0
     if abs(oi_delta) >= 4.5 or diagnosis.get("funding_bias") in {"crowded_longs", "crowded_shorts"}:
@@ -421,12 +460,12 @@ def _build_alerts(
             "severity": "high" if abs(oi_delta) >= 7 else "medium",
             "title": "杠杆拥挤度上升",
             "summary": "Funding 与 OI 同步提示仓位正在堆积，波动放大的概率提升。",
-            "evidence": [
-                f"OI 变化 {oi_delta:.2f}%",
-                f"Funding 偏向 {diagnosis.get('funding_bias') or 'neutral'}",
-                f"价格/OI 结构 {diagnosis.get('price_oi_regime') or 'neutral'}",
-            ],
-        })
+                "evidence": [
+                    f"OI 变化 {oi_delta:.2f}%",
+                    f"Funding 偏向 {_labelize(FUNDING_BIAS_LABELS, diagnosis.get('funding_bias'))}",
+                    f"价格/OI 结构 {_labelize(REGIME_LABELS, diagnosis.get('price_oi_regime'), '中性结构')}",
+                ],
+            })
 
     emerging = [topic for topic in topic_board if topic.get("delta", 0) >= 2 and topic.get("count", 0) >= 3]
     if emerging:
@@ -455,6 +494,20 @@ def _build_alerts(
                 f"上一窗口相关新闻 {len(previous_coin_news)}",
             ],
         })
+
+    if diagnosis.get("orderbook_bias") in {"bid_support", "ask_pressure"}:
+        direction = diagnosis.get("orderbook_bias")
+        alerts.append({
+            "id": f"orderbook-{direction}",
+            "severity": "low",
+            "title": "盘口结构提醒",
+            "summary": "当前前排挂单已经出现明显偏向，适合结合价格波动判断是吸筹还是抛压。",
+            "evidence": [
+                f"盘口信号 {_labelize(ORDERBOOK_BIAS_LABELS, direction)}",
+                f"Funding {_labelize(FUNDING_BIAS_LABELS, diagnosis.get('funding_bias'))}",
+                    f"价格/OI 结构 {_labelize(REGIME_LABELS, diagnosis.get('price_oi_regime'), '中性结构')}",
+                ],
+            })
 
     alerts.sort(key=lambda item: {"high": 3, "medium": 2, "low": 1}.get(item["severity"], 0), reverse=True)
     return {
@@ -529,7 +582,11 @@ async def _build_focus_pairs(
             source = ranking_items[idx - 1] if idx - 1 < len(ranking_items) else {}
             pair.update({
                 "label": "热度联动",
-                "note": f"情绪标签 {source.get('label') or 'neutral'} · 提及 {source.get('mention_count') or 0}",
+                "note": (
+                    f"情绪标签 {_labelize(SENTIMENT_LABELS, source.get('label'))} · 提及 {source.get('mention_count')}"
+                    if source.get("mention_count") is not None
+                    else f"情绪标签 {_labelize(SENTIMENT_LABELS, source.get('label'))} · 暂无稳定提及样本"
+                ),
                 "kind": "watch",
             })
         results.append(pair)
@@ -622,7 +679,8 @@ async def build_market_intel_master(
 
     def _resolve_result(value: Any, label: str, default: Any) -> Any:
         if isinstance(value, Exception):
-            errors.append(f"{label}: {value}")
+            detail = str(value).strip() or value.__class__.__name__
+            errors.append(f"{label}: {detail}")
             return default
         return value
 
@@ -673,11 +731,14 @@ async def build_market_intel_master(
     pulse_score = technicals.get("score", 50.0)
     pulse_label = technicals.get("bias_label", "中性")
     headline = f"{base_symbol} 当前进入 {pulse_label} 情报阶段"
+    news_count = len(recent_coin_news or coin_news_items)
+    news_line = f"{news_count} 条相关新闻" if news_count else "暂无稳定新闻样本"
+    alert_count = len(alerts.get("items") or [])
+    alert_line = f"{alert_count} 个异动信号" if alert_count else "异动规则暂未触发"
     summary = (
         f"{base_symbol} 的价格/OI 结构为 "
-        f"{(market.get('diagnosis') or {}).get('price_oi_regime') or 'neutral'}，"
-        f"结合 {len(recent_coin_news or coin_news_items)} 条相关新闻、"
-        f"{len(alerts.get('items') or [])} 个异动信号，适合先看结构，再看叙事。"
+        f"{_labelize(REGIME_LABELS, (market.get('diagnosis') or {}).get('price_oi_regime'), '中性结构')}，"
+        f"当前 {news_line}，{alert_line}，适合先看结构，再看叙事。"
     )
 
     return {
@@ -708,8 +769,11 @@ async def build_market_intel_master(
                 "oi_usd": (market.get("snapshot") or {}).get("oi_usd") if isinstance(market, dict) else None,
                 "funding_rate": (market.get("snapshot") or {}).get("funding_rate") if isinstance(market, dict) else None,
                 "funding_bias": (market.get("diagnosis") or {}).get("funding_bias") if isinstance(market, dict) else None,
+                "funding_bias_label": _labelize(FUNDING_BIAS_LABELS, (market.get("diagnosis") or {}).get("funding_bias"), "暂无信号") if isinstance(market, dict) else "暂无信号",
                 "orderbook_bias": (market.get("diagnosis") or {}).get("orderbook_bias") if isinstance(market, dict) else None,
+                "orderbook_bias_label": _labelize(ORDERBOOK_BIAS_LABELS, (market.get("diagnosis") or {}).get("orderbook_bias"), "暂无信号") if isinstance(market, dict) else "暂无信号",
                 "price_oi_regime": (market.get("diagnosis") or {}).get("price_oi_regime") if isinstance(market, dict) else None,
+                "price_oi_regime_label": _labelize(REGIME_LABELS, (market.get("diagnosis") or {}).get("price_oi_regime"), "中性结构") if isinstance(market, dict) else "中性结构",
                 "mention_count": (sentiment_item or {}).get("mention_count"),
                 "bullish_ratio": (sentiment_item or {}).get("bullish_ratio"),
                 "bearish_ratio": (sentiment_item or {}).get("bearish_ratio"),

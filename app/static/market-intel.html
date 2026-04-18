@@ -706,6 +706,30 @@ function severityClass(severity){
   return 'sev-low';
 }
 
+function orderbookBiasLabel(value){
+  return ({bid_support:'买盘支撑', ask_pressure:'卖压偏强', balanced:'相对均衡'})[String(value || '')] || '暂无信号';
+}
+
+function fundingBiasLabel(value){
+  return ({crowded_longs:'多头拥挤', crowded_shorts:'空头拥挤', neutral:'中性'})[String(value || '')] || '暂无信号';
+}
+
+function regimeLabel(value){
+  return ({
+    price_up_oi_up:'上涨增仓',
+    price_up_oi_down:'上涨减仓',
+    price_down_oi_up:'下跌增仓',
+    price_down_oi_down:'下跌减仓',
+    neutral:'中性结构',
+  })[String(value || '')] || '中性结构';
+}
+
+function formatRatio(value){
+  const num = Number(value);
+  if(!Number.isFinite(num)) return '—';
+  return num.toFixed(2);
+}
+
 function getStateFromUrl(){
   const params = new URLSearchParams(location.search);
   state.symbol = sanitizeSymbol(params.get('symbol') || 'BTC');
@@ -753,7 +777,6 @@ async function fetchJson(url){
 function renderHero(payload){
   const brief = payload?.daily_brief || {};
   const pulse = brief.market_pulse || {};
-  const sentiment = brief.sentiment || {};
   const bias = brief.bias || 'neutral';
   $('lead-bias').className = `badge ${bias}`;
   $('lead-bias').textContent = `Bias · ${brief.bias_label || '中性'}`;
@@ -765,13 +788,18 @@ function renderHero(payload){
     ? brief.takeaways.map(item => `<li>${escapeHtml(item)}</li>`).join('')
     : '<li>当前没有可展示的研究结论。</li>';
 
-  const mention = Number(pulse.mention_count);
+  const mention = pulse.mention_count == null ? null : Number(pulse.mention_count);
   const alertCount = payload?.anomaly_alerts?.count ?? 0;
+  const bullRatio = pulse.bullish_ratio == null ? null : Number(pulse.bullish_ratio);
+  const bearRatio = pulse.bearish_ratio == null ? null : Number(pulse.bearish_ratio);
+  const mentionSub = mention == null
+    ? '暂无稳定情绪样本'
+    : `Bull ${formatRatio(bullRatio)} · Bear ${formatRatio(bearRatio)}`;
   $('hero-metrics').innerHTML = [
-    `<div class="metric accent"><div class="label">Pulse Score</div><div class="value">${brief.pulse_score ?? '—'}</div><div class="sub">技术确认 ${escapeHtml(brief.technical_validation?.bias_label || '中性')} · ${escapeHtml(brief.technical_validation?.price_oi_regime || 'neutral')}</div></div>`,
+    `<div class="metric accent"><div class="label">Pulse Score</div><div class="value">${brief.pulse_score ?? '—'}</div><div class="sub">技术确认 ${escapeHtml(brief.technical_validation?.bias_label || '中性')} · ${escapeHtml(brief.technical_validation?.price_oi_regime_label || pulse.price_oi_regime_label || regimeLabel(brief.technical_validation?.price_oi_regime || pulse.price_oi_regime))}</div></div>`,
     `<div class="metric ${toneClass(pulse.price_change_pct_24h) === 'up' ? 'good' : toneClass(pulse.price_change_pct_24h) === 'down' ? 'bad' : ''}"><div class="label">24H Price</div><div class="value">${formatPct(pulse.price_change_pct_24h)}</div><div class="sub">现价 ${formatPrice(pulse.last)} · OI ${formatPct(pulse.oi_delta_pct)}</div></div>`,
-    `<div class="metric"><div class="label">Mention</div><div class="value">${Number.isFinite(mention) ? mention.toLocaleString('en-US') : '—'}</div><div class="sub">Bull ${Number(pulse.bullish_ratio || 0).toFixed(2)} · Bear ${Number(pulse.bearish_ratio || 0).toFixed(2)}</div></div>`,
-    `<div class="metric ${alertCount > 0 ? 'bad' : ''}"><div class="label">Alerts</div><div class="value">${alertCount}</div><div class="sub">Funding ${escapeHtml(pulse.funding_bias || 'neutral')} · 盘口 ${escapeHtml(pulse.orderbook_bias || 'balanced')}</div></div>`
+    `<div class="metric"><div class="label">Mention</div><div class="value">${mention == null ? '—' : mention.toLocaleString('en-US')}</div><div class="sub">${mentionSub}</div></div>`,
+    `<div class="metric ${alertCount > 0 ? 'bad' : ''}"><div class="label">Alerts</div><div class="value">${alertCount}</div><div class="sub">Funding ${escapeHtml(pulse.funding_bias_label || fundingBiasLabel(pulse.funding_bias))} · 盘口 ${escapeHtml(pulse.orderbook_bias_label || orderbookBiasLabel(pulse.orderbook_bias))}</div></div>`
   ].join('');
 }
 
