@@ -6,6 +6,11 @@ from typing import Any
 
 from fastapi import APIRouter, Query, Body
 
+from app.onchain.monitor_service import (
+    collect_whale_transfer_events,
+    get_whale_monitor_status,
+    list_whale_transfer_events,
+)
 from app.onchain.whale_tracker import get_recent_transactions
 from app.onchain.exchange_flow import get_exchange_netflow, get_sopr
 from app.market.sources import surf
@@ -19,6 +24,33 @@ async def whale_transactions(
     limit: int = Query(20, le=100),
 ) -> list[dict[str, Any]]:
     return await get_recent_transactions(min_value, limit)
+
+
+@router.get("/whale-monitor/events")
+async def whale_monitor_events(
+    chain: str | None = Query(None),
+    address: str | None = Query(None),
+    limit: int = Query(50, ge=1, le=200),
+) -> dict[str, Any]:
+    items = await list_whale_transfer_events(chain=chain, address=address, limit=limit)
+    return {
+        "items": items,
+        "count": len(items),
+        "chain": chain,
+        "address": address,
+    }
+
+
+@router.get("/whale-monitor/status")
+async def whale_monitor_status() -> dict[str, Any]:
+    return await get_whale_monitor_status()
+
+
+@router.post("/whale-monitor/run")
+async def whale_monitor_run(
+    force: bool = Body(False, embed=True),
+) -> dict[str, Any]:
+    return await collect_whale_transfer_events(force=force)
 
 
 @router.get("/exchange-flow")

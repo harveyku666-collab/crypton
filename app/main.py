@@ -18,6 +18,7 @@ logger = logging.getLogger("bitinfo")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    from app.address_intel.legacy_store import close_legacy_engines
     from app.common.database import init_db, close_db
     from app.common.http_client import close_client
     from app.common.cache import close_redis
@@ -27,6 +28,7 @@ async def lifespan(app: FastAPI):
     from app.analysis.jobs import register_analysis_jobs
     from app.briefing.jobs import register_briefing_jobs
     from app.square.jobs import register_square_jobs
+    from app.onchain.jobs import register_onchain_jobs
 
     logger.info("Starting %s v%s", settings.project_name, settings.version)
 
@@ -40,6 +42,7 @@ async def lifespan(app: FastAPI):
     register_analysis_jobs()
     register_briefing_jobs()
     register_square_jobs()
+    register_onchain_jobs()
     start_scheduler()
 
     yield
@@ -47,6 +50,7 @@ async def lifespan(app: FastAPI):
     stop_scheduler()
     await close_client()
     await close_redis()
+    await close_legacy_engines()
     await close_db()
     logger.info("Shutdown complete")
 
@@ -127,3 +131,8 @@ async def market_intel_page():
 @app.get("/square")
 async def square_page():
     return FileResponse(str(STATIC_DIR / "square.html"))
+
+
+@app.get("/address-intel")
+async def address_intel_page():
+    return FileResponse(str(STATIC_DIR / "address-intel.html"))

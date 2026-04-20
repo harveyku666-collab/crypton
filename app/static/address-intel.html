@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>地址情报台 - BitInfo</title>
+<style>
+:root{
+  --bg:#0c1116;
+  --paper:#efe5d2;
+  --paper-2:#e4d4b8;
+  --ink:#17191d;
+  --muted:#6d6e73;
+  --line:#d3c3a3;
+  --gold:#b8842f;
+  --green:#1d7f63;
+  --red:#b74d4d;
+  --blue:#2f6db8;
+  --shadow:0 24px 56px rgba(0,0,0,.25);
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:
+    radial-gradient(circle at top left, rgba(184,132,47,.16), transparent 24%),
+    radial-gradient(circle at top right, rgba(47,109,184,.12), transparent 18%),
+    linear-gradient(180deg,#0c1116 0%, #11171d 100%);
+  color:var(--ink);
+  font:15px/1.65 "Avenir Next","PingFang SC","Noto Sans SC",sans-serif;
+}
+a{color:inherit}
+.page{max-width:1440px;margin:0 auto;padding:28px 18px 56px}
+.sheet{
+  background:
+    linear-gradient(180deg,rgba(255,255,255,.2),rgba(255,255,255,.08)),
+    linear-gradient(180deg,var(--paper),#eadbc3 58%, #e1d0b4 100%);
+  border:1px solid rgba(211,195,163,.46);
+  border-radius:32px;
+  overflow:hidden;
+  box-shadow:var(--shadow);
+}
+.hero{
+  padding:24px 28px 18px;
+  border-bottom:1px solid rgba(23,25,29,.12);
+  background:
+    radial-gradient(circle at top left, rgba(184,132,47,.1), transparent 36%),
+    linear-gradient(180deg, rgba(255,255,255,.46), rgba(255,255,255,.18));
+}
+.hero-top{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+  flex-wrap:wrap;
+}
+.back-link,.live{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:9px 14px;
+  border-radius:999px;
+  border:1px solid rgba(23,25,29,.12);
+  background:rgba(255,255,255,.45);
+  text-decoration:none;
+  color:var(--muted);
+}
+.live-dot{width:8px;height:8px;border-radius:50%;background:var(--green)}
+.eyebrow{
+  margin-top:16px;
+  color:var(--gold);
+  font-size:12px;
+  letter-spacing:.22em;
+  text-transform:uppercase;
+}
+.hero h1{
+  margin:10px 0 12px;
+  font-family:"Iowan Old Style","Baskerville","Songti SC",serif;
+  font-size:52px;
+  line-height:1;
+  letter-spacing:-.05em;
+}
+.hero p{margin:0;max-width:920px;color:rgba(23,25,29,.72)}
+.hero-grid{
+  display:grid;
+  grid-template-columns:1.15fr .85fr;
+  gap:18px;
+  padding:18px 28px 26px;
+}
+.lead,.metric,.panel,.field,.entity-card,.profile-card{
+  border:1px solid rgba(23,25,29,.12);
+  border-radius:24px;
+}
+.lead{
+  padding:22px;
+  background:rgba(255,255,255,.34);
+}
+.lead-badges{display:flex;gap:8px;flex-wrap:wrap}
+.badge{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:6px 11px;
+  border-radius:999px;
+  border:1px solid rgba(23,25,29,.1);
+  background:rgba(255,255,255,.56);
+  font-size:12px;
+}
+.badge.exchange{color:var(--blue)}
+.badge.institution{color:var(--gold)}
+.badge.whale{color:var(--green)}
+.badge.unknown{color:var(--muted)}
+.lead h2{
+  margin:14px 0 10px;
+  font-family:"Iowan Old Style","Baskerville","Songti SC",serif;
+  font-size:34px;
+  line-height:1.08;
+  letter-spacing:-.04em;
+}
+.lead ul{margin:16px 0 0;padding-left:18px;color:rgba(23,25,29,.78)}
+.metrics{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:14px;
+}
+.metric{
+  padding:16px;
+  background:#15191d;
+  color:#f7f0e4;
+}
+.metric .label{
+  color:rgba(247,240,228,.6);
+  font-size:12px;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+}
+.metric .value{
+  margin-top:10px;
+  font-size:30px;
+  font-weight:700;
+}
+.metric .sub{
+  margin-top:10px;
+  color:rgba(247,240,228,.68);
+  font-size:12px;
+  line-height:1.7;
+}
+.control-bar{
+  padding:0 28px 22px;
+  display:grid;
+  grid-template-columns:1.2fr .7fr .7fr .5fr auto;
+  gap:12px;
+}
+.field{
+  padding:14px;
+  background:rgba(255,255,255,.38);
+}
+.field label{
+  display:block;
+  margin-bottom:8px;
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:.12em;
+  color:var(--muted);
+}
+.field input,.field select,.action{
+  width:100%;
+  border:1px solid rgba(23,25,29,.12);
+  background:rgba(255,255,255,.68);
+  color:var(--ink);
+  padding:12px 14px;
+  border-radius:14px;
+  font:inherit;
+  outline:none;
+}
+.action{
+  align-self:end;
+  cursor:pointer;
+  background:linear-gradient(135deg,#1c272f,#0f1419);
+  color:#f8efe2;
+  border-color:#1c272f;
+  font-weight:700;
+}
+.chips{
+  padding:0 28px 24px;
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+}
+.chip{
+  border:1px solid rgba(23,25,29,.1);
+  background:rgba(255,255,255,.48);
+  color:var(--muted);
+  padding:8px 12px;
+  border-radius:999px;
+  cursor:pointer;
+}
+.content{
+  padding:0 28px 30px;
+  display:grid;
+  grid-template-columns:1.05fr .95fr;
+  gap:18px;
+}
+.stack{display:grid;gap:18px}
+.panel{
+  padding:22px;
+  background:rgba(255,255,255,.4);
+}
+.panel.dark{
+  background:#15191d;
+  color:#f7f0e4;
+}
+.section-title{
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:16px;
+}
+.section-title h2{
+  margin:0;
+  font-family:"Iowan Old Style","Baskerville","Songti SC",serif;
+  font-size:28px;
+  line-height:1.02;
+}
+.section-title span{
+  font-size:12px;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+  color:var(--muted);
+}
+.entity-grid{display:grid;gap:12px}
+.entity-card,.profile-card{
+  padding:16px;
+  background:rgba(255,255,255,.56);
+}
+.dark .entity-card{background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.08)}
+.entity-top{
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+  align-items:flex-start;
+}
+.entity-card h3,.profile-card h3{
+  margin:6px 0 8px;
+  font-size:20px;
+  line-height:1.3;
+}
+.meta-line{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  align-items:center;
+  font-size:12px;
+  color:var(--muted);
+}
+.dark .meta-line{color:rgba(247,240,228,.62)}
+.address{
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  font-size:12px;
+  color:var(--muted);
+}
+.excerpt{margin-top:10px;color:rgba(23,25,29,.74);font-size:14px;line-height:1.7}
+.dark .excerpt{color:rgba(247,240,228,.72)}
+.entity-actions{
+  margin-top:14px;
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+}
+.btn-secondary,.btn-ghost{
+  padding:8px 12px;
+  border-radius:12px;
+  border:1px solid rgba(23,25,29,.12);
+  background:rgba(255,255,255,.7);
+  cursor:pointer;
+  font:inherit;
+}
+.btn-secondary{background:#161d22;color:#f8efe2;border-color:#161d22}
+.btn-ghost{color:var(--muted)}
+.profile-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:12px;
+}
+.mini-card{
+  padding:14px;
+  border-radius:18px;
+  background:rgba(255,255,255,.52);
+  border:1px solid rgba(23,25,29,.1);
+}
+.dark .mini-card{background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.08)}
+.mini-card .label{font-size:12px;color:var(--muted)}
+.mini-card .value{margin-top:8px;font-size:24px;font-weight:700}
+.list{
+  margin:12px 0 0;
+  padding-left:18px;
+}
+.empty{
+  padding:32px 18px;
+  border:1px dashed rgba(23,25,29,.18);
+  border-radius:18px;
+  color:var(--muted);
+  text-align:center;
+}
+.toast{
+  position:fixed;
+  right:18px;
+  bottom:18px;
+  background:#161d22;
+  color:#f8efe2;
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:14px;
+  padding:12px 16px;
+  box-shadow:0 18px 36px rgba(0,0,0,.22);
+  display:none;
+}
+.toast.show{display:block}
+@media (max-width:1180px){
+  .hero-grid,.content{grid-template-columns:1fr}
+  .control-bar{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:760px){
+  .hero h1{font-size:40px}
+  .metrics,.profile-grid{grid-template-columns:1fr}
+  .control-bar{grid-template-columns:1fr}
+  .page{padding:12px}
+  .hero,.hero-grid,.control-bar,.chips,.content{padding-left:16px;padding-right:16px}
+}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="sheet">
+    <section class="hero">
+      <div class="hero-top">
+        <a class="back-link" href="/">← 返回技能列表</a>
+        <div class="live"><span class="live-dot"></span><span id="sync-label">地址情报在线 · 90s</span></div>
+      </div>
+      <div class="eyebrow">Address Intelligence Desk</div>
+      <h1>机构、交易所、巨鲸地址工作台</h1>
+      <p>直接读取旧项目沉淀下来的实体库、地址映射和每日异动汇总，把机构实体、交易所钱包和巨鲸地址统一到一个独立情报台里。</p>
+    </section>
+
+    <section class="hero-grid">
+      <div class="lead">
+        <div class="lead-badges">
+          <span class="badge exchange" id="lead-type">Exchange / Institution / Whale</span>
+          <span class="badge unknown" id="lead-chain">ethereum</span>
+        </div>
+        <h2 id="lead-title">先输入机构名、交易所名或具体地址</h2>
+        <div id="lead-summary">支持直接搜 `Binance`、`BlackRock`、`Wintermute`，也支持输入 `0x...` 地址进入单地址画像。</div>
+        <ul id="lead-points">
+          <li>默认优先读取旧项目里的实体库和地址映射表。</li>
+          <li>单地址画像会展示旧项目的异动摘要，并在缺数据时回退实时标签能力。</li>
+          <li>确认过的地址仍然可以额外加入当前项目自己的监控库。</li>
+        </ul>
+      </div>
+      <div class="metrics" id="overview-metrics">
+        <div class="metric"><div class="label">Tracked</div><div class="value">—</div><div class="sub">旧项目实体库总量</div></div>
+        <div class="metric"><div class="label">Exchange</div><div class="value">—</div><div class="sub">已标记交易所钱包</div></div>
+        <div class="metric"><div class="label">Institution</div><div class="value">—</div><div class="sub">已标记机构实体</div></div>
+        <div class="metric"><div class="label">Whale</div><div class="value">—</div><div class="sub">已标记巨鲸地址</div></div>
+      </div>
+    </section>
+
+    <section class="control-bar">
+      <div class="field">
+        <label>Keyword / Address</label>
+        <input id="q-input" placeholder="Binance / BlackRock / 0x...">
+      </div>
+      <div class="field">
+        <label>Chain</label>
+        <select id="chain-select">
+          <option value="ethereum">Ethereum</option>
+          <option value="base">Base</option>
+          <option value="arbitrum">Arbitrum</option>
+          <option value="bsc">BSC</option>
+          <option value="solana">Solana</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Entity Type</label>
+        <select id="type-select">
+          <option value="">全部实体</option>
+          <option value="exchange">交易所</option>
+          <option value="institution">机构</option>
+          <option value="whale">巨鲸</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Limit</label>
+        <select id="limit-select">
+          <option value="10">10</option>
+          <option value="20" selected>20</option>
+          <option value="50">50</option>
+        </select>
+      </div>
+      <button class="action" id="refresh-btn">加载情报台</button>
+    </section>
+
+    <div class="chips">
+      <button class="chip" data-q="Binance" data-type="exchange">Binance</button>
+      <button class="chip" data-q="Coinbase" data-type="exchange">Coinbase</button>
+      <button class="chip" data-q="BlackRock" data-type="institution">BlackRock</button>
+      <button class="chip" data-q="Wintermute" data-type="institution">Wintermute</button>
+      <button class="chip" data-q="Jump" data-type="institution">Jump</button>
+      <button class="chip" data-q="0x226250f0f7154a247cfa8e8c6ea9353fdc1f38e8">示例地址</button>
+    </div>
+
+    <section class="content">
+      <div class="stack">
+        <div class="panel">
+          <div class="section-title">
+            <h2>Search Results</h2>
+            <span>关键词检索</span>
+          </div>
+          <div class="entity-grid" id="search-results"><div class="empty">等待检索结果</div></div>
+        </div>
+
+        <div class="panel">
+          <div class="section-title">
+            <h2>Entity Registry</h2>
+            <span>旧项目实体库</span>
+          </div>
+          <div class="entity-grid" id="tracked-results"><div class="empty">等待实体库数据</div></div>
+        </div>
+      </div>
+
+      <div class="stack">
+        <div class="panel dark">
+          <div class="section-title">
+            <h2>Address Profile</h2>
+            <span>单地址画像</span>
+          </div>
+          <div id="profile-panel"><div class="empty">输入具体地址后，这里会显示标签、异动、净值和历史摘要。</div></div>
+        </div>
+
+        <div class="panel">
+          <div class="section-title">
+            <h2>Featured</h2>
+            <span>重点分组</span>
+          </div>
+          <div class="entity-grid" id="featured-results"><div class="empty">等待分组数据</div></div>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const BASE = location.pathname.replace(/\/(address-intel|skill|daily|briefing|square|market-intel|okx-intelligence)?\s*$/, '').replace(/\/+$/, '');
+const API = `${BASE}/api/v1`;
+const state = {
+  q: '',
+  chain: 'ethereum',
+  entityType: '',
+  limit: 20,
+};
+
+function $(id){ return document.getElementById(id); }
+function esc(value){ return String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch])); }
+function isAddress(value){ return /^0x[a-fA-F0-9]{40}$/.test(String(value || '').trim()); }
+function shortAddress(value){
+  const raw = String(value || '').trim();
+  if(!raw) return '—';
+  return raw.length > 16 ? `${raw.slice(0,8)}...${raw.slice(-6)}` : raw;
+}
+function fmtUsd(value){
+  const num = Number(value);
+  if(!Number.isFinite(num)) return '—';
+  if(Math.abs(num) >= 1_000_000_000) return `$${(num / 1_000_000_000).toFixed(2)}B`;
+  if(Math.abs(num) >= 1_000_000) return `$${(num / 1_000_000).toFixed(2)}M`;
+  if(Math.abs(num) >= 1_000) return `$${(num / 1_000).toFixed(2)}K`;
+  return `$${num.toFixed(2)}`;
+}
+function showToast(message){
+  const node = $('toast');
+  node.textContent = message;
+  node.classList.add('show');
+  setTimeout(() => node.classList.remove('show'), 2600);
+}
+
+function getStateFromUrl(){
+  const params = new URLSearchParams(location.search);
+  state.q = String(params.get('q') || '').trim().slice(0,80);
+  state.chain = String(params.get('chain') || 'ethereum').trim().toLowerCase() || 'ethereum';
+  state.entityType = String(params.get('entityType') || '').trim().toLowerCase();
+  state.limit = Math.max(10, Math.min(50, Number(params.get('limit') || 20)));
+}
+
+function syncInputs(){
+  $('q-input').value = state.q;
+  $('chain-select').value = state.chain;
+  $('type-select').value = state.entityType;
+  $('limit-select').value = String(state.limit);
+}
+
+function readInputs(){
+  state.q = String($('q-input').value || '').trim().slice(0,80);
+  state.chain = String($('chain-select').value || 'ethereum').trim().toLowerCase() || 'ethereum';
+  state.entityType = String($('type-select').value || '').trim().toLowerCase();
+  state.limit = Math.max(10, Math.min(50, Number($('limit-select').value || 20)));
+}
+
+function syncUrl(){
+  const params = new URLSearchParams();
+  if(state.q) params.set('q', state.q);
+  params.set('chain', state.chain);
+  if(state.entityType) params.set('entityType', state.entityType);
+  params.set('limit', String(state.limit));
+  history.replaceState({}, '', `${BASE}/address-intel?${params.toString()}`);
+}
+
+async function fetchJson(url){
+  const res = await fetch(url);
+  if(!res.ok) throw new Error(`HTTP ${res.status}`);
+  return await res.json();
+}
+
+async function postJson(url, payload){
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(payload),
+  });
+  if(!res.ok) throw new Error(`HTTP ${res.status}`);
+  return await res.json();
+}
+
+function typeBadge(type, isWhale){
+  const normalized = String(type || 'unknown').toLowerCase();
+  const whale = isWhale ? `<span class="badge whale">巨鲸</span>` : '';
+  const main = `<span class="badge ${esc(normalized)}">${esc(normalized || 'unknown')}</span>`;
+  return `${main}${whale}`;
+}
+
+function renderOverview(overview = {}){
+  const sourceMode = overview.source_mode === 'legacy' ? 'legacy' : (overview.db_available === false ? 'fallback' : 'live');
+  $('lead-chain').textContent = `${state.chain} · ${sourceMode}`;
+  $('lead-title').textContent = state.q ? `正在跟踪 ${state.q}` : '先输入机构名、交易所名或具体地址';
+  const freshnessWarning = Array.isArray(overview.warnings) && overview.warnings.length ? ` ${overview.warnings[0]}` : '';
+  $('lead-summary').textContent = state.q
+    ? '当前查询会同步返回旧项目实体库、异动汇总和单地址画像。'
+    : `你也可以不带关键词直接打开，看旧项目实体库和实体分布。${freshnessWarning}`.trim();
+  $('overview-metrics').innerHTML = [
+    `<div class="metric"><div class="label">Tracked</div><div class="value">${Number(overview.tracked_count || 0)}</div><div class="sub">旧项目实体库 ${Number(overview.tracked_address_count || 0)} 个地址映射${overview.manual_watch_count ? ` / 本地补充 ${Number(overview.manual_watch_count)} 个` : ''}</div></div>`,
+    `<div class="metric"><div class="label">Exchange</div><div class="value">${Number(overview.exchange_count || 0)}</div><div class="sub">交易所钱包</div></div>`,
+    `<div class="metric"><div class="label">Institution</div><div class="value">${Number(overview.institution_count || 0)}</div><div class="sub">机构实体</div></div>`,
+    `<div class="metric"><div class="label">Whale</div><div class="value">${Number(overview.whale_count || 0)}</div><div class="sub">巨鲸地址</div></div>`
+  ].join('');
+}
+
+function entityCard(item, {allowTrack=false, dark=false} = {}){
+  const address = item.address ? `<div class="address">${esc(shortAddress(item.address))}</div>` : '';
+  const note = item.metadata?.description || item.metadata?.summary || item.metadata?.source || '暂无补充描述';
+  const trackBtn = allowTrack && item.address
+    ? `<button class="btn-secondary" onclick='trackEntity(${JSON.stringify({
+        address: item.address,
+        blockchain: item.blockchain,
+        label: item.label,
+        entity_name: item.entity_name,
+        address_type: item.address_type,
+        is_whale: !!item.is_whale,
+        source: item.source,
+        metadata: item.metadata || {},
+      }).replace(/'/g, "&apos;")})'>加入监控</button>`
+    : '';
+  const inspectBtn = item.address
+    ? `<button class="btn-ghost" onclick="openProfile('${esc(item.address)}')">查看画像</button>`
+    : '';
+  return `
+    <article class="entity-card"${dark ? ' style="background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.08)"' : ''}>
+      <div class="entity-top">
+        <div>
+          <div class="meta-line">${typeBadge(item.address_type, item.is_whale)}</div>
+          <h3>${esc(item.entity_name || item.label || item.address || 'Unknown')}</h3>
+          ${address}
+        </div>
+        <div class="meta-line">${esc(item.blockchain || state.chain)}</div>
+      </div>
+      <div class="excerpt">${esc(note)}</div>
+      <div class="meta-line" style="margin-top:12px">
+        <span>${esc(item.source || 'internal')}</span>
+        ${item.score != null ? `<span>score ${esc(Number(item.score).toFixed(2))}</span>` : ''}
+      </div>
+      <div class="entity-actions">${inspectBtn}${trackBtn}</div>
+    </article>`;
+}
+
+function renderEntityList(items, targetId, emptyText, options = {}){
+  if(!Array.isArray(items) || !items.length){
+    $(targetId).innerHTML = `<div class="empty">${esc(emptyText)}</div>`;
+    return;
+  }
+  $(targetId).innerHTML = items.map(item => entityCard(item, options)).join('');
+}
+
+function renderProfile(profile){
+  if(!profile || profile.error){
+    $('profile-panel').innerHTML = `<div class="empty">${esc(profile?.error || '输入具体地址后，这里会显示标签、异动、净值和历史摘要。')}</div>`;
+    return;
+  }
+  const entity = profile.entity || {};
+  const detail = profile.wallet_detail || {};
+  const summary = profile.summary || {};
+  const history = Array.isArray(profile.history) ? profile.history.slice(0, 5) : [];
+  const transfers = Array.isArray(profile.transfers) ? profile.transfers.slice(0, 5) : [];
+  const latestWorth = summary.latest_net_worth;
+  $('profile-panel').innerHTML = `
+    <div class="profile-card">
+      <div class="meta-line">${typeBadge(entity.address_type, entity.is_whale)}</div>
+      <h3>${esc(entity.entity_name || entity.label || entity.address || 'Unknown')}</h3>
+      <div class="address">${esc(entity.address || '—')}</div>
+      <div class="profile-grid" style="margin-top:14px">
+        <div class="mini-card"><div class="label">Chain</div><div class="value">${esc(entity.blockchain || state.chain)}</div></div>
+        <div class="mini-card"><div class="label">Labels</div><div class="value" style="font-size:18px">${esc(entity.label || '—')}</div></div>
+        <div class="mini-card"><div class="label">Net Worth</div><div class="value">${fmtUsd(latestWorth?.value || latestWorth?.net_worth || latestWorth?.usd_value)}</div></div>
+        <div class="mini-card"><div class="label">Activity</div><div class="value">${Number(summary.transfer_count || 0)}</div></div>
+      </div>
+      <div class="section-title" style="margin-top:18px"><h2 style="font-size:22px">Recent Transfers</h2><span>${Number(summary.transfer_count || 0)} 条</span></div>
+      ${transfers.length ? `<ul class="list">${transfers.map(item => `<li>${esc(item.token || item.symbol || 'transfer')} · ${esc(shortAddress(item.to || item.to_address || item.counterparty || '—'))} · ${fmtUsd(item.usd_value || item.value_usd)}</li>`).join('')}</ul>` : `<div class="empty">暂无近期转账样本</div>`}
+      <div class="section-title" style="margin-top:18px"><h2 style="font-size:22px">Recent History</h2><span>${Number(summary.history_count || 0)} 条</span></div>
+      ${history.length ? `<ul class="list">${history.map(item => `<li>${esc(item.action || item.type || item.protocol || 'activity')} · ${esc(item.symbol || item.token || '—')} · ${fmtUsd(item.usd_value || item.value_usd || item.amount_usd)}</li>`).join('')}</ul>` : `<div class="empty">暂无近期历史样本</div>`}
+      ${Object.keys(detail).length ? `<div class="section-title" style="margin-top:18px"><h2 style="font-size:22px">Wallet Detail</h2><span>raw snapshot</span></div><div class="excerpt">${esc(JSON.stringify(detail).slice(0, 420))}${JSON.stringify(detail).length > 420 ? '...' : ''}</div>` : ''}
+    </div>`;
+}
+
+function renderFeatured(featured = {}){
+  const groups = [];
+  if(Array.isArray(featured.exchanges) && featured.exchanges.length){
+    groups.push(...featured.exchanges.slice(0, 2));
+  }
+  if(Array.isArray(featured.institutions) && featured.institutions.length){
+    groups.push(...featured.institutions.slice(0, 2));
+  }
+  if(Array.isArray(featured.whales) && featured.whales.length){
+    groups.push(...featured.whales.slice(0, 2));
+  }
+  renderEntityList(groups, 'featured-results', '当前还没有足够的分组样本。');
+}
+
+async function trackEntity(item){
+  try{
+    const payload = await postJson(`${API}/address-intel/entities/bulk-upsert`, {items:[item]});
+    showToast(`已加入监控：created ${payload.created || 0} / updated ${payload.updated || 0}`);
+    await loadDashboard({silent:true});
+  }catch(error){
+    showToast(`加入监控失败：${error.message}`);
+  }
+}
+
+function openProfile(address){
+  $('q-input').value = address;
+  loadDashboard();
+}
+
+async function loadDashboard({silent=false} = {}){
+  if(!silent){
+    $('refresh-btn').disabled = true;
+    $('refresh-btn').textContent = '加载中...';
+  }
+  readInputs();
+  syncUrl();
+
+  const params = new URLSearchParams({
+    chain: state.chain,
+    limit: String(state.limit),
+  });
+  if(state.q) params.set('q', state.q);
+  if(state.entityType) params.set('entity_type', state.entityType);
+
+  try{
+    const payload = await fetchJson(`${API}/address-intel/dashboard?${params.toString()}`);
+    renderOverview(payload.overview || {});
+    renderEntityList(payload.search_results || [], 'search-results', state.q ? '当前没有匹配结果。' : '输入关键词后，这里显示检索结果。', {allowTrack:true});
+    renderEntityList(payload.tracked_items || [], 'tracked-results', '内部 watchlist 还没有地址。');
+    renderFeatured(payload.featured || {});
+    renderProfile(payload.profile);
+    $('sync-label').textContent = silent ? '地址情报在线 · 90s' : '地址情报已刷新 · 90s';
+  }catch(error){
+    renderEntityList([], 'search-results', `加载失败：${error.message}`);
+    renderEntityList([], 'tracked-results', '无法加载监控地址。');
+    renderFeatured({});
+    renderProfile({error:`地址画像加载失败：${error.message}`});
+    $('sync-label').textContent = '地址情报异常，请手动刷新';
+  }finally{
+    $('refresh-btn').disabled = false;
+    $('refresh-btn').textContent = '加载情报台';
+  }
+}
+
+function applyChip(button){
+  $('q-input').value = button.dataset.q || '';
+  $('type-select').value = button.dataset.type || '';
+  loadDashboard();
+}
+
+function init(){
+  getStateFromUrl();
+  syncInputs();
+  $('refresh-btn').addEventListener('click', () => loadDashboard());
+  $('q-input').addEventListener('keydown', event => {
+    if(event.key === 'Enter') loadDashboard();
+  });
+  ['chain-select','type-select','limit-select'].forEach(id => {
+    $(id).addEventListener('change', () => loadDashboard());
+  });
+  document.querySelectorAll('.chip').forEach(button => button.addEventListener('click', () => applyChip(button)));
+  window.addEventListener('popstate', () => {
+    getStateFromUrl();
+    syncInputs();
+    loadDashboard({silent:true});
+  });
+  loadDashboard();
+  setInterval(() => loadDashboard({silent:true}), 90000);
+}
+
+init();
+</script>
+</body>
+</html>

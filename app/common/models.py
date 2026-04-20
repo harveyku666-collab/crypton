@@ -225,6 +225,67 @@ class WhaleAlert(TimestampMixin, Base):
     tx_hash: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
 
 
+class WhaleTransferEvent(TimestampMixin, Base):
+    __tablename__ = "whale_transfer_events"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    external_id: Mapped[str] = mapped_column(String(160), unique=True, index=True)
+    address: Mapped[str] = mapped_column(String(120), index=True)
+    blockchain: Mapped[str] = mapped_column(String(30), index=True, default="ethereum")
+    entity_name: Mapped[Optional[str]] = mapped_column(String(160), nullable=True)
+    label: Mapped[Optional[str]] = mapped_column(String(160), nullable=True)
+    direction: Mapped[Optional[str]] = mapped_column(String(20), index=True, nullable=True)
+    counterparty_address: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    token: Mapped[Optional[str]] = mapped_column(String(40), index=True, nullable=True)
+    amount: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    amount_usd: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    tx_hash: Mapped[Optional[str]] = mapped_column(String(120), index=True, nullable=True)
+    occurred_at: Mapped[Optional[str]] = mapped_column(String(50), index=True, nullable=True)
+    source: Mapped[Optional[str]] = mapped_column(String(40), nullable=True)
+    metadata_json: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+
+    __table_args__ = (
+        Index("ix_whale_transfer_chain_time", "blockchain", "created_at"),
+        Index("ix_whale_transfer_address_time", "address", "created_at"),
+    )
+
+
+class WhaleMonitorState(TimestampMixin, Base):
+    __tablename__ = "whale_monitor_states"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    scope_key: Mapped[str] = mapped_column(String(80), unique=True, index=True)
+    last_status: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    last_run_started_at: Mapped[Optional[datetime]] = mapped_column(nullable=True)
+    last_run_finished_at: Mapped[Optional[datetime]] = mapped_column(nullable=True)
+    watched_address_count: Mapped[int] = mapped_column(Integer, default=0)
+    fetched_transfer_count: Mapped[int] = mapped_column(Integer, default=0)
+    stored_event_count: Mapped[int] = mapped_column(Integer, default=0)
+    error_count: Mapped[int] = mapped_column(Integer, default=0)
+    metadata_json: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+
+
+class MonitoredAddress(TimestampMixin, Base):
+    __tablename__ = "monitored_addresses"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    address: Mapped[str] = mapped_column(String(120), index=True)
+    blockchain: Mapped[str] = mapped_column(String(30), index=True, default="ethereum")
+    label: Mapped[Optional[str]] = mapped_column(String(160), nullable=True)
+    entity_name: Mapped[Optional[str]] = mapped_column(String(160), nullable=True)
+    address_type: Mapped[Optional[str]] = mapped_column(String(40), index=True, nullable=True)
+    is_whale: Mapped[int] = mapped_column(Integer, default=0, index=True)
+    alert_threshold: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    source: Mapped[Optional[str]] = mapped_column(String(40), nullable=True)
+    is_active: Mapped[int] = mapped_column(Integer, default=1, index=True)
+    metadata_json: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+
+    __table_args__ = (
+        Index("ux_monitored_address_chain", "address", "blockchain", unique=True),
+        Index("ix_monitored_type_chain_active", "address_type", "blockchain", "is_active"),
+    )
+
+
 class Briefing(TimestampMixin, Base):
     __tablename__ = "briefings"
 

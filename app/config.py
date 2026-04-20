@@ -27,6 +27,12 @@ class Settings(BaseSettings):
     square_collect_interval_minutes: int = 10
     square_collect_page_size: int = 40
     square_collect_backfill_pages: int = 3
+    address_intel_registry_database_url: str = ""
+    address_intel_activity_database_url: str = ""
+    onchain_whale_monitor_interval_minutes: int = 15
+    onchain_whale_transfer_limit: int = 20
+    onchain_whale_min_usd: float = 1000000.0
+    onchain_whale_max_addresses: int = 25
 
     class Config:
         env_file = ".env"
