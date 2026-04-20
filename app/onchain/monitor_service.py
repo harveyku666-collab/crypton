@@ -19,6 +19,10 @@ logger = logging.getLogger("bitinfo.onchain.monitor")
 GLOBAL_SCOPE = "global"
 
 
+def utcnow_naive() -> datetime:
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
 def _safe_float(value: Any) -> float | None:
     try:
         if value in {None, ""}:
@@ -240,7 +244,7 @@ async def collect_whale_transfer_events(*, force: bool = False) -> dict[str, Any
         }
 
     watchers = await _load_watched_addresses()
-    started_at = datetime.now(timezone.utc)
+    started_at = utcnow_naive()
     fetched_transfer_count = 0
     stored_event_count = 0
     skipped_existing_count = 0
@@ -261,7 +265,7 @@ async def collect_whale_transfer_events(*, force: bool = False) -> dict[str, Any
         await session.commit()
 
     if not watchers:
-        finished_at = datetime.now(timezone.utc)
+        finished_at = utcnow_naive()
         async with async_session() as session:
             state = await _get_or_create_state(session)
             state.last_status = "idle"
@@ -338,7 +342,7 @@ async def collect_whale_transfer_events(*, force: bool = False) -> dict[str, Any
                 )
                 stored_event_count += 1
 
-        finished_at = datetime.now(timezone.utc)
+        finished_at = utcnow_naive()
         state = await _get_or_create_state(session)
         state.last_status = "ok" if error_count == 0 else "partial"
         state.last_run_finished_at = finished_at
