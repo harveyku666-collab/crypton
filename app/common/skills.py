@@ -475,6 +475,34 @@ SKILLS: list[Skill] = [
     ),
 
     Skill(
+        id="square-intelligence",
+        name="Square Intelligence Desk",
+        name_zh="广场情报台",
+        description="Unified Binance Square + OKX Square workspace for real-time content flow, KOL detection, hot-token dedupe ranking, and historical search.",
+        description_zh="把 Binance 广场和 OKX 广场整合成一个研究界面：实时内容流、大 V 标记、热门币去重榜和历史检索一页看完。",
+        icon="📣",
+        category="social",
+        status="active",
+        api_endpoint="/square",
+        requires_credits=False,
+        features=[
+            "Unified Binance + OKX square feed",
+            "Native verified account and manual KOL highlighting",
+            "Hot-token board deduped by author in time window",
+            "History search with live fallback when DB is unavailable",
+            "Single-page AJAX dashboard with filters and pagination",
+        ],
+        features_zh=[
+            "Binance + OKX 广场统一实时流",
+            "平台原生认证作者 + 手工 KOL 名录双重高亮",
+            "按作者去重的热门币排行榜",
+            "数据库不可用时自动退化到实时历史检索",
+            "单页 AJAX 工作台：筛选、翻页、原位刷新",
+        ],
+        data_sources=["Binance Square", "OKX Square", "Square KOL Profiles"],
+    ),
+
+    Skill(
         id="open-interest",
         name="Open Interest & Derivatives",
         name_zh="持仓量与衍生品数据",

@@ -9,6 +9,7 @@ from app.onchain.router import router as onchain_router
 from app.ai.router import router as ai_router
 from app.trading.router import router as trading_router
 from app.briefing.router import router as briefing_router
+from app.square.router import router as square_router
 
 api_router = APIRouter(prefix="/api/v1")
 
@@ -19,6 +20,7 @@ api_router.include_router(onchain_router)
 api_router.include_router(ai_router)
 api_router.include_router(trading_router)
 api_router.include_router(briefing_router)
+api_router.include_router(square_router)
 
 
 @api_router.get("/system/endpoints", tags=["system"])

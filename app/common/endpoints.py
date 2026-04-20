@@ -118,6 +118,18 @@ BINANCE_STATIC = Endpoint(
     ],
 )
 
+BINANCE_WEBSITE = Endpoint(
+    name="Binance Square OpenAPI",
+    base_url="https://www.binance.com",
+    description="Binance Square 相关公开/开放 API 命名空间",
+    paths=[
+        "/bapi/composite/v1/public/pgc/openApi/content/add  # Square OpenAPI 发帖接口",
+        "/bapi/composite/v9/friendly/pgc/feed/feed-recommend/list  # Square 首页内容流",
+        "/bapi/composite/v2/friendly/pgc/special/content/detail/{id}  # Square 内容详情",
+        "/bapi/composite/v4/friendly/pgc/feed/news/list  # Square 资讯流",
+    ],
+)
+
 BINANCE_FUTURES = Endpoint(
     name="Binance Futures (公开)",
     base_url="https://fapi.binance.com",
@@ -186,6 +198,8 @@ OKX_EXCHANGE = Endpoint(
         "/api/v5/trade/cancel-order  # 撤单",
         "/api/v5/trade/orders-pending # 查询挂单",
         "/api/v5/account/positions   # 查询持仓",
+        "/api/v5/orbit/news-search   # Orbit 新闻/内容搜索",
+        "/api/v5/orbit/news-detail   # Orbit 内容详情",
     ],
 )
 
@@ -338,6 +352,7 @@ ALL_ENDPOINTS: list[Endpoint] = [
     BINANCE_DATA_VISION,
     BINANCE_WEB3,
     BINANCE_STATIC,
+    BINANCE_WEBSITE,
     BINANCE_FUTURES,
     BINANCE_TRADE,
     BINANCE_TESTNET_SPOT,

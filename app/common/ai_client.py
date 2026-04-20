@@ -5,18 +5,20 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from openai import AsyncOpenAI
-
 from app.config import settings
 
 logger = logging.getLogger("bitinfo.ai")
 
-_client: AsyncOpenAI | None = None
+_client: Any | None = None
 
 
-def get_ai_client() -> AsyncOpenAI:
+def get_ai_client() -> Any:
     global _client
     if _client is None:
+        try:
+            from openai import AsyncOpenAI
+        except ModuleNotFoundError as exc:
+            raise RuntimeError("openai package is not installed") from exc
         _client = AsyncOpenAI(
             api_key=settings.openai_api_key or "sk-placeholder",
             base_url=settings.openai_base_url,

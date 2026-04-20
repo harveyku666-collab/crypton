@@ -1,0 +1,1238 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>广场情报台 - BitInfo</title>
+<style>
+:root{
+  --bg:#081018;
+  --bg-2:#0d1722;
+  --panel:#101a25;
+  --panel-2:#162434;
+  --panel-3:#1d3144;
+  --line:#2a3c51;
+  --line-soft:rgba(255,255,255,.08);
+  --text:#edf4fb;
+  --muted:#97aabc;
+  --muted-2:#768a9f;
+  --cyan:#76d3ff;
+  --teal:#5bd8bf;
+  --lime:#6fe29b;
+  --amber:#ffc76f;
+  --rose:#ff8d8b;
+  --violet:#b9a6ff;
+  --shadow:0 22px 56px rgba(0,0,0,.34);
+  --headline:"Iowan Old Style","Baskerville","Palatino Linotype","Songti SC","STSong",serif;
+  --body:"Avenir Next","PingFang SC","Helvetica Neue",sans-serif;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;
+  color:var(--text);
+  font:14px/1.65 var(--body);
+  background:
+    radial-gradient(circle at 10% 8%, rgba(118,211,255,.12), transparent 18%),
+    radial-gradient(circle at 84% 12%, rgba(255,199,111,.12), transparent 18%),
+    radial-gradient(circle at 74% 78%, rgba(91,216,191,.10), transparent 20%),
+    linear-gradient(180deg, #071019 0%, #091420 44%, #081018 100%);
+}
+a{color:inherit}
+.page{max-width:1380px;margin:0 auto;padding:28px 18px 56px}
+.hero{
+  position:relative;
+  overflow:hidden;
+  border-radius:30px;
+  border:1px solid rgba(118,211,255,.16);
+  background:
+    linear-gradient(140deg, rgba(11,19,29,.98), rgba(14,25,38,.94)),
+    linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(255,255,255,.025) 1px, transparent 1px);
+  background-size:auto, 26px 26px, 26px 26px;
+  box-shadow:var(--shadow);
+  padding:30px;
+}
+.hero:before{
+  content:"";
+  position:absolute;
+  width:360px;
+  height:360px;
+  right:-120px;
+  top:-120px;
+  border-radius:50%;
+  background:radial-gradient(circle, rgba(118,211,255,.16), transparent 68%);
+  pointer-events:none;
+}
+.hero:after{
+  content:"";
+  position:absolute;
+  width:260px;
+  height:260px;
+  left:-80px;
+  bottom:-120px;
+  border-radius:50%;
+  background:radial-gradient(circle, rgba(255,199,111,.14), transparent 68%);
+  pointer-events:none;
+}
+.hero-grid{
+  position:relative;
+  display:grid;
+  grid-template-columns:1.18fr .82fr;
+  gap:22px;
+}
+.back-link{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:8px 14px;
+  border-radius:999px;
+  border:1px solid var(--line);
+  background:rgba(255,255,255,.03);
+  color:var(--muted);
+  text-decoration:none;
+}
+.back-link:hover{color:var(--text);border-color:var(--cyan)}
+.eyebrow{
+  margin-top:16px;
+  color:var(--cyan);
+  font-size:12px;
+  letter-spacing:.2em;
+  text-transform:uppercase;
+}
+.hero h1{
+  margin:12px 0 12px;
+  font:700 48px/1 var(--headline);
+  letter-spacing:-.045em;
+}
+.hero p{
+  margin:0;
+  max-width:760px;
+  color:var(--muted);
+  font-size:15px;
+}
+.hero-pills{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  margin-top:18px;
+}
+.pill{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:8px 12px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.08);
+  background:rgba(255,255,255,.03);
+  color:var(--muted);
+  font-size:12px;
+}
+.pill.live{color:var(--text);border-color:rgba(118,211,255,.24)}
+.hero-side{
+  display:grid;
+  gap:14px;
+}
+.hero-card{
+  border-radius:22px;
+  border:1px solid var(--line-soft);
+  background:rgba(255,255,255,.04);
+  padding:18px;
+}
+.hero-card .label{
+  color:var(--muted);
+  font-size:12px;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
+.hero-card .value{
+  margin-top:10px;
+  font:700 30px/1.04 var(--headline);
+  letter-spacing:-.04em;
+}
+.hero-card .sub{
+  margin-top:8px;
+  color:var(--muted);
+  font-size:12px;
+  line-height:1.75;
+}
+.toolbar{
+  display:grid;
+  grid-template-columns:1.15fr .82fr .72fr .72fr .7fr .7fr;
+  gap:14px;
+  margin-top:18px;
+}
+.tool{
+  border-radius:22px;
+  border:1px solid var(--line-soft);
+  background:linear-gradient(180deg, rgba(17,27,38,.96), rgba(13,22,32,.94));
+  box-shadow:var(--shadow);
+  padding:16px 18px;
+}
+.tool.label-free{display:flex;align-items:flex-end}
+.tool .label{
+  margin-bottom:9px;
+  color:var(--muted);
+  font-size:11px;
+  letter-spacing:.09em;
+  text-transform:uppercase;
+}
+.input,.select,.button{
+  width:100%;
+  border:1px solid var(--line);
+  border-radius:14px;
+  padding:12px 14px;
+  background:rgba(255,255,255,.03);
+  color:var(--text);
+  font:inherit;
+}
+.input::placeholder{color:var(--muted-2)}
+.button{
+  cursor:pointer;
+  transition:transform .16s ease,border-color .16s ease,background .16s ease;
+}
+.button:hover{transform:translateY(-1px)}
+.button.primary{
+  border-color:transparent;
+  background:linear-gradient(135deg, var(--amber), #ffdca0);
+  color:#081018;
+  font-weight:800;
+}
+.button.secondary{background:rgba(255,255,255,.03)}
+.button-stack{display:grid;gap:10px}
+.toggle-box{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:12px 14px;
+  border-radius:14px;
+  border:1px solid var(--line);
+  background:rgba(255,255,255,.03);
+}
+.toggle-copy{display:grid;gap:3px}
+.toggle-copy strong{font-size:13px}
+.toggle-copy span{font-size:11px;color:var(--muted)}
+.switch{
+  position:relative;
+  display:inline-flex;
+  width:54px;
+  height:30px;
+  border-radius:999px;
+  background:rgba(255,255,255,.08);
+  cursor:pointer;
+  flex-shrink:0;
+}
+.switch input{display:none}
+.switch span{
+  position:absolute;
+  top:4px;
+  left:4px;
+  width:22px;
+  height:22px;
+  border-radius:50%;
+  background:var(--text);
+  transition:transform .2s ease, background .2s ease;
+}
+.switch input:checked + span{
+  transform:translateX(24px);
+  background:#081018;
+}
+.switch input:checked ~ .switch-bg,
+.switch.active{background:linear-gradient(135deg, var(--teal), var(--cyan))}
+.quickbar{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  margin-top:12px;
+}
+.quick{
+  border:1px solid var(--line-soft);
+  border-radius:999px;
+  padding:8px 12px;
+  background:rgba(255,255,255,.03);
+  color:var(--muted);
+  cursor:pointer;
+  font-size:12px;
+}
+.quick:hover{color:var(--text);border-color:rgba(118,211,255,.28)}
+.status{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+  margin-top:18px;
+  padding:14px 16px;
+  border-radius:20px;
+  border:1px solid var(--line-soft);
+  background:rgba(255,255,255,.03);
+}
+.status strong{color:var(--text)}
+.availability{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+}
+.tag{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:5px 10px;
+  border-radius:999px;
+  font-size:11px;
+  border:1px solid var(--line-soft);
+  color:var(--muted);
+  background:rgba(255,255,255,.03);
+}
+.tag.good{color:var(--lime);border-color:rgba(111,226,155,.22)}
+.tag.warn{color:var(--amber);border-color:rgba(255,199,111,.22)}
+.tag.bad{color:var(--rose);border-color:rgba(255,141,139,.22)}
+.summary{
+  display:grid;
+  grid-template-columns:1.08fr .92fr;
+  gap:18px;
+  margin-top:18px;
+}
+.section{margin-top:18px}
+.panel{
+  border-radius:26px;
+  border:1px solid var(--line-soft);
+  background:linear-gradient(180deg, rgba(17,27,38,.97), rgba(13,22,32,.95));
+  box-shadow:var(--shadow);
+}
+.panel-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:16px;
+  padding:20px 22px 0;
+}
+.panel-title{
+  margin:0;
+  font-size:16px;
+  font-weight:700;
+}
+.panel-sub{
+  margin-top:6px;
+  color:var(--muted);
+  font-size:12px;
+}
+.panel-body{padding:18px 22px 22px}
+.rank-list,.kol-list,.live-list,.history-list{display:grid;gap:12px}
+.rank-row{
+  position:relative;
+  overflow:hidden;
+  border-radius:20px;
+  border:1px solid var(--line-soft);
+  background:linear-gradient(135deg, rgba(22,36,52,.94), rgba(13,22,32,.96));
+  padding:16px;
+}
+.rank-row:before{
+  content:"";
+  position:absolute;
+  inset:auto auto 0 0;
+  height:3px;
+  width:calc(var(--rank-share, .1) * 100%);
+  background:linear-gradient(90deg, var(--amber), var(--cyan));
+}
+.rank-top{
+  display:flex;
+  justify-content:space-between;
+  gap:14px;
+  align-items:flex-start;
+}
+.rank-main{
+  display:flex;
+  gap:14px;
+  align-items:flex-start;
+}
+.rank-num{
+  min-width:42px;
+  height:42px;
+  border-radius:14px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:rgba(255,255,255,.05);
+  color:var(--amber);
+  font:700 18px/1 var(--headline);
+}
+.rank-token{
+  font:700 26px/1 var(--headline);
+  letter-spacing:-.04em;
+}
+.rank-desc{
+  margin-top:6px;
+  color:var(--muted);
+  font-size:12px;
+}
+.metric-row{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:10px;
+  margin-top:14px;
+}
+.mini-metric{
+  border-radius:14px;
+  border:1px solid var(--line-soft);
+  background:rgba(255,255,255,.03);
+  padding:10px 12px;
+}
+.mini-metric .k{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.mini-metric .v{margin-top:7px;font-size:18px;font-weight:700}
+.chip-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.chip{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:6px 10px;
+  border-radius:999px;
+  background:rgba(255,255,255,.04);
+  border:1px solid var(--line-soft);
+  color:var(--muted);
+  font-size:11px;
+}
+.empty{
+  border-radius:20px;
+  border:1px dashed rgba(255,255,255,.12);
+  background:rgba(255,255,255,.02);
+  color:var(--muted);
+  padding:18px;
+}
+.kol-item,
+.feed-card,
+.history-card{
+  border-radius:22px;
+  border:1px solid var(--line-soft);
+  background:linear-gradient(135deg, rgba(23,36,51,.96), rgba(13,22,32,.96));
+  overflow:hidden;
+}
+.kol-item{padding:15px 16px}
+.kol-top,
+.feed-top,
+.history-top{
+  display:flex;
+  justify-content:space-between;
+  gap:14px;
+  align-items:flex-start;
+}
+.author-stack{display:grid;gap:4px}
+.author{
+  font-size:16px;
+  font-weight:700;
+}
+.author-sub{
+  color:var(--muted);
+  font-size:12px;
+}
+.score{
+  text-align:right;
+}
+.score strong{
+  display:block;
+  font-size:22px;
+  color:var(--cyan);
+}
+.score span{
+  color:var(--muted);
+  font-size:11px;
+}
+.feed-card,
+.history-card{
+  padding:18px;
+}
+.feed-headline{
+  margin:12px 0 8px;
+  font:700 24px/1.08 var(--headline);
+  letter-spacing:-.035em;
+}
+.feed-body{
+  color:var(--muted);
+  font-size:13px;
+  line-height:1.75;
+  white-space:pre-wrap;
+  word-break:break-word;
+}
+.meta-line{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  margin-top:12px;
+}
+.badge{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:6px 10px;
+  border-radius:999px;
+  font-size:11px;
+  border:1px solid var(--line-soft);
+  background:rgba(255,255,255,.03);
+  color:var(--muted);
+}
+.badge.binance{color:#ffd48d;border-color:rgba(255,212,141,.24)}
+.badge.okx{color:#9fe9ff;border-color:rgba(159,233,255,.22)}
+.badge.kol{color:var(--lime);border-color:rgba(111,226,155,.26)}
+.badge.article{color:var(--violet);border-color:rgba(185,166,255,.24)}
+.badge.detail{color:var(--amber);border-color:rgba(255,199,111,.22)}
+.badge.warn{color:var(--rose);border-color:rgba(255,141,139,.24)}
+.post-footer{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  align-items:center;
+  margin-top:14px;
+  padding-top:14px;
+  border-top:1px solid rgba(255,255,255,.06);
+}
+.post-stats{
+  display:flex;
+  flex-wrap:wrap;
+  gap:12px;
+  color:var(--muted);
+  font-size:12px;
+}
+.post-link{
+  color:var(--text);
+  text-decoration:none;
+  border-bottom:1px solid rgba(255,255,255,.15);
+}
+.post-link:hover{border-bottom-color:var(--cyan);color:var(--cyan)}
+.history-grid{
+  display:grid;
+  grid-template-columns:1fr 360px;
+  gap:18px;
+}
+.side-note{
+  border-radius:22px;
+  border:1px solid var(--line-soft);
+  background:rgba(255,255,255,.03);
+  padding:18px;
+  height:fit-content;
+}
+.note-title{
+  font-size:13px;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:var(--muted);
+}
+.note-body{
+  margin-top:10px;
+  color:var(--muted);
+  font-size:12px;
+  line-height:1.85;
+}
+.pager{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin-top:14px;
+}
+.pager-meta{
+  color:var(--muted);
+  font-size:12px;
+}
+.pager-actions{
+  display:flex;
+  gap:10px;
+}
+.footnote{
+  margin-top:18px;
+  color:var(--muted-2);
+  font-size:12px;
+  line-height:1.8;
+}
+@media (max-width:1180px){
+  .hero-grid,.summary,.history-grid{grid-template-columns:1fr}
+  .toolbar{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:760px){
+  .page{padding:18px 12px 40px}
+  .hero,.tool,.panel{border-radius:22px}
+  .hero h1{font-size:34px}
+  .toolbar{grid-template-columns:1fr}
+  .metric-row{grid-template-columns:1fr}
+  .panel-head,.panel-body{padding-left:16px;padding-right:16px}
+  .post-footer,.status,.rank-top,.feed-top,.history-top,.kol-top{display:grid}
+}
+</style>
+</head>
+<body>
+<div class="page">
+  <section class="hero">
+    <div class="hero-grid">
+      <div>
+        <a class="back-link" href="/">← 返回首页</a>
+        <div class="eyebrow">Square Intelligence Desk</div>
+        <h1>广场情报台</h1>
+        <p>把 Binance 和 OKX 广场内容收进同一个研究界面，先看实时流，再看热门币种，再落到历史检索和大 V 名录。这里的热门币统计已经按“同一作者在时间窗内多次提到同一币只算一次”来做。</p>
+        <div class="hero-pills">
+          <span class="pill live">实时采集流</span>
+          <span class="pill">KOL / 大 V 高亮</span>
+          <span class="pill">热币去重榜</span>
+          <span class="pill">历史检索</span>
+        </div>
+      </div>
+      <div class="hero-side">
+        <div class="hero-card">
+          <div class="label">实时流概览</div>
+          <div class="value" id="heroLiveCount">—</div>
+          <div class="sub" id="heroLiveSub">等待同步广场实时流</div>
+        </div>
+        <div class="hero-card">
+          <div class="label">热币焦点</div>
+          <div class="value" id="heroHotToken">—</div>
+          <div class="sub" id="heroHotSub">等待生成时间窗热度排行</div>
+        </div>
+        <div class="hero-card">
+          <div class="label">KOL 信号密度</div>
+          <div class="value" id="heroKolRate">—</div>
+          <div class="sub" id="heroKolSub">平台原生认证和手工名录会共同打标</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="toolbar">
+    <div class="tool">
+      <div class="label">关键词</div>
+      <input id="keyword" class="input" placeholder="BTC / meme / ETF / 山寨币 / AI">
+    </div>
+    <div class="tool">
+      <div class="label">平台范围</div>
+      <select id="platforms" class="select">
+        <option value="binance,okx">Binance + OKX</option>
+        <option value="binance">只看 Binance</option>
+        <option value="okx">只看 OKX</option>
+      </select>
+    </div>
+    <div class="tool">
+      <div class="label">语言</div>
+      <select id="language" class="select">
+        <option value="zh-CN">中文优先</option>
+        <option value="en">英文优先</option>
+      </select>
+    </div>
+    <div class="tool">
+      <div class="label">内容类型</div>
+      <select id="itemType" class="select">
+        <option value="">全部</option>
+        <option value="post">帖子</option>
+        <option value="article">长文</option>
+        <option value="topic">话题</option>
+      </select>
+    </div>
+    <div class="tool">
+      <div class="label">热度时间窗</div>
+      <select id="hours" class="select">
+        <option value="6">6 小时</option>
+        <option value="12">12 小时</option>
+        <option value="24" selected>24 小时</option>
+        <option value="72">72 小时</option>
+        <option value="168">7 天</option>
+      </select>
+    </div>
+    <div class="tool">
+      <div class="label">每区条数</div>
+      <select id="limit" class="select">
+        <option value="6">6</option>
+        <option value="8">8</option>
+        <option value="10" selected>10</option>
+        <option value="12">12</option>
+        <option value="20">20</option>
+      </select>
+    </div>
+    <div class="tool">
+      <div class="label">KOL 过滤</div>
+      <div class="toggle-box">
+        <div class="toggle-copy">
+          <strong>只看大 V</strong>
+          <span>实时流、热币榜、历史检索共同生效</span>
+        </div>
+        <label class="switch" id="kolSwitchShell">
+          <input id="kolOnly" type="checkbox">
+          <span></span>
+        </label>
+      </div>
+    </div>
+    <div class="tool label-free">
+      <div class="button-stack">
+        <button id="refreshBtn" class="button primary">刷新广场情报</button>
+        <button id="resetBtn" class="button secondary">重置筛选</button>
+      </div>
+    </div>
+  </section>
+
+  <div class="quickbar">
+    <button class="quick" data-platforms="binance,okx">双平台</button>
+    <button class="quick" data-platforms="binance">Binance</button>
+    <button class="quick" data-platforms="okx">OKX</button>
+    <button class="quick" data-language="zh-CN">中文视图</button>
+    <button class="quick" data-language="en">英文视图</button>
+    <button class="quick" data-hours="24">24h</button>
+    <button class="quick" data-hours="72">72h</button>
+    <button class="quick" data-kol-only="1">只看大 V</button>
+    <button class="quick" data-item-type="article">只看长文</button>
+    <button class="quick" data-keyword="BTC">BTC</button>
+    <button class="quick" data-keyword="AI">AI</button>
+    <button class="quick" data-keyword="Meme">Meme</button>
+  </div>
+
+  <div class="status">
+    <div id="statusText"><strong>等待同步广场情报…</strong></div>
+    <div class="availability" id="availabilityTags"></div>
+    <div id="updatedText">自动刷新已开启 · 90s</div>
+  </div>
+
+  <section class="summary">
+    <article class="panel">
+      <div class="panel-head">
+        <div>
+          <h2 class="panel-title">热门币去重榜</h2>
+          <div class="panel-sub">按当前时间窗统计，被同一作者多次提到也只记一次。这里最适合先判断“今天大家真正反复在说什么”。</div>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div id="hotPanel" class="rank-list"></div>
+      </div>
+    </article>
+
+    <aside class="panel">
+      <div class="panel-head">
+        <div>
+          <h2 class="panel-title">KOL / 大 V 名录</h2>
+          <div class="panel-sub">这里展示我们库里的 KOL 名录；实时流里的原生认证作者也会单独高亮。</div>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div id="kolPanel" class="kol-list"></div>
+      </div>
+    </aside>
+  </section>
+
+  <section class="panel section">
+    <div class="panel-head">
+      <div>
+        <h2 class="panel-title">实时广场流</h2>
+        <div class="panel-sub">这里看最新流入的帖子、长文和平台原生认证作者。长文会优先补 detail 正文，不只是列表摘要。</div>
+      </div>
+    </div>
+    <div class="panel-body">
+      <div id="livePanel" class="live-list"></div>
+    </div>
+  </section>
+
+  <section class="panel section">
+    <div class="panel-head">
+      <div>
+        <h2 class="panel-title">历史检索</h2>
+        <div class="panel-sub">如果数据库可用，这里走历史库；如果数据库暂时不可用，会自动退化到实时流分页。</div>
+      </div>
+    </div>
+    <div class="panel-body">
+      <div class="history-grid">
+        <div>
+          <div id="historyPanel" class="history-list"></div>
+          <div class="pager">
+            <div class="pager-meta" id="historyMeta">等待加载历史结果…</div>
+            <div class="pager-actions">
+              <button id="prevPageBtn" class="button secondary">上一页</button>
+              <button id="nextPageBtn" class="button secondary">下一页</button>
+            </div>
+          </div>
+        </div>
+        <aside class="side-note">
+          <div class="note-title">当前页解读</div>
+          <div class="note-body" id="historyNote">
+            等待历史查询结果。这里会根据当前筛选解释：现在看的是哪个平台、哪种内容、是否只保留了 KOL，以及历史区当前到底来自数据库还是实时 fallback。
+          </div>
+        </aside>
+      </div>
+      <div class="footnote">
+        说明：Binance 和 OKX 的内容可用性会受网络区域和代理环境影响。如果某个平台暂时不可用，页面不会整块消失，而是把 warning / error 原样暴露出来，方便排查。
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+const BASE = location.pathname.replace(/\/(square|skill|daily|briefing|oi-signal|defi-yield-scanner|prediction-advanced|okx-intelligence|market-intel|market-rank)?\s*$/, '').replace(/\/+$/, '');
+const API = `${BASE}/api/v1`;
+const REFRESH_MS = 90000;
+const DEFAULTS = {
+  platforms: 'binance,okx',
+  language: 'zh-CN',
+  itemType: '',
+  keyword: '',
+  hours: '24',
+  limit: '10',
+  kolOnly: false,
+  historyPage: 1,
+  historyPageSize: 10,
+};
+const state = getStateFromUrl();
+let autoTimer = null;
+
+function esc(value){
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function fmtNum(value){
+  if(value == null || Number.isNaN(Number(value))) return '—';
+  return Number(value).toLocaleString('zh-CN');
+}
+
+function fmtWhen(value){
+  if(value == null || value === '') return '—';
+  const num = Number(value);
+  const d = new Date(Number.isNaN(num) ? value : num);
+  if(Number.isNaN(d.getTime())) return '—';
+  return d.toLocaleString('zh-CN', {month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit'});
+}
+
+function oneLine(value, limit = 220){
+  const text = String(value || '').replace(/\s+/g, ' ').trim();
+  if(!text) return '—';
+  return text.length > limit ? `${text.slice(0, limit)}…` : text;
+}
+
+function compactList(values, max = 4){
+  const items = Array.isArray(values) ? values.filter(Boolean) : [];
+  return items.slice(0, max);
+}
+
+function isSinglePlatform(platforms){
+  return platforms === 'binance' || platforms === 'okx';
+}
+
+function getStateFromUrl(){
+  const params = new URLSearchParams(location.search);
+  const platforms = ['binance,okx', 'binance', 'okx'].includes(params.get('platforms') || '') ? (params.get('platforms') || '') : DEFAULTS.platforms;
+  const language = ['zh-CN', 'en'].includes(params.get('language') || '') ? (params.get('language') || '') : DEFAULTS.language;
+  const itemType = ['', 'post', 'article', 'topic'].includes(params.get('itemType') || '') ? (params.get('itemType') || '') : DEFAULTS.itemType;
+  const hours = ['6', '12', '24', '72', '168'].includes(params.get('hours') || '') ? (params.get('hours') || '') : DEFAULTS.hours;
+  const limit = ['6', '8', '10', '12', '20'].includes(params.get('limit') || '') ? (params.get('limit') || '') : DEFAULTS.limit;
+  const historyPage = Math.max(1, Number(params.get('page') || DEFAULTS.historyPage));
+  return {
+    platforms,
+    language,
+    itemType,
+    keyword: String(params.get('q') || '').replace(/\s+/g, ' ').trim().slice(0, 80),
+    hours,
+    limit,
+    kolOnly: params.get('kolOnly') === '1' || params.get('kolOnly') === 'true',
+    historyPage,
+    historyPageSize: DEFAULTS.historyPageSize,
+  };
+}
+
+function syncUrl(){
+  const params = new URLSearchParams();
+  params.set('platforms', state.platforms);
+  params.set('language', state.language);
+  if(state.itemType) params.set('itemType', state.itemType);
+  if(state.keyword) params.set('q', state.keyword);
+  params.set('hours', state.hours);
+  params.set('limit', state.limit);
+  if(state.kolOnly) params.set('kolOnly', '1');
+  if(state.historyPage > 1) params.set('page', String(state.historyPage));
+  history.replaceState({}, '', `${location.pathname}?${params.toString()}`);
+}
+
+function applyStateToControls(){
+  document.getElementById('platforms').value = state.platforms;
+  document.getElementById('language').value = state.language;
+  document.getElementById('itemType').value = state.itemType;
+  document.getElementById('keyword').value = state.keyword;
+  document.getElementById('hours').value = state.hours;
+  document.getElementById('limit').value = state.limit;
+  document.getElementById('kolOnly').checked = state.kolOnly;
+  document.getElementById('kolSwitchShell').classList.toggle('active', state.kolOnly);
+}
+
+function readControlsIntoState(resetPage = true){
+  state.platforms = document.getElementById('platforms').value;
+  state.language = document.getElementById('language').value;
+  state.itemType = document.getElementById('itemType').value;
+  state.keyword = document.getElementById('keyword').value.replace(/\s+/g, ' ').trim().slice(0, 80);
+  state.hours = document.getElementById('hours').value;
+  state.limit = document.getElementById('limit').value;
+  state.kolOnly = document.getElementById('kolOnly').checked;
+  document.getElementById('kolSwitchShell').classList.toggle('active', state.kolOnly);
+  if(resetPage) state.historyPage = 1;
+}
+
+async function fetchJson(url){
+  const response = await fetch(url);
+  const text = await response.text();
+  let data = {};
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch (error) {
+    throw new Error(text || `HTTP ${response.status}`);
+  }
+  if(!response.ok){
+    throw new Error(data.detail || data.message || text || `HTTP ${response.status}`);
+  }
+  return data;
+}
+
+function buildLiveUrl(){
+  const params = new URLSearchParams();
+  params.set('platforms', state.platforms);
+  params.set('language', state.language);
+  params.set('limit', state.limit);
+  if(state.itemType) params.set('item_type', state.itemType);
+  if(state.keyword) params.set('q', state.keyword);
+  if(state.kolOnly) params.set('kol_only', 'true');
+  return `${API}/square/live?${params.toString()}`;
+}
+
+function buildHotUrl(){
+  const params = new URLSearchParams();
+  params.set('platforms', state.platforms);
+  params.set('language', state.language);
+  params.set('hours', state.hours);
+  params.set('limit', state.limit);
+  if(state.kolOnly) params.set('kol_only', 'true');
+  return `${API}/square/hot-coins?${params.toString()}`;
+}
+
+function buildHistoryUrl(){
+  const params = new URLSearchParams();
+  if(isSinglePlatform(state.platforms)) params.set('platform', state.platforms);
+  params.set('language', state.language);
+  params.set('page', String(state.historyPage));
+  params.set('page_size', String(state.historyPageSize));
+  if(state.itemType) params.set('item_type', state.itemType);
+  if(state.keyword) params.set('q', state.keyword);
+  if(state.kolOnly) params.set('kol_only', 'true');
+  return `${API}/square/history?${params.toString()}`;
+}
+
+function buildKolsUrl(){
+  const params = new URLSearchParams();
+  if(isSinglePlatform(state.platforms)) params.set('platform', state.platforms);
+  return `${API}/square/kols?${params.toString()}`;
+}
+
+function renderAvailability(tags){
+  document.getElementById('availabilityTags').innerHTML = tags.map(tag => {
+    return `<span class="tag ${esc(tag.tone || '')}">${esc(tag.label)}</span>`;
+  }).join('');
+}
+
+function renderStatus(payloads){
+  const tags = [];
+  const notes = [];
+  if(payloads.live){
+    const sourceModes = payloads.live.source_modes || {};
+    Object.entries(sourceModes).forEach(([platform, mode]) => {
+      tags.push({label: `${platform.toUpperCase()} · ${String(mode).toUpperCase()}`, tone: 'good'});
+    });
+    (payloads.live.warnings || []).forEach(item => tags.push({label: String(item), tone: 'warn'}));
+    (payloads.live.errors || []).forEach(item => {
+      const label = item && item.platform ? `${item.platform}: ${item.error}` : String(item);
+      tags.push({label, tone: 'bad'});
+    });
+  }
+  if(payloads.history){
+    tags.push({
+      label: payloads.history.db_available ? 'History · Database' : 'History · Live Fallback',
+      tone: payloads.history.db_available ? 'good' : 'warn',
+    });
+    if(!payloads.history.db_available){
+      notes.push('历史查询当前没有走数据库，页面已自动退化到实时流分页。');
+    }
+  }
+  if(payloads.kols && !payloads.kols.count){
+    notes.push('当前 KOL 名录为空，实时流中的平台原生认证作者仍会被高亮。');
+  }
+  const lead = notes[0] || '广场情报已同步，可以继续切换平台、语言、时间窗和 KOL 过滤。';
+  document.getElementById('statusText').innerHTML = `<strong>${esc(lead)}</strong>`;
+  document.getElementById('updatedText').textContent = `上次刷新 ${fmtWhen(Date.now())} · 自动刷新 90s`;
+  renderAvailability(tags.slice(0, 8));
+}
+
+function renderHero(live, hot){
+  const liveItems = Array.isArray(live?.items) ? live.items : [];
+  const kolCount = liveItems.filter(item => item.is_kol).length;
+  const uniqueTokens = new Set();
+  liveItems.forEach(item => (item.token_mentions || item.symbols || []).forEach(token => uniqueTokens.add(String(token).toUpperCase())));
+  const hotHead = hot?.items?.[0];
+
+  document.getElementById('heroLiveCount').textContent = fmtNum(liveItems.length);
+  document.getElementById('heroLiveSub').textContent = `${fmtNum(uniqueTokens.size)} 个币种提及 · ${fmtNum(kolCount)} 条 KOL / 大 V 内容`;
+  document.getElementById('heroHotToken').textContent = hotHead ? `$${hotHead.token}` : '—';
+  document.getElementById('heroHotSub').textContent = hotHead
+    ? `${fmtNum(hotHead.unique_author_mentions)} 位作者提及 · ${fmtNum(hotHead.unique_kol_mentions)} 位 KOL 提及`
+    : '当前时间窗还没有足够的提及数据';
+  const kolRate = liveItems.length ? `${Math.round((kolCount / liveItems.length) * 100)}%` : '0%';
+  document.getElementById('heroKolRate').textContent = kolRate;
+  document.getElementById('heroKolSub').textContent = liveItems.length
+    ? `${fmtNum(kolCount)} / ${fmtNum(liveItems.length)} 条实时内容已带 KOL 标记`
+    : '等待实时流回传作者信号';
+}
+
+function renderHot(items){
+  const panel = document.getElementById('hotPanel');
+  if(!items || !items.length){
+    panel.innerHTML = '<div class="empty">当前时间窗还没有可用的热门币排行。</div>';
+    return;
+  }
+  const maxAuthors = Math.max(...items.map(item => Number(item.unique_author_mentions || 0)), 1);
+  panel.innerHTML = items.map(item => {
+    const share = Math.max(.1, Number(item.unique_author_mentions || 0) / maxAuthors);
+    return `
+      <article class="rank-row" style="--rank-share:${share}">
+        <div class="rank-top">
+          <div class="rank-main">
+            <div class="rank-num">#${esc(item.rank)}</div>
+            <div>
+              <div class="rank-token">$${esc(item.token)}</div>
+              <div class="rank-desc">${compactList(item.sample_authors, 4).map(esc).join(' · ') || '暂无样例作者'}</div>
+            </div>
+          </div>
+          <div class="chip-row">
+            ${(item.platforms || []).map(platform => `<span class="chip">${esc(String(platform).toUpperCase())}</span>`).join('')}
+          </div>
+        </div>
+        <div class="metric-row">
+          <div class="mini-metric"><div class="k">唯一作者</div><div class="v">${fmtNum(item.unique_author_mentions)}</div></div>
+          <div class="mini-metric"><div class="k">KOL 提及</div><div class="v">${fmtNum(item.unique_kol_mentions)}</div></div>
+          <div class="mini-metric"><div class="k">帖子数</div><div class="v">${fmtNum(item.item_count)}</div></div>
+        </div>
+        <div class="chip-row">
+          <span class="chip">最后提及 ${fmtWhen(item.latest_published_at)}</span>
+        </div>
+      </article>
+    `;
+  }).join('');
+}
+
+function renderKols(payload){
+  const panel = document.getElementById('kolPanel');
+  const items = Array.isArray(payload?.items) ? payload.items : [];
+  if(!items.length){
+    panel.innerHTML = '<div class="empty">当前没有可展示的手工 KOL 名录。如果数据库还没连上，这里会先为空，但实时流里的平台原生认证作者仍会正常高亮。</div>';
+    return;
+  }
+  panel.innerHTML = items.slice(0, 10).map(item => `
+    <article class="kol-item">
+      <div class="kol-top">
+        <div class="author-stack">
+          <div class="author">${esc(item.name)}</div>
+          <div class="author-sub">${esc(item.platform.toUpperCase())}${item.handle ? ` · @${esc(item.handle)}` : ''}${item.tier ? ` · ${esc(item.tier)}` : ''}</div>
+        </div>
+        <div class="score">
+          <strong>${item.score == null ? '—' : esc(Number(item.score).toFixed(1))}</strong>
+          <span>score</span>
+        </div>
+      </div>
+      <div class="chip-row">
+        ${(item.aliases || []).slice(0, 4).map(alias => `<span class="chip">${esc(alias)}</span>`).join('') || '<span class="chip">无别名</span>'}
+      </div>
+    </article>
+  `).join('');
+}
+
+function platformBadge(platform){
+  return `badge ${platform === 'binance' ? 'binance' : 'okx'}`;
+}
+
+function buildBadgeRow(item){
+  const badges = [];
+  badges.push(`<span class="${platformBadge(item.platform)}">${esc(String(item.platform || '').toUpperCase())}</span>`);
+  badges.push(`<span class="badge ${item.item_type === 'article' ? 'article' : ''}">${esc(item.item_type || 'post')}</span>`);
+  if(item.is_kol) badges.push('<span class="badge kol">KOL / 大 V</span>');
+  if(item.metadata && item.metadata.detail_fetched) badges.push('<span class="badge detail">Detail Enriched</span>');
+  if(item.language) badges.push(`<span class="badge">${esc(item.language)}</span>`);
+  return badges.join('');
+}
+
+function renderPostCard(item, className){
+  const author = item.matched_kol_name || item.author_name || item.author_handle || '匿名作者';
+  const handle = item.author_handle ? `@${item.author_handle}` : '未公开 handle';
+  const headline = item.title || oneLine(item.excerpt || item.content, 96);
+  const content = item.content || item.excerpt || '暂无正文';
+  const stats = item.engagement || {};
+  const tokens = compactList(item.token_mentions || item.symbols || [], 6);
+  const tags = compactList(item.tags || [], 4);
+  return `
+    <article class="${className}">
+      <div class="${className === 'history-card' ? 'history-top' : 'feed-top'}">
+        <div class="author-stack">
+          <div class="author">${esc(author)}</div>
+          <div class="author-sub">${esc(handle)} · ${fmtWhen(item.published_at)}</div>
+        </div>
+        <div class="meta-line">${buildBadgeRow(item)}</div>
+      </div>
+      <div class="feed-headline">${esc(headline || '未命名内容')}</div>
+      <div class="feed-body">${esc(oneLine(content, className === 'history-card' ? 360 : 520))}</div>
+      <div class="chip-row">
+        ${tokens.map(token => `<span class="chip">$${esc(token)}</span>`).join('')}
+        ${tags.map(tag => `<span class="chip">#${esc(tag)}</span>`).join('')}
+      </div>
+      <div class="post-footer">
+        <div class="post-stats">
+          <span>赞 ${fmtNum(stats.likes)}</span>
+          <span>评 ${fmtNum(stats.comments)}</span>
+          <span>看 ${fmtNum(stats.views)}</span>
+          <span>转 ${fmtNum(stats.shares)}</span>
+        </div>
+        ${item.url ? `<a class="post-link" target="_blank" rel="noreferrer" href="${esc(item.url)}">打开原帖 ↗</a>` : ''}
+      </div>
+    </article>
+  `;
+}
+
+function renderLive(items){
+  const panel = document.getElementById('livePanel');
+  if(!items || !items.length){
+    panel.innerHTML = '<div class="empty">当前筛选条件下没有实时广场内容。</div>';
+    return;
+  }
+  panel.innerHTML = items.map(item => renderPostCard(item, 'feed-card')).join('');
+}
+
+function renderHistory(payload){
+  const panel = document.getElementById('historyPanel');
+  const meta = document.getElementById('historyMeta');
+  const note = document.getElementById('historyNote');
+  const items = Array.isArray(payload?.items) ? payload.items : [];
+  const pagination = payload?.pagination || {};
+  if(!items.length){
+    panel.innerHTML = '<div class="empty">当前筛选条件下没有历史结果。</div>';
+  } else {
+    panel.innerHTML = items.map(item => renderPostCard(item, 'history-card')).join('');
+  }
+  meta.textContent = `第 ${fmtNum(pagination.page || 1)} / ${fmtNum(pagination.total_pages || 1)} 页 · 共 ${fmtNum(pagination.total || items.length)} 条`;
+  note.textContent = payload?.db_available
+    ? `当前历史区来自数据库，共 ${fmtNum(pagination.total || items.length)} 条命中。平台范围是 ${state.platforms}，内容类型是 ${state.itemType || '全部'}，KOL 过滤 ${state.kolOnly ? '已开启' : '未开启'}。`
+    : `当前历史区走实时 fallback。平台范围是 ${state.platforms}，内容类型是 ${state.itemType || '全部'}，KOL 过滤 ${state.kolOnly ? '已开启' : '未开启'}，所以这里更适合临时检索，不适合当正式归档。`;
+  document.getElementById('prevPageBtn').disabled = !pagination.has_prev;
+  document.getElementById('nextPageBtn').disabled = !pagination.has_next;
+}
+
+function setLoadingState(){
+  document.getElementById('statusText').innerHTML = '<strong>正在同步广场流、热币榜、历史检索和 KOL 名录…</strong>';
+}
+
+function collectErrors(label, error){
+  return `${label}: ${error instanceof Error ? error.message : String(error)}`;
+}
+
+async function loadDashboard(){
+  readControlsIntoState(false);
+  syncUrl();
+  setLoadingState();
+  const requests = await Promise.allSettled([
+    fetchJson(buildLiveUrl()),
+    fetchJson(buildHotUrl()),
+    fetchJson(buildHistoryUrl()),
+    fetchJson(buildKolsUrl()),
+  ]);
+
+  const [liveRes, hotRes, historyRes, kolsRes] = requests;
+  const live = liveRes.status === 'fulfilled' ? liveRes.value : {items: [], errors: [{platform:'live', error: collectErrors('live', liveRes.reason)}], warnings: []};
+  const hot = hotRes.status === 'fulfilled' ? hotRes.value : {items: []};
+  const history = historyRes.status === 'fulfilled' ? historyRes.value : {items: [], pagination: {page: state.historyPage, total_pages: 1, total: 0}, db_available: false};
+  const kols = kolsRes.status === 'fulfilled' ? kolsRes.value : {items: [], count: 0};
+
+  if(hotRes.status === 'rejected'){
+    live.errors = live.errors || [];
+    live.errors.push({platform: 'hot-coins', error: collectErrors('hot-coins', hotRes.reason)});
+  }
+  if(historyRes.status === 'rejected'){
+    live.errors = live.errors || [];
+    live.errors.push({platform: 'history', error: collectErrors('history', historyRes.reason)});
+  }
+  if(kolsRes.status === 'rejected'){
+    live.warnings = live.warnings || [];
+    live.warnings.push(collectErrors('kols', kolsRes.reason));
+  }
+
+  renderHero(live, hot);
+  renderStatus({live, hot, history, kols});
+  renderHot(hot.items || []);
+  renderKols(kols);
+  renderLive(live.items || []);
+  renderHistory(history);
+}
+
+function resetState(){
+  Object.assign(state, DEFAULTS);
+  applyStateToControls();
+  syncUrl();
+  loadDashboard();
+}
+
+function applyQuickButton(event){
+  const button = event.currentTarget;
+  if(button.dataset.platforms) state.platforms = button.dataset.platforms;
+  if(button.dataset.language) state.language = button.dataset.language;
+  if(button.dataset.hours) state.hours = button.dataset.hours;
+  if(button.dataset.itemType !== undefined) state.itemType = button.dataset.itemType;
+  if(button.dataset.keyword !== undefined) state.keyword = button.dataset.keyword;
+  if(button.dataset.kolOnly !== undefined) state.kolOnly = button.dataset.kolOnly === '1';
+  state.historyPage = 1;
+  applyStateToControls();
+  syncUrl();
+  loadDashboard();
+}
+
+function changePage(delta){
+  state.historyPage = Math.max(1, state.historyPage + delta);
+  syncUrl();
+  loadDashboard();
+}
+
+function bindEvents(){
+  document.getElementById('refreshBtn').addEventListener('click', () => {
+    readControlsIntoState();
+    syncUrl();
+    loadDashboard();
+  });
+  document.getElementById('resetBtn').addEventListener('click', resetState);
+  document.getElementById('kolOnly').addEventListener('change', () => {
+    readControlsIntoState();
+    syncUrl();
+    loadDashboard();
+  });
+  document.getElementById('prevPageBtn').addEventListener('click', () => changePage(-1));
+  document.getElementById('nextPageBtn').addEventListener('click', () => changePage(1));
+  document.querySelectorAll('.quick').forEach(button => button.addEventListener('click', applyQuickButton));
+  ['keyword', 'platforms', 'language', 'itemType', 'hours', 'limit'].forEach(id => {
+    const node = document.getElementById(id);
+    const handler = () => {
+      readControlsIntoState();
+      syncUrl();
+    };
+    node.addEventListener(id === 'keyword' ? 'input' : 'change', handler);
+  });
+  document.getElementById('keyword').addEventListener('keydown', event => {
+    if(event.key === 'Enter'){
+      readControlsIntoState();
+      syncUrl();
+      loadDashboard();
+    }
+  });
+}
+
+function startAutoRefresh(){
+  if(autoTimer) clearInterval(autoTimer);
+  autoTimer = setInterval(() => loadDashboard(), REFRESH_MS);
+}
+
+applyStateToControls();
+bindEvents();
+startAutoRefresh();
+loadDashboard();
+</script>
+</body>
+</html>

@@ -546,7 +546,8 @@ async function openDetail(id) {
   const isMarketRank = s.id === 'crypto-market-rank';
   const isMarketIntel = s.id === 'market-intel';
   const isOkxIntelligence = s.id === 'okx-intelligence';
-  const primaryLabel = isOiSignal ? '进入 OI 仪表盘' : isDefiYield ? '进入收益仪表盘' : isTechnicalAnalysis ? '进入技术分析' : isPredictionMarkets ? '进入预测市场' : isMarketRank ? '进入市场榜单台' : isMarketIntel ? '进入市场情报大师' : isOkxIntelligence ? '进入 OKX 情报台' : '查看实时简报';
+  const isSquareIntelligence = s.id === 'square-intelligence';
+  const primaryLabel = isOiSignal ? '进入 OI 仪表盘' : isDefiYield ? '进入收益仪表盘' : isTechnicalAnalysis ? '进入技术分析' : isPredictionMarkets ? '进入预测市场' : isMarketRank ? '进入市场榜单台' : isMarketIntel ? '进入市场情报大师' : isOkxIntelligence ? '进入 OKX 情报台' : isSquareIntelligence ? '进入广场情报台' : '查看实时简报';
   const oiLaunchBlock = isOiSignal ? `
     <div style="margin:18px 0 6px;padding:16px;border-radius:14px;border:1px solid rgba(88,166,255,.22);background:linear-gradient(135deg,rgba(88,166,255,.08),rgba(188,140,255,.08))">
       <div style="font-size:15px;font-weight:700;margin-bottom:6px">直接搜索代币</div>
@@ -653,6 +654,29 @@ async function openDetail(id) {
       </div>
     </div>
   ` : '';
+  const squareLaunchBlock = isSquareIntelligence ? `
+    <div style="margin:18px 0 6px;padding:16px;border-radius:14px;border:1px solid rgba(255,199,111,.22);background:linear-gradient(135deg,rgba(255,199,111,.09),rgba(118,211,255,.08))">
+      <div style="font-size:15px;font-weight:700;margin-bottom:6px">直接打开广场情报台</div>
+      <div style="font-size:12px;color:var(--text2);line-height:1.7;margin-bottom:12px">先选平台、语言和时间窗，再进入 Binance + OKX 广场统一工作台。热门币榜会自动按作者去重。</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <select id="modal-square-platforms" style="padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px">
+          <option value="binance,okx" selected>Binance + OKX</option>
+          <option value="binance">Binance</option>
+          <option value="okx">OKX</option>
+        </select>
+        <select id="modal-square-language" style="padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px">
+          <option value="zh-CN" selected>中文优先</option>
+          <option value="en">英文优先</option>
+        </select>
+        <select id="modal-square-hours" style="padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px">
+          <option value="24" selected>24h</option>
+          <option value="72">72h</option>
+          <option value="168">7d</option>
+        </select>
+        <button class="btn-primary" onclick="launchSquareDesk({platforms:document.getElementById('modal-square-platforms').value,language:document.getElementById('modal-square-language').value,hours:document.getElementById('modal-square-hours').value})">打开工作台</button>
+      </div>
+    </div>
+  ` : '';
   const marketIntelLaunchBlock = isMarketIntel ? `
     <div style="margin:18px 0 6px;padding:16px;border-radius:14px;border:1px solid rgba(217,143,55,.24);background:linear-gradient(135deg,rgba(217,143,55,.10),rgba(15,143,143,.08))">
       <div style="font-size:15px;font-weight:700;margin-bottom:6px">直接打开市场情报大师</div>
@@ -702,6 +726,7 @@ async function openDetail(id) {
     ${marketRankLaunchBlock}
     ${marketIntelLaunchBlock}
     ${okxLaunchBlock}
+    ${squareLaunchBlock}
 
     <div class="modal-actions">
       <button class="btn-primary" onclick="viewReport('${s.id}')">${primaryLabel}</button>
@@ -721,7 +746,7 @@ document.getElementById('modal-overlay').onclick = function(e) {
 };
 
 function viewReport(skillId) {
-  const pages = {'oi-signal':'/oi-signal','market-briefing':'/briefing','defi-yield-scanner':'/defi-yield-scanner','crypto-market-rank':'/market-rank','market-intel':'/market-intel','okx-intelligence':'/okx-intelligence'};
+  const pages = {'oi-signal':'/oi-signal','market-briefing':'/briefing','defi-yield-scanner':'/defi-yield-scanner','crypto-market-rank':'/market-rank','market-intel':'/market-intel','okx-intelligence':'/okx-intelligence','square-intelligence':'/square'};
   location.href = pages[skillId] ? `${BASE}${pages[skillId]}` : `${BASE}/skill?id=${skillId}`;
 }
 
@@ -803,6 +828,18 @@ function launchMarketIntel(rawSymbol,marketType='SWAP',timeframe='1H',keyword=''
   params.set('timeframe',tf);
   params.set('keyword',q);
   location.href=`${BASE}/market-intel?${params.toString()}`;
+}
+
+function launchSquareDesk({platforms='binance,okx',language='zh-CN',hours='24',itemType='',keyword='',kolOnly=false}={}){
+  const params = new URLSearchParams();
+  params.set('platforms', ['binance,okx','binance','okx'].includes(String(platforms)) ? String(platforms) : 'binance,okx');
+  params.set('language', language === 'en' ? 'en' : 'zh-CN');
+  params.set('hours', ['6','12','24','72','168'].includes(String(hours)) ? String(hours) : '24');
+  if(itemType) params.set('itemType', String(itemType));
+  const q = String(keyword || '').replace(/\s+/g,' ').trim().slice(0,80);
+  if(q) params.set('q', q);
+  if(kolOnly) params.set('kolOnly', '1');
+  location.href = `${BASE}/square?${params.toString()}`;
 }
 
 function launchDefiYieldScanner({chain='',symbol='',minApy='5',minTvl='10000000',limit='30'}={}){

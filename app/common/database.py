@@ -58,6 +58,8 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
 
 async def init_db() -> None:
     global _db_available
+    import app.common.models  # noqa: F401
+
     engine = get_engine()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
@@ -72,6 +74,12 @@ async def _run_migrations(engine: AsyncEngine) -> None:
     migrations = [
         ("news_items", "sentiment", "VARCHAR(10) DEFAULT 'neutral'"),
         ("news_items", "importance", "VARCHAR(10) DEFAULT 'normal'"),
+        ("square_items", "author_id", "VARCHAR(120)"),
+        ("square_items", "author_key", "VARCHAR(180)"),
+        ("square_items", "is_kol", "INTEGER DEFAULT 0"),
+        ("square_items", "matched_kol_name", "VARCHAR(120)"),
+        ("square_items", "matched_kol_handle", "VARCHAR(120)"),
+        ("square_items", "matched_kol_tier", "VARCHAR(30)"),
     ]
     async with engine.begin() as conn:
         for table, col, col_def in migrations:

@@ -68,6 +68,104 @@ class NewsItem(TimestampMixin, Base):
     __table_args__ = (Index("ix_news_lang_cat", "language", "category"),)
 
 
+class SquareItem(TimestampMixin, Base):
+    __tablename__ = "square_items"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    platform: Mapped[str] = mapped_column(String(20), index=True)
+    channel: Mapped[str] = mapped_column(String(20), index=True, default="square")
+    item_type: Mapped[str] = mapped_column(String(20), index=True, default="post")
+    title: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    content: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    author_id: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    author_key: Mapped[Optional[str]] = mapped_column(String(180), index=True, nullable=True)
+    author_name: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    author_handle: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    is_kol: Mapped[Optional[int]] = mapped_column(Integer, default=0)
+    matched_kol_name: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    matched_kol_handle: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    matched_kol_tier: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
+    language: Mapped[Optional[str]] = mapped_column(String(20), index=True, nullable=True)
+    published_at: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    external_id: Mapped[Optional[str]] = mapped_column(String(150), nullable=True, unique=True)
+    engagement_json: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    symbols_json: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
+    tags_json: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
+    metadata_json: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+
+    __table_args__ = (
+        Index("ix_square_platform_created", "platform", "created_at"),
+        Index("ix_square_platform_type", "platform", "item_type"),
+        Index("ix_square_author_window", "platform", "author_key", "created_at"),
+    )
+
+
+class SquareKOLProfile(TimestampMixin, Base):
+    __tablename__ = "square_kol_profiles"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    platform: Mapped[str] = mapped_column(String(20), index=True)
+    name: Mapped[str] = mapped_column(String(120))
+    handle: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    author_id: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    aliases_json: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
+    tier: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
+    score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    is_active: Mapped[int] = mapped_column(Integer, default=1, index=True)
+    metadata_json: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+
+    __table_args__ = (
+        Index("ix_square_kol_platform_handle", "platform", "handle"),
+        Index("ix_square_kol_platform_name", "platform", "name"),
+    )
+
+
+class SquareHotTokenSnapshot(TimestampMixin, Base):
+    __tablename__ = "square_hot_token_snapshots"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    snapshot_key: Mapped[str] = mapped_column(String(120), index=True)
+    snapshot_date: Mapped[str] = mapped_column(String(20), index=True)
+    window_hours: Mapped[int] = mapped_column(Integer, default=24, index=True)
+    platform_scope: Mapped[str] = mapped_column(String(80), index=True)
+    kol_only: Mapped[int] = mapped_column(Integer, default=0, index=True)
+    rank: Mapped[int] = mapped_column(Integer, index=True)
+    token: Mapped[str] = mapped_column(String(20), index=True)
+    unique_author_mentions: Mapped[int] = mapped_column(Integer, default=0)
+    unique_kol_mentions: Mapped[int] = mapped_column(Integer, default=0)
+    item_count: Mapped[int] = mapped_column(Integer, default=0)
+    platforms_json: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
+    sample_authors_json: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
+    latest_published_at: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    metadata_json: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+
+    __table_args__ = (
+        Index("ix_square_snapshot_key_rank", "snapshot_key", "rank"),
+        Index("ix_square_snapshot_date_scope", "snapshot_date", "platform_scope", "kol_only"),
+    )
+
+
+class SquareCollectionState(TimestampMixin, Base):
+    __tablename__ = "square_collection_states"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    platform: Mapped[str] = mapped_column(String(20), index=True)
+    language: Mapped[str] = mapped_column(String(20), index=True, default="en")
+    current_cursor: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    last_status: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    last_run_started_at: Mapped[Optional[datetime]] = mapped_column(nullable=True)
+    last_run_finished_at: Mapped[Optional[datetime]] = mapped_column(nullable=True)
+    last_created_count: Mapped[int] = mapped_column(Integer, default=0)
+    last_skipped_count: Mapped[int] = mapped_column(Integer, default=0)
+    last_page_count: Mapped[int] = mapped_column(Integer, default=0)
+    metadata_json: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+
+    __table_args__ = (
+        Index("ux_square_collection_state_scope", "platform", "language", unique=True),
+    )
+
+
 class FundingRate(TimestampMixin, Base):
     __tablename__ = "funding_rates"
 

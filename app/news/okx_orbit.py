@@ -107,14 +107,27 @@ def _normalize_news_page(
     limit: int,
     kind: str,
 ) -> dict[str, Any]:
+    code = None
+    msg = None
+    if isinstance(data, dict):
+        code = data.get("code")
+        msg = data.get("msg")
     page = _unwrap_page(data)
     details = page.get("details") if isinstance(page.get("details"), list) else []
+    warning = None
+    if code not in {"0", 0, None}:
+        warning = f"OKX Orbit API returned code {code}"
+        if str(code) == "50026":
+            warning = "OKX Orbit is currently app-only; the public web Orbit API is unavailable"
     return {
         "kind": kind,
         "language": _normalize_language(language),
         "items": [_normalize_article(item) for item in details if isinstance(item, dict)],
         "count": len(details),
         "next_cursor": page.get("nextCursor"),
+        "warning": warning,
+        "code": code,
+        "msg": msg,
     }
 
 

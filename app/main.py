@@ -26,6 +26,7 @@ async def lifespan(app: FastAPI):
     from app.news.jobs import register_news_jobs
     from app.analysis.jobs import register_analysis_jobs
     from app.briefing.jobs import register_briefing_jobs
+    from app.square.jobs import register_square_jobs
 
     logger.info("Starting %s v%s", settings.project_name, settings.version)
 
@@ -38,6 +39,7 @@ async def lifespan(app: FastAPI):
     register_news_jobs()
     register_analysis_jobs()
     register_briefing_jobs()
+    register_square_jobs()
     start_scheduler()
 
     yield
@@ -120,3 +122,8 @@ async def okx_intelligence_page():
 @app.get("/market-intel")
 async def market_intel_page():
     return FileResponse(str(STATIC_DIR / "market-intel.html"))
+
+
+@app.get("/square")
+async def square_page():
+    return FileResponse(str(STATIC_DIR / "square.html"))
