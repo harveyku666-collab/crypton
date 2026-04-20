@@ -14,7 +14,9 @@ from app.address_intel.legacy_store import (
     fetch_legacy_catalog,
     fetch_legacy_overview,
     fetch_registry_entity_by_address,
+    fetch_registry_watch_addresses,
 )
+from app.address_intel.seeds import get_default_monitored_address_seeds
 from app.common.cache import cached
 from app.common.database import async_session, db_available
 from app.common.models import MonitoredAddress
@@ -554,6 +556,71 @@ async def bulk_upsert_monitored_addresses(items: Iterable[dict[str, Any]]) -> di
         await session.commit()
 
     return {"count": len(picked), "created": created, "updated": updated, "items": picked}
+
+
+async def sync_monitored_address_sources(
+    *,
+    include_legacy: bool = True,
+    include_default_seeds: bool = True,
+    legacy_entity_type: str | None = None,
+    legacy_limit: int = 1000,
+) -> dict[str, Any]:
+    source_items: list[dict[str, Any]] = []
+    source_counts: dict[str, int] = {
+        "legacy": 0,
+        "default_seeds": 0,
+    }
+    warnings: list[str] = []
+
+    if include_legacy:
+        try:
+            legacy_items = await fetch_registry_watch_addresses(
+                entity_type=legacy_entity_type,
+                limit=legacy_limit,
+            )
+            source_counts["legacy"] = len(legacy_items)
+            source_items.extend(legacy_items)
+        except Exception:
+            warnings.append("Failed to load legacy registry watch addresses")
+
+    if include_default_seeds:
+        default_seed_items = get_default_monitored_address_seeds()
+        source_counts["default_seeds"] = len(default_seed_items)
+        source_items.extend(default_seed_items)
+
+    result = await bulk_upsert_monitored_addresses(source_items)
+    result["source_counts"] = source_counts
+    result["include_legacy"] = include_legacy
+    result["include_default_seeds"] = include_default_seeds
+    result["legacy_entity_type"] = legacy_entity_type
+    result["legacy_limit"] = legacy_limit
+    result["warnings"] = warnings
+    return result
+
+
+async def ensure_default_whale_watch_addresses() -> dict[str, Any]:
+    current = await _list_manual_monitored_addresses(is_whale=True, limit=5)
+    if current:
+        return {
+            "seeded": False,
+            "watched_address_count": len(current),
+            "reason": "whale_watchers_already_present",
+        }
+
+    sync_result = await sync_monitored_address_sources(
+        include_legacy=False,
+        include_default_seeds=True,
+        legacy_limit=0,
+    )
+    refreshed = await _list_manual_monitored_addresses(is_whale=True, limit=10)
+    return {
+        "seeded": True,
+        "watched_address_count": len(refreshed),
+        "created": sync_result.get("created", 0),
+        "updated": sync_result.get("updated", 0),
+        "count": sync_result.get("count", 0),
+        "warnings": sync_result.get("warnings", []),
+    }
 
 
 async def _get_manual_monitored_overview(*, chain: str | None = None) -> dict[str, Any]:

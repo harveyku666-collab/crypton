@@ -29,6 +29,7 @@ async def lifespan(app: FastAPI):
     from app.briefing.jobs import register_briefing_jobs
     from app.square.jobs import register_square_jobs
     from app.onchain.jobs import register_onchain_jobs
+    from app.address_intel.jobs import register_address_intel_jobs
 
     logger.info("Starting %s v%s", settings.project_name, settings.version)
 
@@ -43,6 +44,7 @@ async def lifespan(app: FastAPI):
     register_briefing_jobs()
     register_square_jobs()
     register_onchain_jobs()
+    register_address_intel_jobs()
     start_scheduler()
 
     yield

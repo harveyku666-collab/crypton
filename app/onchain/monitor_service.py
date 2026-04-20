@@ -244,6 +244,19 @@ async def collect_whale_transfer_events(*, force: bool = False) -> dict[str, Any
         }
 
     watchers = await _load_watched_addresses()
+    if not watchers:
+        try:
+            from app.address_intel.service import ensure_default_whale_watch_addresses
+
+            ensure_result = await ensure_default_whale_watch_addresses()
+            logger.info(
+                "Whale watchlist bootstrap: seeded=%s watched=%d",
+                ensure_result.get("seeded"),
+                ensure_result.get("watched_address_count", 0),
+            )
+        except Exception:
+            logger.debug("Failed to bootstrap whale watchlist", exc_info=True)
+        watchers = await _load_watched_addresses()
     started_at = utcnow_naive()
     fetched_transfer_count = 0
     stored_event_count = 0

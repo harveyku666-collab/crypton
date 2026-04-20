@@ -102,6 +102,36 @@ async def test_address_intel_bulk_upsert_endpoint(monkeypatch):
     assert data["created"] == 1
 
 
+@pytest.mark.anyio
+async def test_address_intel_sync_sources_endpoint(monkeypatch):
+    async def fake_sync(*, include_legacy=True, include_default_seeds=True, legacy_entity_type=None, legacy_limit=1000):
+        return {
+            "count": 30,
+            "created": 6,
+            "updated": 24,
+            "source_counts": {"legacy": 24, "default_seeds": 6},
+            "include_legacy": include_legacy,
+            "include_default_seeds": include_default_seeds,
+            "legacy_entity_type": legacy_entity_type,
+            "legacy_limit": legacy_limit,
+        }
+
+    monkeypatch.setattr("app.address_intel.router.sync_monitored_address_sources", fake_sync)
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        resp = await client.post(
+            "/api/v1/address-intel/sync/sources",
+            params={"include_legacy": "true", "include_default_seeds": "true", "legacy_limit": 500},
+        )
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["count"] == 30
+    assert data["source_counts"]["legacy"] == 24
+    assert data["legacy_limit"] == 500
+
+
 def test_address_type_heuristics_detect_exchange_and_whale():
     exchange = infer_address_type({"label": "Binance Cold Wallet"})
     institution = infer_address_type({"label": "BlackRock ETF Treasury"})

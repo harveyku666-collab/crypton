@@ -224,6 +224,26 @@ def test_hot_token_board_dedupes_same_author_within_window():
     assert btc["item_count"] == 3
 
 
+def test_hot_token_board_prefers_tradable_symbols_when_provided():
+    board = build_hot_token_board(
+        [
+            {
+                "platform": "binance",
+                "external_id": "1",
+                "author_key": "binance:handle:alice",
+                "author_name": "Alice",
+                "content": "Watching $BTC and $ALTCOINRECOVERY",
+                "symbols": ["BTC", "ALTCOINRECOVERY"],
+                "is_kol": 0,
+            }
+        ],
+        limit=10,
+        tradable_symbols={"BTC", "ETH"},
+    )
+
+    assert [item["token"] for item in board] == ["BTC"]
+
+
 def test_filter_items_to_window_prefers_published_at():
     now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
     old_ms = int((datetime.now(timezone.utc) - timedelta(hours=30)).timestamp() * 1000)

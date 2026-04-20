@@ -15,6 +15,7 @@ from typing import Any
 
 from app.address_intel.legacy_store import fetch_registry_watch_addresses
 from app.address_intel.service import bulk_upsert_monitored_addresses
+from app.common.database import close_db, init_db
 
 
 async def export_addresses(output_path: str, *, entity_type: str | None = None, limit: int = 1000) -> dict[str, Any]:
@@ -46,7 +47,11 @@ async def main_async(args: argparse.Namespace) -> dict[str, Any]:
             limit=args.limit,
         )
     if args.command == "import":
-        return await import_addresses(args.input)
+        await init_db()
+        try:
+            return await import_addresses(args.input)
+        finally:
+            await close_db()
     raise ValueError(f"Unsupported command: {args.command}")
 
 

@@ -29,6 +29,9 @@ class Settings(BaseSettings):
     square_collect_backfill_pages: int = 3
     address_intel_registry_database_url: str = ""
     address_intel_activity_database_url: str = ""
+    address_intel_sync_hour: int = 7
+    address_intel_sync_minute: int = 15
+    address_intel_legacy_sync_limit: int = 1000
     onchain_whale_monitor_interval_minutes: int = 15
     onchain_whale_transfer_limit: int = 20
     onchain_whale_min_usd: float = 1000000.0

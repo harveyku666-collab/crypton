@@ -62,6 +62,7 @@ TOKEN_STOPWORDS = {
     "BITCOINAMSTERDAM",
     "DYOR",
 }
+MAX_UNVERIFIED_TOKEN_LENGTH = 10
 
 SQUARE_SOURCE_FETCHERS = {
     "binance": get_binance_square_content,
@@ -176,6 +177,8 @@ def filter_token_candidates(
         if not normalized:
             continue
         if normalized in TOKEN_STOPWORDS:
+            continue
+        if tradable_symbols is None and len(normalized) > MAX_UNVERIFIED_TOKEN_LENGTH and normalized.isalpha():
             continue
         if tradable_symbols is not None and normalized not in tradable_symbols:
             continue
@@ -558,14 +561,25 @@ def serialize_live_square_item(item: dict[str, Any], index: int) -> dict[str, An
     }
 
 
-def build_hot_token_board(items: list[dict[str, Any]], *, limit: int = 20) -> list[dict[str, Any]]:
+def build_hot_token_board(
+    items: list[dict[str, Any]],
+    *,
+    limit: int = 20,
+    tradable_symbols: set[str] | None = None,
+) -> list[dict[str, Any]]:
     author_mentions_seen: set[tuple[str, str]] = set()
     kol_mentions_seen: set[tuple[str, str]] = set()
     token_stats: dict[str, dict[str, Any]] = {}
 
     for item in items:
         author_key = str(item.get("author_key") or item.get("external_id") or "")
-        tokens = sorted({token for token in extract_token_mentions(item) if token})
+        tokens = sorted(
+            {
+                token
+                for token in extract_token_mentions(item, tradable_symbols=tradable_symbols)
+                if token
+            }
+        )
         if not author_key or not tokens:
             continue
         platform = str(item.get("platform") or "")
@@ -651,6 +665,7 @@ async def load_hot_coin_board(
 ) -> dict[str, Any]:
     selected_platforms = normalize_platforms(platforms)
     resolved_hours = max(1, min(hours, 168))
+    tradable_symbols = set(await load_tradable_symbols()) or None
     if not db_available():
         payload = await fetch_square_feed(
             platforms=selected_platforms,
@@ -662,7 +677,7 @@ async def load_hot_coin_board(
             language=language,
             kol_only=kol_only,
         )
-        board = build_hot_token_board(filtered, limit=limit)
+        board = build_hot_token_board(filtered, limit=limit, tradable_symbols=tradable_symbols)
         return {
             "items": board,
             "count": len(board),
@@ -694,7 +709,7 @@ async def load_hot_coin_board(
         ).scalars().all()
 
     serialized = [serialize_square_row(row) for row in filter_items_to_window(list(rows), hours=resolved_hours)]
-    board = build_hot_token_board(serialized, limit=limit)
+    board = build_hot_token_board(serialized, limit=limit, tradable_symbols=tradable_symbols)
     return {
         "items": board,
         "count": len(board),
