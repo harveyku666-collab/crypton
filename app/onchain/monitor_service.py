@@ -26,6 +26,18 @@ logger = logging.getLogger("bitinfo.onchain.monitor")
 
 GLOBAL_SCOPE = "global"
 DEFAULT_NOTIFICATION_CHANNEL = "default-log"
+USD_EQUIVALENT_TOKENS = {
+    "USD1",
+    "USDB",
+    "USDC",
+    "USDD",
+    "USDE",
+    "USDS",
+    "USDT",
+    "FDUSD",
+    "PYUSD",
+    "TUSD",
+}
 SEVERITY_RANKS = {
     "info": 0,
     "low": 1,
@@ -502,6 +514,101 @@ def _normalize_alert_ids(values: list[int] | None) -> list[int]:
     return normalized
 
 
+def _infer_legacy_alert_amount_usd(
+    *,
+    token: Any,
+    amount: Any,
+    amount_usd: Any,
+    threshold: float,
+) -> float | None:
+    normalized_amount_usd = _safe_float(amount_usd)
+    if normalized_amount_usd is not None:
+        return normalized_amount_usd
+
+    normalized_amount = _safe_float(amount)
+    if normalized_amount is None:
+        return None
+
+    normalized_token = str(token or "").strip().upper()
+    if normalized_token in USD_EQUIVALENT_TOKENS:
+        return normalized_amount
+    if normalized_token in {"", "UNKNOWN"} and normalized_amount >= threshold:
+        return normalized_amount
+    return None
+
+
+async def _backfill_legacy_whale_alerts(session: Any, rows: list[WhaleAlert]) -> int:
+    if not rows:
+        return 0
+
+    watch_map: dict[str, MonitoredAddress] = {}
+    addresses = sorted(
+        {
+            str(row.address or "").strip().lower()
+            for row in rows
+            if str(row.address or "").strip()
+        }
+    )
+    if addresses:
+        watch_rows = (
+            await session.execute(
+                select(MonitoredAddress).where(MonitoredAddress.address.in_(addresses))
+            )
+        ).scalars().all()
+        watch_map = {
+            str(item.address or "").strip().lower(): item
+            for item in watch_rows
+            if str(item.address or "").strip()
+        }
+
+    updated_count = 0
+    for row in rows:
+        changed = False
+        watcher = watch_map.get(str(row.address or "").strip().lower())
+        threshold = _safe_float(watcher.alert_threshold if watcher else None) or float(settings.onchain_whale_min_usd)
+
+        if watcher:
+            if not row.blockchain and watcher.blockchain:
+                row.blockchain = watcher.blockchain
+                changed = True
+            if not row.entity_name and watcher.entity_name:
+                row.entity_name = watcher.entity_name
+                changed = True
+            if not row.label and watcher.label:
+                row.label = watcher.label
+                changed = True
+
+        inferred_amount_usd = _infer_legacy_alert_amount_usd(
+            token=row.token,
+            amount=row.amount,
+            amount_usd=row.amount_usd,
+            threshold=threshold,
+        )
+        if row.amount_usd is None and inferred_amount_usd is not None:
+            row.amount_usd = inferred_amount_usd
+            changed = True
+
+        if not row.severity:
+            severity_basis = _safe_float(row.amount_usd)
+            if severity_basis is None:
+                severity_basis = inferred_amount_usd
+            if severity_basis is not None:
+                row.severity = classify_whale_alert_severity(
+                    amount_usd=severity_basis,
+                    threshold=threshold,
+                )
+                changed = True
+
+        if not row.notification_status:
+            row.notification_status = "pending"
+            changed = True
+
+        if changed:
+            updated_count += 1
+
+    return updated_count
+
+
 async def replay_whale_alert_notifications(
     *,
     alert_ids: list[int] | None = None,
@@ -538,6 +645,9 @@ async def replay_whale_alert_notifications(
         if not normalized_ids:
             stmt = stmt.limit(capped_limit)
         rows = (await session.execute(stmt)).scalars().all()
+        backfilled_count = await _backfill_legacy_whale_alerts(session, rows)
+        if backfilled_count > 0:
+            await session.commit()
         alerts = [_serialize_whale_alert(row) for row in rows]
 
     if not alerts:
@@ -545,6 +655,7 @@ async def replay_whale_alert_notifications(
             "db_available": True,
             "status": "ok",
             "count": 0,
+            "backfilled_count": 0,
             "selected_alert_ids": [],
             "severity": normalized_severity,
             "only_unsent": only_unsent,
@@ -563,6 +674,7 @@ async def replay_whale_alert_notifications(
         "db_available": True,
         "status": "ok",
         "count": len(alerts),
+        "backfilled_count": backfilled_count,
         "selected_alert_ids": [int(alert["id"]) for alert in alerts if alert.get("id") is not None],
         "severity": normalized_severity,
         "only_unsent": only_unsent,
