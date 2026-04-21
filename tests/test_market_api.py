@@ -92,6 +92,41 @@ async def test_estimate_market_amount_usd_uses_contract_price(monkeypatch):
 
 
 @pytest.mark.anyio
+async def test_estimate_market_amount_usd_uses_contract_price_when_symbol_unknown(monkeypatch):
+    async def fake_get_token_pairs(address, limit=20):
+        return [
+            {
+                "chain": "ethereum",
+                "price_usd": "0.25",
+                "liquidity_usd": 300000,
+                "volume_24h": 120000,
+                "base_token": {"symbol": "BAYC"},
+            }
+        ]
+
+    async def fake_get_price_by_contract(blockchain, contract_address):
+        return None
+
+    async def fake_get_symbol_price(symbol):
+        return None
+
+    monkeypatch.setattr("app.onchain.monitor_service.dexscreener.get_token_pairs", fake_get_token_pairs)
+    monkeypatch.setattr("app.onchain.monitor_service.coingecko.get_price_by_contract", fake_get_price_by_contract)
+    monkeypatch.setattr("app.onchain.monitor_service.aggregator.get_symbol_price", fake_get_symbol_price)
+
+    amount_usd, source = await _estimate_market_amount_usd(
+        token="UNKNOWN",
+        amount=100,
+        amount_usd=None,
+        blockchain="ethereum",
+        metadata={"token_address": "0xabc"},
+    )
+
+    assert amount_usd == pytest.approx(25.0)
+    assert source == "dexscreener"
+
+
+@pytest.mark.anyio
 async def test_estimate_market_amount_usd_uses_coingecko_contract_price(monkeypatch):
     async def fake_get_token_pairs(address, limit=20):
         return []

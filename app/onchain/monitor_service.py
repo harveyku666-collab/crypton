@@ -279,7 +279,7 @@ def _pick_best_dex_pair(
     symbols: list[str],
 ) -> dict[str, Any] | None:
     filtered: list[dict[str, Any]] = []
-    normalized_symbols = set(symbols)
+    normalized_symbols = {symbol for symbol in symbols if symbol not in UNKNOWN_TOKEN_SYMBOLS}
     for pair in pairs:
         if not isinstance(pair, dict):
             continue
