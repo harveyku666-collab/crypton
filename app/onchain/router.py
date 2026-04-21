@@ -14,6 +14,7 @@ from app.onchain.monitor_service import (
     list_whale_notification_channels,
     list_whale_notification_deliveries,
     list_whale_transfer_events,
+    replay_whale_alert_notifications,
     upsert_whale_notification_channels,
 )
 from app.onchain.whale_tracker import get_recent_transactions
@@ -30,6 +31,13 @@ class WhaleNotificationChannelInput(BaseModel):
     min_severity: str = "high"
     is_active: bool = True
     metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class WhaleAlertReplayInput(BaseModel):
+    alert_ids: list[int] = Field(default_factory=list)
+    severity: str | None = None
+    limit: int = Field(20, ge=1, le=200)
+    only_unsent: bool = True
 
 
 @router.get("/whales")
@@ -66,6 +74,16 @@ async def whale_monitor_alerts(
         "count": len(items),
         "severity": severity,
     }
+
+
+@router.post("/whale-monitor/alerts/replay")
+async def whale_monitor_alert_replay(payload: WhaleAlertReplayInput) -> dict[str, Any]:
+    return await replay_whale_alert_notifications(
+        alert_ids=payload.alert_ids,
+        severity=payload.severity,
+        limit=payload.limit,
+        only_unsent=payload.only_unsent,
+    )
 
 
 @router.get("/whale-monitor/channels")

@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 import httpx
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 
 from app.common.database import async_session, db_available
 from app.common.models import (
@@ -485,6 +485,89 @@ async def list_whale_notification_deliveries(
         stmt = stmt.order_by(WhaleNotificationDelivery.created_at.desc()).limit(capped_limit)
         rows = (await session.execute(stmt)).scalars().all()
         return [_serialize_notification_delivery(row) for row in rows]
+
+
+def _normalize_alert_ids(values: list[int] | None) -> list[int]:
+    normalized: list[int] = []
+    seen: set[int] = set()
+    for value in values or []:
+        try:
+            alert_id = int(value)
+        except Exception:
+            continue
+        if alert_id <= 0 or alert_id in seen:
+            continue
+        seen.add(alert_id)
+        normalized.append(alert_id)
+    return normalized
+
+
+async def replay_whale_alert_notifications(
+    *,
+    alert_ids: list[int] | None = None,
+    severity: str | None = None,
+    limit: int = 20,
+    only_unsent: bool = True,
+) -> dict[str, Any]:
+    if not db_available():
+        return {
+            "db_available": False,
+            "status": "skipped",
+            "count": 0,
+            "warning": "Database not available",
+        }
+
+    capped_limit = min(max(limit, 1), 200)
+    normalized_ids = _normalize_alert_ids(alert_ids)
+    normalized_severity = _normalize_severity(severity, default="medium") if severity else None
+
+    async with async_session() as session:
+        stmt = select(WhaleAlert)
+        if normalized_ids:
+            stmt = stmt.where(WhaleAlert.id.in_(normalized_ids))
+        if normalized_severity:
+            stmt = stmt.where(WhaleAlert.severity == normalized_severity)
+        if only_unsent:
+            stmt = stmt.where(
+                or_(
+                    WhaleAlert.notification_status.is_(None),
+                    WhaleAlert.notification_status.in_(("pending", "failed", "skipped")),
+                )
+            )
+        stmt = stmt.order_by(WhaleAlert.created_at.desc(), WhaleAlert.id.desc())
+        if not normalized_ids:
+            stmt = stmt.limit(capped_limit)
+        rows = (await session.execute(stmt)).scalars().all()
+        alerts = [_serialize_whale_alert(row) for row in rows]
+
+    if not alerts:
+        return {
+            "db_available": True,
+            "status": "ok",
+            "count": 0,
+            "selected_alert_ids": [],
+            "severity": normalized_severity,
+            "only_unsent": only_unsent,
+            "notification": {
+                "alert_count": 0,
+                "matched_channel_count": 0,
+                "delivery_count": 0,
+                "sent_count": 0,
+                "failed_count": 0,
+            },
+            "warning": "No matching whale alerts",
+        }
+
+    notification_result = await _notify_alerts(alerts)
+    return {
+        "db_available": True,
+        "status": "ok",
+        "count": len(alerts),
+        "selected_alert_ids": [int(alert["id"]) for alert in alerts if alert.get("id") is not None],
+        "severity": normalized_severity,
+        "only_unsent": only_unsent,
+        "notification": notification_result,
+    }
 
 
 async def _deliver_notification(

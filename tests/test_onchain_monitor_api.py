@@ -98,6 +98,42 @@ async def test_whale_monitor_alerts_endpoint(monkeypatch):
 
 
 @pytest.mark.anyio
+async def test_whale_monitor_alert_replay_endpoint(monkeypatch):
+    async def fake_replay(*, alert_ids=None, severity=None, limit=20, only_unsent=True):
+        return {
+            "status": "ok",
+            "count": len(alert_ids or []),
+            "selected_alert_ids": alert_ids or [],
+            "severity": severity,
+            "only_unsent": only_unsent,
+            "notification": {
+                "delivery_count": len(alert_ids or []),
+                "sent_count": len(alert_ids or []),
+            },
+        }
+
+    monkeypatch.setattr("app.onchain.router.replay_whale_alert_notifications", fake_replay)
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        resp = await client.post(
+            "/api/v1/onchain/whale-monitor/alerts/replay",
+            json={
+                "alert_ids": [1, 2],
+                "severity": "high",
+                "limit": 10,
+                "only_unsent": False,
+            },
+        )
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["count"] == 2
+    assert data["notification"]["delivery_count"] == 2
+    assert data["only_unsent"] is False
+
+
+@pytest.mark.anyio
 async def test_whale_monitor_channels_endpoint(monkeypatch):
     async def fake_channels():
         return [
