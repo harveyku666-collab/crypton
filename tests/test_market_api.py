@@ -2,7 +2,11 @@ import pytest
 
 from app.common.models import WhaleAlert, WhaleTransferEvent
 from app.market.aggregator import get_symbol_price
-from app.onchain.monitor_service import _estimate_market_amount_usd, _merge_transfer_event_into_alert
+from app.onchain.monitor_service import (
+    _estimate_market_amount_usd,
+    _estimate_market_snapshot,
+    _merge_transfer_event_into_alert,
+)
 
 
 @pytest.mark.anyio
@@ -132,6 +136,35 @@ async def test_estimate_market_amount_usd_uses_contract_price_when_symbol_unknow
 
     assert amount_usd == pytest.approx(25.0)
     assert source == "dexscreener"
+
+
+@pytest.mark.anyio
+async def test_estimate_market_snapshot_promotes_unknown_symbol_from_contract_price(monkeypatch):
+    async def fake_geckoterminal_price(blockchain, contract_address):
+        assert blockchain == "ethereum"
+        assert contract_address == "0xabc"
+        return {
+            "price": 0.25,
+            "source": "geckoterminal",
+            "symbol": "BAYC",
+            "name": "Bored Ape Yacht Club",
+        }
+
+    monkeypatch.setattr("app.onchain.monitor_service.geckoterminal.get_token_price", fake_geckoterminal_price)
+
+    snapshot = await _estimate_market_snapshot(
+        token="UNKNOWN",
+        amount=100,
+        amount_usd=None,
+        blockchain="ethereum",
+        metadata={"token_address": "0xabc"},
+    )
+
+    assert snapshot is not None
+    assert snapshot["amount_usd"] == pytest.approx(25.0)
+    assert snapshot["amount_usd_source"] == "geckoterminal"
+    assert snapshot["resolved_symbol"] == "BAYC"
+    assert snapshot["resolved_name"] == "Bored Ape Yacht Club"
 
 
 @pytest.mark.anyio

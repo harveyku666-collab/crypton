@@ -28,6 +28,8 @@ logger = logging.getLogger("bitinfo.onchain.monitor")
 GLOBAL_SCOPE = "global"
 DEFAULT_NOTIFICATION_CHANNEL = "default-log"
 DEFAULT_NOTIFICATION_MIN_SEVERITY = "medium"
+DEFAULT_LOW_NOTIFICATION_CHANNEL = "default-low-log"
+DEFAULT_LOW_NOTIFICATION_MIN_SEVERITY = "low"
 UNKNOWN_TOKEN_SYMBOLS = {"", "COIN", "NATIVE", "TOKEN", "UNKNOWN"}
 USD_EQUIVALENT_TOKENS = {
     "USD1",
@@ -99,6 +101,22 @@ def _safe_float(value: Any) -> float | None:
         return float(value)
     except Exception:
         return None
+
+
+def _normalize_severity_list(values: Any) -> list[str]:
+    if isinstance(values, str):
+        values = [values]
+    if not isinstance(values, (list, tuple, set)):
+        return []
+    normalized: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        severity = _normalize_severity(value, default="")
+        if not severity or severity in seen:
+            continue
+        seen.add(severity)
+        normalized.append(severity)
+    return normalized
 
 
 def _first_non_empty(*values: Any) -> str | None:
@@ -222,6 +240,13 @@ def _select_preferred_token(token: Any, metadata: dict[str, Any] | None) -> str 
     return symbols[0] if symbols else None
 
 
+def _resolve_token_symbol(value: Any) -> str | None:
+    symbol = _normalize_token_symbol(value)
+    if not symbol or symbol in UNKNOWN_TOKEN_SYMBOLS:
+        return None
+    return symbol
+
+
 def _merge_transfer_event_into_alert(row: WhaleAlert, transfer: WhaleTransferEvent) -> bool:
     changed = False
     transfer_metadata = transfer.metadata_json if isinstance(transfer.metadata_json, dict) else {}
@@ -306,19 +331,91 @@ def _pick_best_dex_pair(
     return ranked[0] if ranked else None
 
 
-async def _estimate_market_amount_usd(
+def _normalize_market_resolution(
+    resolution: dict[str, Any] | None,
+) -> dict[str, Any] | None:
+    if not isinstance(resolution, dict):
+        return None
+    amount_value = _safe_float(resolution.get("amount_usd"))
+    amount_source = str(resolution.get("amount_usd_source") or "").strip() or None
+    resolved_symbol = _resolve_token_symbol(resolution.get("resolved_symbol"))
+    resolved_name = str(resolution.get("resolved_name") or "").strip() or None
+    resolved_symbol_source = str(resolution.get("resolved_symbol_source") or "").strip() or None
+    if amount_value is None and not resolved_symbol and not resolved_name:
+        return None
+    return {
+        "amount_usd": amount_value,
+        "amount_usd_source": amount_source,
+        "resolved_symbol": resolved_symbol,
+        "resolved_name": resolved_name,
+        "resolved_symbol_source": resolved_symbol_source or amount_source,
+    }
+
+
+def _merge_market_resolution_metadata(
+    metadata: dict[str, Any] | None,
+    resolution: dict[str, Any] | None,
+) -> dict[str, Any]:
+    merged = dict(metadata) if isinstance(metadata, dict) else {}
+    normalized = _normalize_market_resolution(resolution)
+    if normalized is None:
+        return merged
+
+    amount_usd = _safe_float(normalized.get("amount_usd"))
+    amount_source = str(normalized.get("amount_usd_source") or "").strip()
+    resolved_symbol = _resolve_token_symbol(normalized.get("resolved_symbol"))
+    resolved_name = str(normalized.get("resolved_name") or "").strip()
+    resolved_symbol_source = str(normalized.get("resolved_symbol_source") or "").strip()
+
+    if amount_usd is not None and amount_source:
+        merged["amount_usd_estimated"] = amount_usd
+    if amount_source:
+        merged["amount_usd_source"] = amount_source
+    if resolved_symbol:
+        merged["resolved_token_symbol"] = resolved_symbol
+        current_symbol = _select_preferred_token(None, merged)
+        if not current_symbol or current_symbol in UNKNOWN_TOKEN_SYMBOLS:
+            merged["token_symbol"] = resolved_symbol
+    if resolved_name:
+        merged["resolved_token_name"] = resolved_name
+    if resolved_symbol_source:
+        merged["resolved_token_source"] = resolved_symbol_source
+    return merged
+
+
+def _resolve_alert_token(
+    current_token: Any,
+    resolution: dict[str, Any] | None,
+) -> str | None:
+    resolved_symbol = _resolve_token_symbol((resolution or {}).get("resolved_symbol"))
+    if resolved_symbol and _is_unknown_token(current_token):
+        return resolved_symbol
+    current = _normalize_token_symbol(current_token)
+    return current or resolved_symbol
+
+
+async def _estimate_market_snapshot(
     *,
     token: Any,
     amount: Any,
     amount_usd: Any,
     blockchain: str | None,
     metadata: dict[str, Any] | None,
-) -> tuple[float | None, str | None]:
+) -> dict[str, Any] | None:
+    payload = metadata if isinstance(metadata, dict) else {}
+    preferred_symbol = _select_preferred_token(token, payload)
     normalized_amount_usd = _safe_float(amount_usd)
     if normalized_amount_usd is not None:
-        return normalized_amount_usd, None
+        return _normalize_market_resolution(
+            {
+                "amount_usd": normalized_amount_usd,
+                "amount_usd_source": None,
+                "resolved_symbol": preferred_symbol,
+                "resolved_name": None,
+                "resolved_symbol_source": None,
+            }
+        )
 
-    payload = metadata if isinstance(metadata, dict) else {}
     direct_amount_usd = _safe_float(
         _extract_nested_value(
             payload,
@@ -332,16 +429,32 @@ async def _estimate_market_amount_usd(
         )
     )
     if direct_amount_usd is not None:
-        return direct_amount_usd, "metadata"
+        return _normalize_market_resolution(
+            {
+                "amount_usd": direct_amount_usd,
+                "amount_usd_source": "metadata",
+                "resolved_symbol": preferred_symbol,
+                "resolved_name": None,
+                "resolved_symbol_source": "metadata",
+            }
+        )
 
     normalized_amount = _safe_float(amount)
     if normalized_amount is None or normalized_amount <= 0:
-        return None, None
+        return None
 
     symbols = _extract_candidate_symbols(token, payload)
     for symbol in symbols:
         if symbol in USD_EQUIVALENT_TOKENS:
-            return normalized_amount, "stablecoin_parity"
+            return _normalize_market_resolution(
+                {
+                    "amount_usd": normalized_amount,
+                    "amount_usd_source": "stablecoin_parity",
+                    "resolved_symbol": symbol,
+                    "resolved_name": None,
+                    "resolved_symbol_source": "stablecoin_parity",
+                }
+            )
 
     token_address = _extract_token_address(payload)
     if token_address:
@@ -352,7 +465,15 @@ async def _estimate_market_amount_usd(
             geckoterminal_snapshot = None
         geckoterminal_price = _safe_float((geckoterminal_snapshot or {}).get("price")) if isinstance(geckoterminal_snapshot, dict) else None
         if geckoterminal_price is not None and geckoterminal_price > 0:
-            return normalized_amount * geckoterminal_price, str(geckoterminal_snapshot.get("source") or "geckoterminal")
+            return _normalize_market_resolution(
+                {
+                    "amount_usd": normalized_amount * geckoterminal_price,
+                    "amount_usd_source": str((geckoterminal_snapshot or {}).get("source") or "geckoterminal"),
+                    "resolved_symbol": (geckoterminal_snapshot or {}).get("symbol"),
+                    "resolved_name": (geckoterminal_snapshot or {}).get("name"),
+                    "resolved_symbol_source": str((geckoterminal_snapshot or {}).get("source") or "geckoterminal"),
+                }
+            )
         try:
             pairs = await dexscreener.get_token_pairs(token_address, limit=20)
         except Exception:
@@ -362,7 +483,16 @@ async def _estimate_market_amount_usd(
         if pair is not None:
             price_usd = _safe_float(pair.get("price_usd"))
             if price_usd is not None and price_usd > 0:
-                return normalized_amount * price_usd, "dexscreener"
+                base_token = pair.get("base_token") or {}
+                return _normalize_market_resolution(
+                    {
+                        "amount_usd": normalized_amount * price_usd,
+                        "amount_usd_source": "dexscreener",
+                        "resolved_symbol": base_token.get("symbol"),
+                        "resolved_name": base_token.get("name"),
+                        "resolved_symbol_source": "dexscreener",
+                    }
+                )
         try:
             contract_snapshot = await coingecko.get_price_by_contract(blockchain or "", token_address)
         except Exception:
@@ -370,7 +500,15 @@ async def _estimate_market_amount_usd(
             contract_snapshot = None
         contract_price = _safe_float((contract_snapshot or {}).get("price")) if isinstance(contract_snapshot, dict) else None
         if contract_price is not None and contract_price > 0:
-            return normalized_amount * contract_price, str(contract_snapshot.get("source") or "coingecko_contract")
+            return _normalize_market_resolution(
+                {
+                    "amount_usd": normalized_amount * contract_price,
+                    "amount_usd_source": str((contract_snapshot or {}).get("source") or "coingecko_contract"),
+                    "resolved_symbol": (contract_snapshot or {}).get("symbol"),
+                    "resolved_name": (contract_snapshot or {}).get("name"),
+                    "resolved_symbol_source": str((contract_snapshot or {}).get("source") or "coingecko_contract"),
+                }
+            )
 
     for symbol in symbols:
         if symbol in UNKNOWN_TOKEN_SYMBOLS:
@@ -383,9 +521,37 @@ async def _estimate_market_amount_usd(
         price = _safe_float((snapshot or {}).get("price")) if isinstance(snapshot, dict) else None
         if price is not None and price > 0:
             source = str(snapshot.get("source") or "market") if isinstance(snapshot, dict) else "market"
-            return normalized_amount * price, source
+            return _normalize_market_resolution(
+                {
+                    "amount_usd": normalized_amount * price,
+                    "amount_usd_source": source,
+                    "resolved_symbol": (snapshot or {}).get("symbol") or symbol,
+                    "resolved_name": (snapshot or {}).get("name"),
+                    "resolved_symbol_source": source,
+                }
+            )
 
-    return None, None
+    return None
+
+
+async def _estimate_market_amount_usd(
+    *,
+    token: Any,
+    amount: Any,
+    amount_usd: Any,
+    blockchain: str | None,
+    metadata: dict[str, Any] | None,
+) -> tuple[float | None, str | None]:
+    snapshot = await _estimate_market_snapshot(
+        token=token,
+        amount=amount,
+        amount_usd=amount_usd,
+        blockchain=blockchain,
+        metadata=metadata,
+    )
+    if not snapshot:
+        return None, None
+    return _safe_float(snapshot.get("amount_usd")), str(snapshot.get("amount_usd_source") or "").strip() or None
 
 
 def _normalize_transfer_item(item: dict[str, Any], watcher: MonitoredAddress) -> dict[str, Any] | None:
@@ -568,6 +734,18 @@ def _severity_matches(alert_severity: str, min_severity: str) -> bool:
     return _severity_rank(alert_severity) >= _severity_rank(min_severity)
 
 
+def _channel_matches_alert(channel: WhaleNotificationChannel, alert: dict[str, Any]) -> bool:
+    alert_severity = _normalize_severity(alert.get("severity"), default="low")
+    metadata = channel.metadata_json if isinstance(channel.metadata_json, dict) else {}
+    severity_allowlist = _normalize_severity_list(metadata.get("severity_allowlist"))
+    if severity_allowlist and alert_severity not in severity_allowlist:
+        return False
+    return _severity_matches(
+        alert_severity,
+        str(channel.min_severity or DEFAULT_NOTIFICATION_MIN_SEVERITY),
+    )
+
+
 def _build_alert_payload(alert: dict[str, Any], channel: WhaleNotificationChannel) -> dict[str, Any]:
     return {
         "type": "whale_alert",
@@ -632,54 +810,78 @@ async def ensure_default_notification_channels() -> dict[str, Any]:
     if not db_available():
         return {"created": 0, "count": 0, "warning": "Database not available"}
 
+    defaults = [
+        {
+            "name": DEFAULT_NOTIFICATION_CHANNEL,
+            "channel_type": "log",
+            "target": "bitinfo.onchain.alerts",
+            "min_severity": DEFAULT_NOTIFICATION_MIN_SEVERITY,
+            "metadata_json": {"auto_created": True},
+        },
+        {
+            "name": DEFAULT_LOW_NOTIFICATION_CHANNEL,
+            "channel_type": "log",
+            "target": "bitinfo.onchain.alerts.low",
+            "min_severity": DEFAULT_LOW_NOTIFICATION_MIN_SEVERITY,
+            "metadata_json": {
+                "auto_created": True,
+                "severity_allowlist": ["low"],
+                "priority": "low",
+            },
+        },
+    ]
     created = 0
     updated = 0
     async with async_session() as session:
-        existing = (
-            await session.execute(
-                select(WhaleNotificationChannel).where(
-                    WhaleNotificationChannel.name == DEFAULT_NOTIFICATION_CHANNEL
+        for spec in defaults:
+            existing = (
+                await session.execute(
+                    select(WhaleNotificationChannel).where(
+                        WhaleNotificationChannel.name == spec["name"]
+                    )
                 )
-            )
-        ).scalar_one_or_none()
+            ).scalar_one_or_none()
 
-        if existing is None:
-            session.add(
-                WhaleNotificationChannel(
-                    name=DEFAULT_NOTIFICATION_CHANNEL,
-                    channel_type="log",
-                    target="bitinfo.onchain.alerts",
-                    min_severity=DEFAULT_NOTIFICATION_MIN_SEVERITY,
-                    is_active=1,
-                    metadata_json={"auto_created": True},
+            if existing is None:
+                session.add(
+                    WhaleNotificationChannel(
+                        name=spec["name"],
+                        channel_type=spec["channel_type"],
+                        target=spec["target"],
+                        min_severity=spec["min_severity"],
+                        is_active=1,
+                        metadata_json=spec["metadata_json"],
+                    )
                 )
-            )
-            created = 1
-        else:
+                created += 1
+                continue
+
             metadata = existing.metadata_json if isinstance(existing.metadata_json, dict) else {}
-            if metadata.get("auto_created"):
-                changed = False
-                normalized_min_severity = _normalize_severity(
-                    existing.min_severity,
-                    default=DEFAULT_NOTIFICATION_MIN_SEVERITY,
-                )
-                if existing.channel_type != "log":
-                    existing.channel_type = "log"
-                    changed = True
-                if existing.target != "bitinfo.onchain.alerts":
-                    existing.target = "bitinfo.onchain.alerts"
-                    changed = True
-                if normalized_min_severity != DEFAULT_NOTIFICATION_MIN_SEVERITY:
-                    existing.min_severity = DEFAULT_NOTIFICATION_MIN_SEVERITY
-                    changed = True
-                if int(existing.is_active or 0) != 1:
-                    existing.is_active = 1
-                    changed = True
-                if metadata.get("auto_created") is not True:
-                    existing.metadata_json = {**metadata, "auto_created": True}
-                    changed = True
-                if changed:
-                    updated = 1
+            if not metadata.get("auto_created"):
+                continue
+
+            changed = False
+            normalized_min_severity = _normalize_severity(
+                existing.min_severity,
+                default=str(spec["min_severity"]),
+            )
+            if existing.channel_type != spec["channel_type"]:
+                existing.channel_type = str(spec["channel_type"])
+                changed = True
+            if existing.target != spec["target"]:
+                existing.target = str(spec["target"])
+                changed = True
+            if normalized_min_severity != str(spec["min_severity"]):
+                existing.min_severity = str(spec["min_severity"])
+                changed = True
+            if int(existing.is_active or 0) != 1:
+                existing.is_active = 1
+                changed = True
+            if metadata != spec["metadata_json"]:
+                existing.metadata_json = dict(spec["metadata_json"])
+                changed = True
+            if changed:
+                updated += 1
 
         await session.commit()
         active_count = int(
@@ -906,13 +1108,14 @@ async def _backfill_legacy_whale_alerts(session: Any, rows: list[WhaleAlert]) ->
         if transfer and _merge_transfer_event_into_alert(row, transfer):
             changed = True
 
-        estimated_amount_usd, valuation_source = await _estimate_market_amount_usd(
+        resolution = await _estimate_market_snapshot(
             token=row.token,
             amount=row.amount,
             amount_usd=row.amount_usd,
             blockchain=row.blockchain or (watcher.blockchain if watcher else None),
             metadata=row.metadata_json if isinstance(row.metadata_json, dict) else None,
         )
+        estimated_amount_usd = _safe_float((resolution or {}).get("amount_usd"))
         inferred_amount_usd = estimated_amount_usd
         if inferred_amount_usd is None:
             inferred_amount_usd = _infer_legacy_alert_amount_usd(
@@ -924,13 +1127,22 @@ async def _backfill_legacy_whale_alerts(session: Any, rows: list[WhaleAlert]) ->
         if row.amount_usd is None and inferred_amount_usd is not None:
             row.amount_usd = inferred_amount_usd
             changed = True
-            metadata = row.metadata_json if isinstance(row.metadata_json, dict) else {}
-            if valuation_source:
-                row.metadata_json = {
-                    **metadata,
-                    "amount_usd_estimated": inferred_amount_usd,
-                    "amount_usd_source": valuation_source,
-                }
+        merged_metadata = _merge_market_resolution_metadata(row.metadata_json, resolution)
+        if merged_metadata != (row.metadata_json if isinstance(row.metadata_json, dict) else {}):
+            row.metadata_json = merged_metadata
+            changed = True
+        resolved_token = _resolve_alert_token(row.token, resolution)
+        if resolved_token and resolved_token != row.token:
+            row.token = resolved_token
+            changed = True
+        if transfer is not None:
+            transfer_metadata = _merge_market_resolution_metadata(transfer.metadata_json, resolution)
+            if transfer_metadata != (transfer.metadata_json if isinstance(transfer.metadata_json, dict) else {}):
+                transfer.metadata_json = transfer_metadata
+                changed = True
+            transfer_token = _resolve_alert_token(transfer.token, resolution)
+            if transfer_token and transfer_token != transfer.token:
+                transfer.token = transfer_token
                 changed = True
 
         if not row.severity:
@@ -1105,10 +1317,7 @@ async def _notify_alerts(alerts: list[dict[str, Any]]) -> dict[str, Any]:
         sent_for_alert = 0
         failed_for_alert = 0
         for channel in channels:
-            if not _severity_matches(
-                str(alert.get("severity") or "low"),
-                str(channel.min_severity or DEFAULT_NOTIFICATION_MIN_SEVERITY),
-            ):
+            if not _channel_matches_alert(channel, alert):
                 continue
             matched_channel_count += 1
             matched_for_alert += 1
@@ -1254,22 +1463,23 @@ async def collect_whale_transfer_events(*, force: bool = False) -> dict[str, Any
                 normalized = _normalize_transfer_item(transfer, watcher)
                 if not normalized:
                     continue
-                estimated_amount_usd, valuation_source = await _estimate_market_amount_usd(
+                resolution = await _estimate_market_snapshot(
                     token=normalized.get("token"),
                     amount=normalized.get("amount"),
                     amount_usd=normalized.get("amount_usd"),
                     blockchain=normalized.get("blockchain"),
                     metadata=normalized.get("metadata_json") if isinstance(normalized.get("metadata_json"), dict) else None,
                 )
+                estimated_amount_usd = _safe_float((resolution or {}).get("amount_usd"))
                 if normalized.get("amount_usd") is None and estimated_amount_usd is not None:
                     normalized["amount_usd"] = estimated_amount_usd
-                    metadata = normalized.get("metadata_json") if isinstance(normalized.get("metadata_json"), dict) else {}
-                    if valuation_source:
-                        normalized["metadata_json"] = {
-                            **metadata,
-                            "amount_usd_estimated": estimated_amount_usd,
-                            "amount_usd_source": valuation_source,
-                        }
+                normalized["metadata_json"] = _merge_market_resolution_metadata(
+                    normalized.get("metadata_json") if isinstance(normalized.get("metadata_json"), dict) else {},
+                    resolution,
+                )
+                resolved_token = _resolve_alert_token(normalized.get("token"), resolution)
+                if resolved_token:
+                    normalized["token"] = resolved_token
                 fetched_transfer_count += 1
 
                 if not force and normalized.get("amount_usd") is not None and float(normalized["amount_usd"]) < threshold:

@@ -1,7 +1,9 @@
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+from app.common.models import WhaleNotificationChannel
 from app.main import app
+from app.onchain.monitor_service import _channel_matches_alert
 
 
 @pytest.mark.anyio
@@ -155,6 +157,21 @@ async def test_whale_monitor_channels_endpoint(monkeypatch):
     data = resp.json()
     assert data["count"] == 1
     assert data["items"][0]["channel_type"] == "log"
+
+
+def test_low_only_channel_matches_low_alerts_only():
+    channel = WhaleNotificationChannel(
+        name="default-low-log",
+        channel_type="log",
+        target="bitinfo.onchain.alerts.low",
+        min_severity="low",
+        is_active=1,
+        metadata_json={"auto_created": True, "severity_allowlist": ["low"]},
+    )
+
+    assert _channel_matches_alert(channel, {"severity": "low"}) is True
+    assert _channel_matches_alert(channel, {"severity": "medium"}) is False
+    assert _channel_matches_alert(channel, {"severity": "high"}) is False
 
 
 @pytest.mark.anyio
