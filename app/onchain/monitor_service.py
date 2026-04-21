@@ -21,7 +21,7 @@ from app.common.models import (
 )
 from app.config import settings
 from app.market import aggregator
-from app.market.sources import coingecko, dexscreener, surf
+from app.market.sources import coingecko, dexscreener, geckoterminal, surf
 
 logger = logging.getLogger("bitinfo.onchain.monitor")
 
@@ -345,6 +345,14 @@ async def _estimate_market_amount_usd(
 
     token_address = _extract_token_address(payload)
     if token_address:
+        try:
+            geckoterminal_snapshot = await geckoterminal.get_token_price(blockchain or "", token_address)
+        except Exception:
+            logger.debug("GeckoTerminal valuation lookup failed for %s", token_address, exc_info=True)
+            geckoterminal_snapshot = None
+        geckoterminal_price = _safe_float((geckoterminal_snapshot or {}).get("price")) if isinstance(geckoterminal_snapshot, dict) else None
+        if geckoterminal_price is not None and geckoterminal_price > 0:
+            return normalized_amount * geckoterminal_price, str(geckoterminal_snapshot.get("source") or "geckoterminal")
         try:
             pairs = await dexscreener.get_token_pairs(token_address, limit=20)
         except Exception:

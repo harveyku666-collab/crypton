@@ -242,6 +242,15 @@ DEXSCREENER = Endpoint(
     ],
 )
 
+GECKOTERMINAL = Endpoint(
+    name="GeckoTerminal",
+    base_url="https://api.geckoterminal.com/api/v2",
+    description="GeckoTerminal Public API — 链上代币地址价格、流动性和 top pools（免费公开）",
+    paths=[
+        "/networks/{network}/tokens/{address}  # 代币地址价格与 top pools",
+    ],
+)
+
 # ─── 预测市场 (只读) ─────────────────────────────────────────
 POLYMARKET_GAMMA = Endpoint(
     name="Polymarket Gamma",
@@ -368,6 +377,7 @@ ALL_ENDPOINTS: list[Endpoint] = [
     DEFI_LLAMA_YIELDS,
     DEFI_LLAMA_BRIDGES,
     DEXSCREENER,
+    GECKOTERMINAL,
     POLYMARKET_GAMMA,
     WHALE_ALERT,
     OPENAI_API,

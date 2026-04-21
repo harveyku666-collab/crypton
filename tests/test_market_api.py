@@ -61,6 +61,9 @@ async def test_estimate_market_amount_usd_uses_symbol_price(monkeypatch):
 
 @pytest.mark.anyio
 async def test_estimate_market_amount_usd_uses_contract_price(monkeypatch):
+    async def fake_geckoterminal_price(blockchain, contract_address):
+        return None
+
     async def fake_get_token_pairs(address, limit=20):
         assert address == "0xabc"
         return [
@@ -76,6 +79,7 @@ async def test_estimate_market_amount_usd_uses_contract_price(monkeypatch):
     async def fake_get_symbol_price(symbol):
         return None
 
+    monkeypatch.setattr("app.onchain.monitor_service.geckoterminal.get_token_price", fake_geckoterminal_price)
     monkeypatch.setattr("app.onchain.monitor_service.dexscreener.get_token_pairs", fake_get_token_pairs)
     monkeypatch.setattr("app.onchain.monitor_service.aggregator.get_symbol_price", fake_get_symbol_price)
 
@@ -93,6 +97,9 @@ async def test_estimate_market_amount_usd_uses_contract_price(monkeypatch):
 
 @pytest.mark.anyio
 async def test_estimate_market_amount_usd_uses_contract_price_when_symbol_unknown(monkeypatch):
+    async def fake_geckoterminal_price(blockchain, contract_address):
+        return None
+
     async def fake_get_token_pairs(address, limit=20):
         return [
             {
@@ -110,6 +117,7 @@ async def test_estimate_market_amount_usd_uses_contract_price_when_symbol_unknow
     async def fake_get_symbol_price(symbol):
         return None
 
+    monkeypatch.setattr("app.onchain.monitor_service.geckoterminal.get_token_price", fake_geckoterminal_price)
     monkeypatch.setattr("app.onchain.monitor_service.dexscreener.get_token_pairs", fake_get_token_pairs)
     monkeypatch.setattr("app.onchain.monitor_service.coingecko.get_price_by_contract", fake_get_price_by_contract)
     monkeypatch.setattr("app.onchain.monitor_service.aggregator.get_symbol_price", fake_get_symbol_price)
@@ -127,7 +135,43 @@ async def test_estimate_market_amount_usd_uses_contract_price_when_symbol_unknow
 
 
 @pytest.mark.anyio
+async def test_estimate_market_amount_usd_uses_geckoterminal_contract_price(monkeypatch):
+    async def fake_geckoterminal_price(blockchain, contract_address):
+        assert blockchain == "ethereum"
+        assert contract_address == "0xabc"
+        return {"price": 0.00001594, "source": "geckoterminal"}
+
+    async def fake_get_token_pairs(address, limit=20):
+        return []
+
+    async def fake_get_price_by_contract(blockchain, contract_address):
+        return None
+
+    async def fake_get_symbol_price(symbol):
+        return None
+
+    monkeypatch.setattr("app.onchain.monitor_service.geckoterminal.get_token_price", fake_geckoterminal_price)
+    monkeypatch.setattr("app.onchain.monitor_service.dexscreener.get_token_pairs", fake_get_token_pairs)
+    monkeypatch.setattr("app.onchain.monitor_service.coingecko.get_price_by_contract", fake_get_price_by_contract)
+    monkeypatch.setattr("app.onchain.monitor_service.aggregator.get_symbol_price", fake_get_symbol_price)
+
+    amount_usd, source = await _estimate_market_amount_usd(
+        token="KPER",
+        amount=418.29,
+        amount_usd=None,
+        blockchain="ethereum",
+        metadata={"token_address": "0xabc"},
+    )
+
+    assert amount_usd == pytest.approx(0.0066675426)
+    assert source == "geckoterminal"
+
+
+@pytest.mark.anyio
 async def test_estimate_market_amount_usd_uses_coingecko_contract_price(monkeypatch):
+    async def fake_geckoterminal_price(blockchain, contract_address):
+        return None
+
     async def fake_get_token_pairs(address, limit=20):
         return []
 
@@ -139,6 +183,7 @@ async def test_estimate_market_amount_usd_uses_coingecko_contract_price(monkeypa
     async def fake_get_symbol_price(symbol):
         return None
 
+    monkeypatch.setattr("app.onchain.monitor_service.geckoterminal.get_token_price", fake_geckoterminal_price)
     monkeypatch.setattr("app.onchain.monitor_service.dexscreener.get_token_pairs", fake_get_token_pairs)
     monkeypatch.setattr("app.onchain.monitor_service.coingecko.get_price_by_contract", fake_get_price_by_contract)
     monkeypatch.setattr("app.onchain.monitor_service.aggregator.get_symbol_price", fake_get_symbol_price)
