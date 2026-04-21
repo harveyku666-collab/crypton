@@ -138,3 +138,8 @@ async def square_page():
 @app.get("/address-intel")
 async def address_intel_page():
     return FileResponse(str(STATIC_DIR / "address-intel.html"))
+
+
+@app.get("/whale-monitor")
+async def whale_monitor_page():
+    return FileResponse(str(STATIC_DIR / "whale-monitor.html"))

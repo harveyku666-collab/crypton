@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>巨鲸监控台 - BitInfo</title>
+<style>
+:root{
+  --bg:#081018;
+  --panel:#0f1a24;
+  --panel-2:#132230;
+  --line:#223448;
+  --text:#e8f1f8;
+  --muted:#8ea2b5;
+  --cyan:#55d6ff;
+  --teal:#36c7a0;
+  --gold:#f7c46b;
+  --red:#ff6b6b;
+  --violet:#9f8cff;
+  --shadow:0 22px 60px rgba(0,0,0,.32);
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  color:var(--text);
+  background:
+    radial-gradient(circle at top left, rgba(85,214,255,.12), transparent 28%),
+    radial-gradient(circle at top right, rgba(159,140,255,.1), transparent 22%),
+    linear-gradient(180deg,#081018 0%,#09131c 100%);
+  font:15px/1.65 "Avenir Next","PingFang SC","Noto Sans SC",sans-serif;
+}
+a{color:inherit}
+.page{max-width:1460px;margin:0 auto;padding:28px 18px 56px}
+.shell{
+  border:1px solid rgba(85,214,255,.14);
+  border-radius:30px;
+  overflow:hidden;
+  background:
+    linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.01)),
+    linear-gradient(180deg,#0c151f,#0b141d 56%, #0a121a 100%);
+  box-shadow:var(--shadow);
+}
+.hero{
+  padding:24px 28px 22px;
+  border-bottom:1px solid rgba(255,255,255,.06);
+  background:
+    radial-gradient(circle at top left, rgba(85,214,255,.12), transparent 35%),
+    linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.015));
+}
+.hero-top{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+  flex-wrap:wrap;
+}
+.back-link,.live{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:9px 14px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.08);
+  background:rgba(255,255,255,.03);
+  text-decoration:none;
+  color:var(--muted);
+}
+.live-dot{width:8px;height:8px;border-radius:50%;background:var(--teal)}
+.eyebrow{
+  margin-top:16px;
+  color:var(--cyan);
+  font-size:12px;
+  letter-spacing:.22em;
+  text-transform:uppercase;
+}
+.hero h1{
+  margin:10px 0 12px;
+  font-size:52px;
+  line-height:1;
+  letter-spacing:-.05em;
+  font-family:"Iowan Old Style","Baskerville","Songti SC",serif;
+}
+.hero p{margin:0;max-width:980px;color:var(--muted)}
+.hero-grid{
+  display:grid;
+  grid-template-columns:1.08fr .92fr;
+  gap:18px;
+  padding:18px 28px 26px;
+}
+.lead,.metric,.panel,.field,.item-card,.toast{
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:24px;
+}
+.lead{
+  padding:22px;
+  background:linear-gradient(180deg,rgba(85,214,255,.09),rgba(85,214,255,.03));
+}
+.lead-badges{display:flex;gap:8px;flex-wrap:wrap}
+.badge{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:6px 11px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.08);
+  background:rgba(255,255,255,.04);
+  font-size:12px;
+}
+.badge.low{color:var(--cyan)}
+.badge.medium{color:var(--gold)}
+.badge.high{color:#ff9f43}
+.badge.critical{color:var(--red)}
+.lead h2{
+  margin:14px 0 10px;
+  font-size:34px;
+  line-height:1.08;
+  letter-spacing:-.04em;
+  font-family:"Iowan Old Style","Baskerville","Songti SC",serif;
+}
+.lead ul{margin:16px 0 0;padding-left:18px;color:#c8d5e0}
+.metrics{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:14px;
+}
+.metric{
+  padding:16px;
+  background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.015));
+}
+.metric .label{
+  color:var(--muted);
+  font-size:12px;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+}
+.metric .value{
+  margin-top:10px;
+  font-size:30px;
+  font-weight:700;
+}
+.metric .sub{
+  margin-top:10px;
+  color:#bfd0dc;
+  font-size:12px;
+  line-height:1.7;
+}
+.control-bar{
+  padding:0 28px 22px;
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr)) auto auto auto;
+  gap:12px;
+}
+.field{
+  padding:14px;
+  background:rgba(255,255,255,.03);
+}
+.field label{
+  display:block;
+  margin-bottom:8px;
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:.12em;
+  color:var(--muted);
+}
+.field input,.field select,.action{
+  width:100%;
+  border:1px solid rgba(255,255,255,.09);
+  background:rgba(255,255,255,.03);
+  color:var(--text);
+  padding:12px 14px;
+  border-radius:14px;
+  font:inherit;
+  outline:none;
+}
+.action{
+  align-self:end;
+  cursor:pointer;
+  font-weight:700;
+}
+.action.primary{
+  background:linear-gradient(135deg,#1d7e94,#153f52);
+}
+.action.secondary{
+  background:linear-gradient(135deg,#1a2f3d,#101c24);
+}
+.action.ghost{
+  background:rgba(255,255,255,.03);
+}
+.sync-row{
+  padding:0 28px 24px;
+  display:flex;
+  gap:10px;
+  align-items:center;
+  flex-wrap:wrap;
+  color:var(--muted);
+  font-size:12px;
+}
+.chip{
+  border:1px solid rgba(255,255,255,.08);
+  background:rgba(255,255,255,.03);
+  color:var(--muted);
+  padding:8px 12px;
+  border-radius:999px;
+  cursor:pointer;
+}
+.content{
+  padding:0 28px 30px;
+  display:grid;
+  grid-template-columns:1.1fr .9fr;
+  gap:18px;
+}
+.stack{display:grid;gap:18px}
+.panel{
+  padding:22px;
+  background:rgba(255,255,255,.025);
+}
+.section-title{
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:16px;
+}
+.section-title h2{
+  margin:0;
+  font-size:28px;
+  line-height:1.02;
+  font-family:"Iowan Old Style","Baskerville","Songti SC",serif;
+}
+.section-title span{
+  font-size:12px;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+  color:var(--muted);
+}
+.item-grid{display:grid;gap:12px}
+.item-card{
+  padding:16px;
+  background:rgba(255,255,255,.03);
+}
+.item-top{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  align-items:flex-start;
+}
+.item-title{
+  font-size:18px;
+  font-weight:700;
+  line-height:1.35;
+}
+.meta-line{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  align-items:center;
+  font-size:12px;
+  color:var(--muted);
+}
+.mono{
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  word-break:break-all;
+}
+.mini-grid{
+  margin-top:14px;
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:10px;
+}
+.mini-card{
+  border-radius:16px;
+  padding:12px;
+  background:rgba(255,255,255,.025);
+  border:1px solid rgba(255,255,255,.05);
+}
+.mini-card .label{
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+  color:var(--muted);
+}
+.mini-card .value{
+  margin-top:8px;
+  font-size:18px;
+  font-weight:700;
+}
+.pill{
+  padding:4px 10px;
+  border-radius:999px;
+  font-size:11px;
+  font-weight:700;
+  letter-spacing:.04em;
+  background:rgba(255,255,255,.05);
+}
+.pill.low{color:var(--cyan)}
+.pill.medium{color:var(--gold)}
+.pill.high{color:#ff9f43}
+.pill.critical{color:var(--red)}
+.pill.sent{color:var(--teal)}
+.pill.failed{color:var(--red)}
+.pill.skipped{color:var(--muted)}
+.pill.partial{color:var(--gold)}
+.pill.pending{color:var(--violet)}
+.empty{
+  padding:24px;
+  border-radius:18px;
+  border:1px dashed rgba(255,255,255,.1);
+  color:var(--muted);
+  text-align:center;
+}
+.toast{
+  position:fixed;
+  right:18px;
+  bottom:18px;
+  max-width:340px;
+  padding:14px 16px;
+  background:#10202c;
+  color:var(--text);
+  box-shadow:var(--shadow);
+  display:none;
+  z-index:100;
+}
+.toast.show{display:block}
+@media (max-width:1080px){
+  .hero-grid,.content{grid-template-columns:1fr}
+  .control-bar{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:720px){
+  .page{padding:0}
+  .shell{border-radius:0;border-left:none;border-right:none}
+  .hero h1{font-size:40px}
+  .control-bar{grid-template-columns:1fr}
+  .mini-grid,.metrics{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="shell">
+    <section class="hero">
+      <div class="hero-top">
+        <a class="back-link" href="/">← 返回首页</a>
+        <div class="live"><span class="live-dot"></span><span id="sync-label">巨鲸监控在线 · 60s</span></div>
+      </div>
+      <div class="eyebrow">Whale Monitor</div>
+      <h1>巨鲸监控台</h1>
+      <p>把链上巨鲸转账、大额告警、低优先级通道、历史回放和投递记录放进同一个工作台。这里可以直接验证这次更新是否真的落到页面层。</p>
+    </section>
+
+    <section class="hero-grid">
+      <div class="lead">
+        <div class="lead-badges">
+          <span class="badge low">Low 通道已启用</span>
+          <span class="badge medium">历史回放可重发</span>
+          <span class="badge high">Token 名称自动补齐</span>
+        </div>
+        <h2>从告警到投递，整条链一页看清。</h2>
+        <ul>
+          <li>查看最近的巨鲸告警、转账事件、投递结果和告警通道。</li>
+          <li>手动触发监控采集，或对当前筛选结果做历史告警回放。</li>
+          <li>确认像 `UNKNOWN -> BAYC / PUNK` 这样的补名是否已经落进数据库。</li>
+        </ul>
+      </div>
+      <div class="metrics" id="metrics">
+        <div class="metric"><div class="label">Watched</div><div class="value">-</div><div class="sub">监控地址</div></div>
+        <div class="metric"><div class="label">Alerts</div><div class="value">-</div><div class="sub">告警总量</div></div>
+        <div class="metric"><div class="label">Channels</div><div class="value">-</div><div class="sub">通知通道</div></div>
+        <div class="metric"><div class="label">Deliveries</div><div class="value">-</div><div class="sub">投递记录</div></div>
+      </div>
+    </section>
+
+    <section class="control-bar">
+      <div class="field">
+        <label for="severity-select">Alert Severity</label>
+        <select id="severity-select">
+          <option value="">全部级别</option>
+          <option value="low">low</option>
+          <option value="medium">medium</option>
+          <option value="high">high</option>
+          <option value="critical">critical</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="delivery-select">Delivery Status</label>
+        <select id="delivery-select">
+          <option value="">全部投递</option>
+          <option value="sent">sent</option>
+          <option value="failed">failed</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="limit-select">List Size</label>
+        <select id="limit-select">
+          <option value="6">6</option>
+          <option value="10" selected>10</option>
+          <option value="20">20</option>
+          <option value="50">50</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="unsent-select">Replay Scope</label>
+        <select id="unsent-select">
+          <option value="1" selected>仅待重发</option>
+          <option value="0">包含已发送</option>
+        </select>
+      </div>
+      <button class="action ghost" id="refresh-btn">刷新面板</button>
+      <button class="action secondary" id="run-btn">执行监控</button>
+      <button class="action primary" id="replay-btn">回放当前筛选</button>
+    </section>
+
+    <div class="sync-row">
+      <button class="chip" data-severity="">全部告警</button>
+      <button class="chip" data-severity="low">Low 告警</button>
+      <button class="chip" data-severity="medium">Medium+</button>
+      <button class="chip" id="replay-low-chip">重放 Low</button>
+      <button class="chip" id="run-force-chip">立即检查链上转账</button>
+    </div>
+
+    <section class="content">
+      <div class="stack">
+        <div class="panel">
+          <div class="section-title">
+            <h2>最近告警</h2>
+            <span id="alerts-meta">Alerts</span>
+          </div>
+          <div class="item-grid" id="alerts-list"><div class="empty">等待告警数据</div></div>
+        </div>
+        <div class="panel">
+          <div class="section-title">
+            <h2>最近链上事件</h2>
+            <span>Events</span>
+          </div>
+          <div class="item-grid" id="events-list"><div class="empty">等待事件数据</div></div>
+        </div>
+      </div>
+
+      <div class="stack">
+        <div class="panel">
+          <div class="section-title">
+            <h2>监控状态</h2>
+            <span id="status-meta">Status</span>
+          </div>
+          <div class="item-grid" id="status-list"><div class="empty">等待状态数据</div></div>
+        </div>
+        <div class="panel">
+          <div class="section-title">
+            <h2>通知通道</h2>
+            <span>Channels</span>
+          </div>
+          <div class="item-grid" id="channels-list"><div class="empty">等待通道数据</div></div>
+        </div>
+        <div class="panel">
+          <div class="section-title">
+            <h2>最近投递</h2>
+            <span id="deliveries-meta">Deliveries</span>
+          </div>
+          <div class="item-grid" id="deliveries-list"><div class="empty">等待投递数据</div></div>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const BASE = location.pathname.replace(/\/(whale-monitor|skill|address-intel|square|market-intel|briefing|daily)?\s*$/, '').replace(/\/+$/, '');
+const API = `${BASE}/api/v1`;
+const state = {
+  severity: '',
+  deliveryStatus: '',
+  limit: 10,
+  onlyUnsent: true,
+};
+
+function $(id){ return document.getElementById(id); }
+
+function esc(value){
+  return String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+
+function showToast(message){
+  const node = $('toast');
+  node.textContent = message;
+  node.classList.add('show');
+  clearTimeout(showToast.timer);
+  showToast.timer = setTimeout(() => node.classList.remove('show'), 2600);
+}
+
+async function fetchJson(url){
+  const resp = await fetch(url);
+  const data = await resp.json();
+  if(!resp.ok) throw new Error(data.detail || data.error || `HTTP ${resp.status}`);
+  return data;
+}
+
+async function postJson(url, payload){
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(payload),
+  });
+  const data = await resp.json();
+  if(!resp.ok) throw new Error(data.detail || data.error || `HTTP ${resp.status}`);
+  return data;
+}
+
+function fmtNum(value){
+  const num = Number(value || 0);
+  if(!Number.isFinite(num)) return '—';
+  return new Intl.NumberFormat('zh-CN').format(num);
+}
+
+function fmtUsd(value){
+  const num = Number(value);
+  if(!Number.isFinite(num)) return '—';
+  if(Math.abs(num) >= 1_000_000) return `$${(num / 1_000_000).toFixed(3)}M`;
+  if(Math.abs(num) >= 1_000) return `$${(num / 1_000).toFixed(2)}K`;
+  if(Math.abs(num) >= 1) return `$${num.toFixed(2)}`;
+  return `$${num.toPrecision(4)}`;
+}
+
+function fmtTime(value){
+  if(!value) return '—';
+  try{
+    return new Date(value).toLocaleString('zh-CN', {month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit'});
+  }catch{
+    return String(value);
+  }
+}
+
+function severityPill(value){
+  const text = String(value || 'unknown').toLowerCase();
+  return `<span class="pill ${esc(text)}">${esc(text)}</span>`;
+}
+
+function statusPill(value){
+  const text = String(value || 'unknown').toLowerCase();
+  return `<span class="pill ${esc(text)}">${esc(text)}</span>`;
+}
+
+function getStateFromUrl(){
+  const params = new URLSearchParams(location.search);
+  state.severity = String(params.get('severity') || '').trim().toLowerCase();
+  state.deliveryStatus = String(params.get('deliveryStatus') || '').trim().toLowerCase();
+  state.limit = Math.max(6, Math.min(50, Number(params.get('limit') || 10) || 10));
+  state.onlyUnsent = params.get('onlyUnsent') !== '0';
+}
+
+function syncInputs(){
+  $('severity-select').value = state.severity;
+  $('delivery-select').value = state.deliveryStatus;
+  $('limit-select').value = String(state.limit);
+  $('unsent-select').value = state.onlyUnsent ? '1' : '0';
+}
+
+function readInputs(){
+  state.severity = String($('severity-select').value || '').trim().toLowerCase();
+  state.deliveryStatus = String($('delivery-select').value || '').trim().toLowerCase();
+  state.limit = Math.max(6, Math.min(50, Number($('limit-select').value || 10) || 10));
+  state.onlyUnsent = $('unsent-select').value !== '0';
+}
+
+function syncUrl(){
+  const params = new URLSearchParams();
+  if(state.severity) params.set('severity', state.severity);
+  if(state.deliveryStatus) params.set('deliveryStatus', state.deliveryStatus);
+  params.set('limit', String(state.limit));
+  if(!state.onlyUnsent) params.set('onlyUnsent', '0');
+  history.replaceState({}, '', `${BASE}/whale-monitor${params.toString() ? `?${params.toString()}` : ''}`);
+}
+
+function renderMetrics(status){
+  const items = [
+    {label:'Watched', value:fmtNum(status.watched_address_count), sub:'正在监控的钱包地址'},
+    {label:'Alerts', value:fmtNum(status.alert_count), sub:'当前数据库中的告警条数'},
+    {label:'Channels', value:fmtNum(status.channel_count), sub:'当前启用的通知通道'},
+    {label:'Deliveries', value:fmtNum(status.delivery_count), sub:'历史投递记录累计'},
+  ];
+  $('metrics').innerHTML = items.map(item => `
+    <div class="metric">
+      <div class="label">${esc(item.label)}</div>
+      <div class="value">${esc(item.value)}</div>
+      <div class="sub">${esc(item.sub)}</div>
+    </div>
+  `).join('');
+}
+
+function renderStatus(status){
+  const watched = Array.isArray(status.watched_addresses) ? status.watched_addresses : [];
+  $('status-meta').textContent = `${status.status || 'idle'} · ${watched.length} watched`;
+  const cards = [];
+  cards.push(`
+    <div class="item-card">
+      <div class="item-top">
+        <div>
+          <div class="meta-line">${statusPill(status.status)}</div>
+          <div class="item-title">最近一次监控状态</div>
+        </div>
+        <div class="meta-line">${esc(fmtTime(status.last_run_finished_at))}</div>
+      </div>
+      <div class="mini-grid">
+        <div class="mini-card"><div class="label">Fetched</div><div class="value">${fmtNum(status.fetched_transfer_count)}</div></div>
+        <div class="mini-card"><div class="label">Stored</div><div class="value">${fmtNum(status.stored_event_count)}</div></div>
+        <div class="mini-card"><div class="label">Errors</div><div class="value">${fmtNum(status.error_count)}</div></div>
+      </div>
+    </div>
+  `);
+  watched.slice(0, 6).forEach(item => {
+    cards.push(`
+      <div class="item-card">
+        <div class="item-top">
+          <div>
+            <div class="meta-line">${esc(item.blockchain || 'ethereum')}</div>
+            <div class="item-title">${esc(item.entity_name || item.label || item.address || 'Unknown')}</div>
+          </div>
+          <div class="meta-line">${fmtUsd(item.alert_threshold)}</div>
+        </div>
+        <div class="mono">${esc(item.address || '—')}</div>
+      </div>
+    `);
+  });
+  $('status-list').innerHTML = cards.join('') || '<div class="empty">当前没有监控地址。</div>';
+}
+
+function renderAlerts(items){
+  $('alerts-meta').textContent = `${items.length} alerts`;
+  if(!items.length){
+    $('alerts-list').innerHTML = '<div class="empty">当前筛选下没有告警。</div>';
+    return;
+  }
+  $('alerts-list').innerHTML = items.map(item => {
+    const metadata = item.metadata || {};
+    const tokenSource = metadata.resolved_token_source || metadata.amount_usd_source || 'direct';
+    return `
+      <div class="item-card">
+        <div class="item-top">
+          <div>
+            <div class="meta-line">${severityPill(item.severity)} ${statusPill(item.notification_status)}</div>
+            <div class="item-title">${esc(item.entity_name || item.label || item.address || 'Unknown')} · ${esc(item.token || 'UNKNOWN')}</div>
+          </div>
+          <div class="meta-line">${fmtTime(item.created_at)}</div>
+        </div>
+        <div class="meta-line">
+          <span>${esc(item.action || 'transfer')}</span>
+          <span>${fmtUsd(item.amount_usd)}</span>
+          <span>${esc(tokenSource)}</span>
+        </div>
+        <div class="mono" style="margin-top:8px">${esc(item.tx_hash || item.counterparty_address || item.address || '—')}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderEvents(items){
+  if(!items.length){
+    $('events-list').innerHTML = '<div class="empty">当前没有最近事件。</div>';
+    return;
+  }
+  $('events-list').innerHTML = items.map(item => `
+    <div class="item-card">
+      <div class="item-top">
+        <div>
+          <div class="meta-line">${esc(item.blockchain || 'ethereum')}</div>
+          <div class="item-title">${esc(item.entity_name || item.label || item.address || 'Unknown')} · ${esc(item.token || 'UNKNOWN')}</div>
+        </div>
+        <div class="meta-line">${fmtTime(item.occurred_at || item.created_at)}</div>
+      </div>
+      <div class="meta-line">
+        <span>${esc(item.direction || 'unknown')}</span>
+        <span>${fmtUsd(item.amount_usd)}</span>
+      </div>
+      <div class="mono" style="margin-top:8px">${esc(item.tx_hash || item.external_id || '—')}</div>
+    </div>
+  `).join('');
+}
+
+function renderChannels(items){
+  if(!items.length){
+    $('channels-list').innerHTML = '<div class="empty">当前没有通知通道。</div>';
+    return;
+  }
+  $('channels-list').innerHTML = items.map(item => {
+    const metadata = item.metadata || {};
+    const allow = Array.isArray(metadata.severity_allowlist) ? metadata.severity_allowlist.join(', ') : 'all';
+    return `
+      <div class="item-card">
+        <div class="item-top">
+          <div>
+            <div class="meta-line">${statusPill(item.is_active ? 'sent' : 'failed')}</div>
+            <div class="item-title">${esc(item.name || 'channel')}</div>
+          </div>
+          <div class="meta-line">${esc(item.channel_type || 'log')}</div>
+        </div>
+        <div class="meta-line">
+          <span>min: ${esc(item.min_severity || 'medium')}</span>
+          <span>allow: ${esc(allow)}</span>
+        </div>
+        <div class="mono" style="margin-top:8px">${esc(item.target || '—')}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderDeliveries(items){
+  $('deliveries-meta').textContent = `${items.length} deliveries`;
+  if(!items.length){
+    $('deliveries-list').innerHTML = '<div class="empty">当前筛选下没有投递记录。</div>';
+    return;
+  }
+  $('deliveries-list').innerHTML = items.map(item => `
+    <div class="item-card">
+      <div class="item-top">
+        <div>
+          <div class="meta-line">${statusPill(item.delivery_status)}</div>
+          <div class="item-title">Alert #${esc(item.alert_id)}</div>
+        </div>
+        <div class="meta-line">${fmtTime(item.created_at)}</div>
+      </div>
+      <div class="meta-line">
+        <span>channel #${esc(item.channel_id)}</span>
+        <span>${item.response_code != null ? `code ${esc(item.response_code)}` : 'log'}</span>
+      </div>
+      <div class="mono" style="margin-top:8px">${esc(item.error_message || '投递成功')}</div>
+    </div>
+  `).join('');
+}
+
+async function loadDashboard({silent=false} = {}){
+  if(!silent){
+    $('refresh-btn').disabled = true;
+    $('refresh-btn').textContent = '刷新中...';
+  }
+  readInputs();
+  syncUrl();
+
+  const alertParams = new URLSearchParams({limit: String(state.limit)});
+  if(state.severity) alertParams.set('severity', state.severity);
+  const deliveryParams = new URLSearchParams({limit: String(state.limit)});
+  if(state.deliveryStatus) deliveryParams.set('delivery_status', state.deliveryStatus);
+  const eventParams = new URLSearchParams({limit: String(state.limit)});
+
+  try{
+    const [status, alerts, channels, deliveries, events] = await Promise.all([
+      fetchJson(`${API}/onchain/whale-monitor/status`),
+      fetchJson(`${API}/onchain/whale-monitor/alerts?${alertParams.toString()}`),
+      fetchJson(`${API}/onchain/whale-monitor/channels`),
+      fetchJson(`${API}/onchain/whale-monitor/deliveries?${deliveryParams.toString()}`),
+      fetchJson(`${API}/onchain/whale-monitor/events?${eventParams.toString()}`),
+    ]);
+    renderMetrics(status);
+    renderStatus(status);
+    renderAlerts(alerts.items || []);
+    renderChannels(channels.items || []);
+    renderDeliveries(deliveries.items || []);
+    renderEvents(events.items || []);
+    $('sync-label').textContent = silent ? '巨鲸监控在线 · 60s' : '巨鲸监控已刷新 · 60s';
+  }catch(error){
+    $('status-list').innerHTML = `<div class="empty">加载失败：${esc(error.message)}</div>`;
+    $('alerts-list').innerHTML = `<div class="empty">加载失败：${esc(error.message)}</div>`;
+    $('channels-list').innerHTML = `<div class="empty">加载失败：${esc(error.message)}</div>`;
+    $('deliveries-list').innerHTML = `<div class="empty">加载失败：${esc(error.message)}</div>`;
+    $('events-list').innerHTML = `<div class="empty">加载失败：${esc(error.message)}</div>`;
+    $('sync-label').textContent = '巨鲸监控异常，请手动刷新';
+  }finally{
+    $('refresh-btn').disabled = false;
+    $('refresh-btn').textContent = '刷新面板';
+  }
+}
+
+async function runMonitor(force=false){
+  try{
+    $('run-btn').disabled = true;
+    $('run-btn').textContent = force ? '强制执行中...' : '执行监控中...';
+    const payload = await postJson(`${API}/onchain/whale-monitor/run`, {force});
+    showToast(`监控完成：stored ${payload.stored_event_count || 0} / alerts ${payload.alert_count || 0}`);
+    await loadDashboard({silent:true});
+  }catch(error){
+    showToast(`监控失败：${error.message}`);
+  }finally{
+    $('run-btn').disabled = false;
+    $('run-btn').textContent = '执行监控';
+  }
+}
+
+async function replayAlerts(severityOverride=null){
+  try{
+    $('replay-btn').disabled = true;
+    $('replay-btn').textContent = '回放中...';
+    readInputs();
+    const payload = await postJson(`${API}/onchain/whale-monitor/alerts/replay`, {
+      severity: severityOverride ?? (state.severity || null),
+      limit: state.limit,
+      only_unsent: state.onlyUnsent,
+    });
+    const note = payload.notification || {};
+    showToast(`回放完成：selected ${payload.count || 0} / sent ${note.sent_count || 0}`);
+    await loadDashboard({silent:true});
+  }catch(error){
+    showToast(`回放失败：${error.message}`);
+  }finally{
+    $('replay-btn').disabled = false;
+    $('replay-btn').textContent = '回放当前筛选';
+  }
+}
+
+function init(){
+  getStateFromUrl();
+  syncInputs();
+  $('refresh-btn').addEventListener('click', () => loadDashboard());
+  $('run-btn').addEventListener('click', () => runMonitor(false));
+  $('replay-btn').addEventListener('click', () => replayAlerts(null));
+  $('replay-low-chip').addEventListener('click', () => replayAlerts('low'));
+  $('run-force-chip').addEventListener('click', () => runMonitor(true));
+  ['severity-select','delivery-select','limit-select','unsent-select'].forEach(id => {
+    $(id).addEventListener('change', () => loadDashboard());
+  });
+  document.querySelectorAll('.chip[data-severity]').forEach(node => {
+    node.addEventListener('click', () => {
+      $('severity-select').value = node.dataset.severity || '';
+      loadDashboard();
+    });
+  });
+  window.addEventListener('popstate', () => {
+    getStateFromUrl();
+    syncInputs();
+    loadDashboard({silent:true});
+  });
+  loadDashboard();
+  setInterval(() => loadDashboard({silent:true}), 60000);
+}
+
+init();
+</script>
+</body>
+</html>

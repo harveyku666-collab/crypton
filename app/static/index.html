@@ -389,30 +389,34 @@ body {
     </div>
   </div>
 
-  <div style="margin-bottom:24px;position:relative;overflow:hidden;background:linear-gradient(140deg,rgba(17,24,39,.96),rgba(13,20,31,.94));border:1px solid rgba(88,166,255,0.22);border-radius:18px;padding:22px 24px;box-shadow:0 18px 42px rgba(0,0,0,.2)">
-    <div style="position:absolute;right:-30px;top:-30px;width:180px;height:180px;border-radius:50%;background:radial-gradient(circle,rgba(88,166,255,.16),transparent 68%);pointer-events:none"></div>
+  <div style="margin-bottom:24px;position:relative;overflow:hidden;background:linear-gradient(140deg,rgba(11,23,34,.97),rgba(11,17,26,.95));border:1px solid rgba(85,214,255,0.2);border-radius:18px;padding:22px 24px;box-shadow:0 18px 42px rgba(0,0,0,.2)">
+    <div style="position:absolute;right:-24px;top:-28px;width:190px;height:190px;border-radius:50%;background:radial-gradient(circle,rgba(85,214,255,.16),transparent 68%);pointer-events:none"></div>
     <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:18px;flex-wrap:wrap;position:relative">
       <div style="max-width:620px">
-        <div style="font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);margin-bottom:8px">OI Quick Launch</div>
-        <div style="font-size:22px;font-weight:800;margin-bottom:8px">搜索任意代币，直接进入 OI 信号研判</div>
-        <div style="font-size:13px;color:var(--text2);line-height:1.8">输入币种符号后，一步跳转到完整 OI 仪表盘，直接看评分、Funding、盘口、筹码分布和订单流。</div>
+        <div style="font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:#55d6ff;margin-bottom:8px">Whale Monitor</div>
+        <div style="font-size:22px;font-weight:800;margin-bottom:8px">直接进入巨鲸监控台，查看告警、回放和投递</div>
+        <div style="font-size:13px;color:var(--text2);line-height:1.8">这次更新里的 low 通道、历史回放、告警投递记录和 `UNKNOWN -> token` 补名，已经都能在页面里直接看到。</div>
       </div>
       <div style="display:flex;flex-direction:column;gap:10px;min-width:320px;flex:1">
         <div style="display:flex;gap:10px;flex-wrap:wrap">
-          <input id="oi-launch-symbol" placeholder="DOGE / XRP / 1000SHIB / BNBUSDT" style="flex:1;min-width:180px;padding:12px 14px;border-radius:12px;border:1px solid var(--border);background:rgba(255,255,255,.03);color:var(--text);font-size:14px;outline:none">
-          <select id="oi-launch-timeframe" style="padding:12px 14px;border-radius:12px;border:1px solid var(--border);background:rgba(255,255,255,.03);color:var(--text);font-size:14px;outline:none">
-            <option value="15m">15m</option>
-            <option value="1h" selected>1h</option>
-            <option value="4h">4h</option>
-            <option value="1d">1d</option>
+          <select id="whale-launch-severity" style="flex:1;min-width:180px;padding:12px 14px;border-radius:12px;border:1px solid var(--border);background:rgba(255,255,255,.03);color:var(--text);font-size:14px;outline:none">
+            <option value="" selected>全部级别</option>
+            <option value="low">low</option>
+            <option value="medium">medium</option>
+            <option value="high">high</option>
+            <option value="critical">critical</option>
           </select>
-          <button class="btn-primary" style="white-space:nowrap" onclick="launchOiSignal()">立即分析</button>
+          <select id="whale-launch-unsent" style="padding:12px 14px;border-radius:12px;border:1px solid var(--border);background:rgba(255,255,255,.03);color:var(--text);font-size:14px;outline:none">
+            <option value="1" selected>仅待重发</option>
+            <option value="0">全部告警</option>
+          </select>
+          <button class="btn-primary" style="white-space:nowrap" onclick="launchWhaleMonitor()">打开监控台</button>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="tag" style="cursor:pointer" onclick="launchOiSignal('DOGE')">DOGE</button>
-          <button class="tag" style="cursor:pointer" onclick="launchOiSignal('XRP')">XRP</button>
-          <button class="tag" style="cursor:pointer" onclick="launchOiSignal('1000SHIB')">1000SHIB</button>
-          <button class="tag" style="cursor:pointer" onclick="launchOiSignal('BNB')">BNB</button>
+          <button class="tag" style="cursor:pointer" onclick="launchWhaleMonitor({severity:'low'})">Low 告警</button>
+          <button class="tag" style="cursor:pointer" onclick="launchWhaleMonitor({severity:'medium',onlyUnsent:false})">Medium+</button>
+          <button class="tag" style="cursor:pointer" onclick="launchWhaleMonitor({severity:'critical',onlyUnsent:false})">Critical</button>
+          <button class="tag" style="cursor:pointer" onclick="launchWhaleMonitor({deliveryStatus:'sent',onlyUnsent:false})">看投递记录</button>
         </div>
       </div>
     </div>
@@ -436,6 +440,10 @@ const API = BASE + '/api/v1';
 let allSkills = [];
 let currentFilter = 'all';
 
+function getHomepageSkills() {
+  return allSkills.filter(s => s.id !== 'open-interest');
+}
+
 async function loadSkills() {
   try {
     const resp = await fetch(`${API}/skills`);
@@ -449,16 +457,17 @@ async function loadSkills() {
 }
 
 function renderStats() {
-  const active = allSkills.filter(s => s.status === 'active').length;
+  const homepageSkills = getHomepageSkills();
+  const active = homepageSkills.filter(s => s.status === 'active').length;
   const sources = new Set();
-  allSkills.forEach(s => s.data_sources.forEach(d => sources.add(d)));
+  homepageSkills.forEach(s => s.data_sources.forEach(d => sources.add(d)));
   document.getElementById('active-count').textContent = active;
   document.getElementById('source-count').textContent = sources.size;
-  document.getElementById('total-count').textContent = allSkills.length;
+  document.getElementById('total-count').textContent = homepageSkills.length;
 }
 
 function renderFilters() {
-  const cats = new Set(allSkills.filter(s => s.category !== 'pro').map(s => s.category));
+  const cats = new Set(getHomepageSkills().filter(s => s.category !== 'pro').map(s => s.category));
   const catLabels = {
     all: '全部', trading: '交易', market: '行情', analysis: '分析',
     onchain: '链上', social: '社交', defi: 'DeFi', news: '新闻',
@@ -482,10 +491,11 @@ function renderFilters() {
 
 function renderGrid() {
   document.getElementById('loading').style.display = 'none';
+  const homepageSkills = getHomepageSkills();
   const freeSkills = currentFilter === 'all'
-    ? allSkills.filter(s => s.category !== 'pro')
-    : allSkills.filter(s => s.category === currentFilter && s.category !== 'pro');
-  const proSkill = allSkills.find(s => s.category === 'pro');
+    ? homepageSkills.filter(s => s.category !== 'pro')
+    : homepageSkills.filter(s => s.category === currentFilter && s.category !== 'pro');
+  const proSkill = homepageSkills.find(s => s.category === 'pro');
 
   const statusLabel = { active: '已上线', beta: '测试中', planned: '规划中' };
 
@@ -547,7 +557,8 @@ async function openDetail(id) {
   const isMarketIntel = s.id === 'market-intel';
   const isOkxIntelligence = s.id === 'okx-intelligence';
   const isSquareIntelligence = s.id === 'square-intelligence';
-  const primaryLabel = isOiSignal ? '进入 OI 仪表盘' : isDefiYield ? '进入收益仪表盘' : isTechnicalAnalysis ? '进入技术分析' : isPredictionMarkets ? '进入预测市场' : isMarketRank ? '进入市场榜单台' : isMarketIntel ? '进入市场情报大师' : isOkxIntelligence ? '进入 OKX 情报台' : isSquareIntelligence ? '进入广场情报台' : '查看实时简报';
+  const isWhaleMonitor = s.id === 'whale-monitor';
+  const primaryLabel = isOiSignal ? '进入 OI 仪表盘' : isDefiYield ? '进入收益仪表盘' : isTechnicalAnalysis ? '进入技术分析' : isPredictionMarkets ? '进入预测市场' : isMarketRank ? '进入市场榜单台' : isMarketIntel ? '进入市场情报大师' : isOkxIntelligence ? '进入 OKX 情报台' : isSquareIntelligence ? '进入广场情报台' : isWhaleMonitor ? '进入巨鲸监控台' : '查看实时简报';
   const oiLaunchBlock = isOiSignal ? `
     <div style="margin:18px 0 6px;padding:16px;border-radius:14px;border:1px solid rgba(88,166,255,.22);background:linear-gradient(135deg,rgba(88,166,255,.08),rgba(188,140,255,.08))">
       <div style="font-size:15px;font-weight:700;margin-bottom:6px">直接搜索代币</div>
@@ -697,6 +708,26 @@ async function openDetail(id) {
       </div>
     </div>
   ` : '';
+  const whaleMonitorLaunchBlock = isWhaleMonitor ? `
+    <div style="margin:18px 0 6px;padding:16px;border-radius:14px;border:1px solid rgba(85,214,255,.22);background:linear-gradient(135deg,rgba(85,214,255,.09),rgba(54,199,160,.08))">
+      <div style="font-size:15px;font-weight:700;margin-bottom:6px">直接打开巨鲸监控台</div>
+      <div style="font-size:12px;color:var(--text2);line-height:1.7;margin-bottom:12px">先选告警级别和回放范围，再进入完整页面查看最近告警、通知通道、投递记录和链上事件。</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <select id="modal-whale-severity" style="flex:1;min-width:170px;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px">
+          <option value="" selected>全部级别</option>
+          <option value="low">low</option>
+          <option value="medium">medium</option>
+          <option value="high">high</option>
+          <option value="critical">critical</option>
+        </select>
+        <select id="modal-whale-unsent" style="padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px">
+          <option value="1" selected>仅待重发</option>
+          <option value="0">全部告警</option>
+        </select>
+        <button class="btn-primary" onclick="launchWhaleMonitor({severity:document.getElementById('modal-whale-severity').value,onlyUnsent:document.getElementById('modal-whale-unsent').value!=='0'})">打开监控台</button>
+      </div>
+    </div>
+  ` : '';
 
   document.getElementById('modal').innerHTML = `
     <button class="modal-close" onclick="closeModal()">✕</button>
@@ -727,6 +758,7 @@ async function openDetail(id) {
     ${marketIntelLaunchBlock}
     ${okxLaunchBlock}
     ${squareLaunchBlock}
+    ${whaleMonitorLaunchBlock}
 
     <div class="modal-actions">
       <button class="btn-primary" onclick="viewReport('${s.id}')">${primaryLabel}</button>
@@ -746,7 +778,7 @@ document.getElementById('modal-overlay').onclick = function(e) {
 };
 
 function viewReport(skillId) {
-  const pages = {'oi-signal':'/oi-signal','market-briefing':'/briefing','defi-yield-scanner':'/defi-yield-scanner','crypto-market-rank':'/market-rank','market-intel':'/market-intel','okx-intelligence':'/okx-intelligence','square-intelligence':'/square'};
+  const pages = {'oi-signal':'/oi-signal','market-briefing':'/briefing','defi-yield-scanner':'/defi-yield-scanner','crypto-market-rank':'/market-rank','market-intel':'/market-intel','okx-intelligence':'/okx-intelligence','square-intelligence':'/square','whale-monitor':'/whale-monitor'};
   location.href = pages[skillId] ? `${BASE}${pages[skillId]}` : `${BASE}/skill?id=${skillId}`;
 }
 
@@ -840,6 +872,21 @@ function launchSquareDesk({platforms='binance,okx',language='zh-CN',hours='24',i
   if(q) params.set('q', q);
   if(kolOnly) params.set('kolOnly', '1');
   location.href = `${BASE}/square?${params.toString()}`;
+}
+
+function launchWhaleMonitor({severity='',deliveryStatus='',limit='10',onlyUnsent=true}={}){
+  const params = new URLSearchParams();
+  const normalizedSeverity = String(severity ?? document.getElementById('whale-launch-severity')?.value ?? '').trim().toLowerCase();
+  if(['low','medium','high','critical'].includes(normalizedSeverity)) params.set('severity', normalizedSeverity);
+  const normalizedDelivery = String(deliveryStatus || '').trim().toLowerCase();
+  if(['sent','failed'].includes(normalizedDelivery)) params.set('deliveryStatus', normalizedDelivery);
+  const normalizedLimit = String(limit || '10');
+  if(['6','10','20','50'].includes(normalizedLimit)) params.set('limit', normalizedLimit);
+  const unsentValue = typeof onlyUnsent === 'boolean'
+    ? onlyUnsent
+    : (String(document.getElementById('whale-launch-unsent')?.value || '1') !== '0');
+  if(!unsentValue) params.set('onlyUnsent', '0');
+  location.href = `${BASE}/whale-monitor?${params.toString()}`;
 }
 
 function launchDefiYieldScanner({chain='',symbol='',minApy='5',minTvl='10000000',limit='30'}={}){
