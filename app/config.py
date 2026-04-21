@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     square_default_language: str = "en"
     square_hot_token_window_hours: int = 24
     square_hot_token_min_unique_authors: int = 2
-    square_hot_token_min_unique_kol_mentions: int = 1
+    square_hot_token_min_unique_kol_mentions: int = 2
     square_collect_interval_minutes: int = 10
     square_collect_page_size: int = 40
     square_collect_backfill_pages: int = 3
