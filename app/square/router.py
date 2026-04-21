@@ -129,6 +129,8 @@ async def get_hot_coins(
     language: str = Query(settings.square_default_language),
     kol_only: bool = Query(False, description="Only count KOL matched authors"),
     limit: int = Query(20, ge=1, le=100),
+    min_unique_authors: int = Query(settings.square_hot_token_min_unique_authors, ge=1, le=20),
+    min_unique_kol_mentions: int = Query(settings.square_hot_token_min_unique_kol_mentions, ge=0, le=20),
 ) -> dict[str, Any]:
     selected_platforms = normalize_platforms([part.strip() for part in platforms.split(",") if part.strip()])
     payload = await load_hot_coin_board(
@@ -137,6 +139,8 @@ async def get_hot_coins(
         kol_only=kol_only,
         limit=limit,
         language=language,
+        min_unique_authors=min_unique_authors,
+        min_unique_kol_mentions=min_unique_kol_mentions,
     )
     payload["platforms"] = selected_platforms
     return payload

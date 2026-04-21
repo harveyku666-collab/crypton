@@ -244,6 +244,55 @@ def test_hot_token_board_prefers_tradable_symbols_when_provided():
     assert [item["token"] for item in board] == ["BTC"]
 
 
+def test_hot_token_board_filters_single_author_noise_but_keeps_single_kol_mentions():
+    board = build_hot_token_board(
+        [
+            {
+                "platform": "binance",
+                "external_id": "1",
+                "author_key": "binance:handle:alice",
+                "author_name": "Alice",
+                "content": "Watching $BTC",
+                "symbols": ["BTC"],
+                "is_kol": 0,
+            },
+            {
+                "platform": "binance",
+                "external_id": "2",
+                "author_key": "binance:handle:bob",
+                "author_name": "Bob",
+                "content": "Watching $BTC too",
+                "symbols": ["BTC"],
+                "is_kol": 0,
+            },
+            {
+                "platform": "binance",
+                "external_id": "3",
+                "author_key": "binance:handle:kol",
+                "author_name": "Top KOL",
+                "content": "BNB is worth watching",
+                "symbols": ["BNB"],
+                "is_kol": 1,
+            },
+            {
+                "platform": "binance",
+                "external_id": "4",
+                "author_key": "binance:handle:retail",
+                "author_name": "Retail",
+                "content": "I like $DOGE",
+                "symbols": ["DOGE"],
+                "is_kol": 0,
+            },
+        ],
+        limit=10,
+        tradable_symbols={"BTC", "BNB", "DOGE"},
+        min_unique_authors=2,
+        min_unique_kol_mentions=1,
+    )
+
+    assert [item["token"] for item in board] == ["BTC", "BNB"]
+
+
 def test_filter_items_to_window_prefers_published_at():
     now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
     old_ms = int((datetime.now(timezone.utc) - timedelta(hours=30)).timestamp() * 1000)

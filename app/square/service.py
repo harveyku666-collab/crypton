@@ -566,6 +566,8 @@ def build_hot_token_board(
     *,
     limit: int = 20,
     tradable_symbols: set[str] | None = None,
+    min_unique_authors: int = 1,
+    min_unique_kol_mentions: int = 0,
 ) -> list[dict[str, Any]]:
     author_mentions_seen: set[tuple[str, str]] = set()
     kol_mentions_seen: set[tuple[str, str]] = set()
@@ -616,8 +618,17 @@ def build_hot_token_board(
                 kol_mentions_seen.add(author_pair)
                 stat["unique_kol_mentions"] += 1
 
+    filtered_ranked = [
+        item
+        for item in token_stats.values()
+        if (
+            int(item["unique_author_mentions"]) >= max(1, min_unique_authors)
+            or int(item["unique_kol_mentions"]) >= max(0, min_unique_kol_mentions)
+        )
+    ]
+
     ranked = sorted(
-        token_stats.values(),
+        filtered_ranked,
         key=lambda item: (
             int(item["unique_author_mentions"]),
             int(item["unique_kol_mentions"]),
@@ -662,10 +673,28 @@ async def load_hot_coin_board(
     kol_only: bool = False,
     limit: int = 20,
     language: str | None = None,
+    min_unique_authors: int | None = None,
+    min_unique_kol_mentions: int | None = None,
 ) -> dict[str, Any]:
     selected_platforms = normalize_platforms(platforms)
     resolved_hours = max(1, min(hours, 168))
     tradable_symbols = set(await load_tradable_symbols()) or None
+    min_unique_authors = max(
+        1,
+        int(
+            settings.square_hot_token_min_unique_authors
+            if min_unique_authors is None
+            else min_unique_authors
+        ),
+    )
+    min_unique_kol_mentions = max(
+        0,
+        int(
+            settings.square_hot_token_min_unique_kol_mentions
+            if min_unique_kol_mentions is None
+            else min_unique_kol_mentions
+        ),
+    )
     if not db_available():
         payload = await fetch_square_feed(
             platforms=selected_platforms,
@@ -677,7 +706,13 @@ async def load_hot_coin_board(
             language=language,
             kol_only=kol_only,
         )
-        board = build_hot_token_board(filtered, limit=limit, tradable_symbols=tradable_symbols)
+        board = build_hot_token_board(
+            filtered,
+            limit=limit,
+            tradable_symbols=tradable_symbols,
+            min_unique_authors=min_unique_authors,
+            min_unique_kol_mentions=min_unique_kol_mentions,
+        )
         return {
             "items": board,
             "count": len(board),
@@ -709,7 +744,13 @@ async def load_hot_coin_board(
         ).scalars().all()
 
     serialized = [serialize_square_row(row) for row in filter_items_to_window(list(rows), hours=resolved_hours)]
-    board = build_hot_token_board(serialized, limit=limit, tradable_symbols=tradable_symbols)
+    board = build_hot_token_board(
+        serialized,
+        limit=limit,
+        tradable_symbols=tradable_symbols,
+        min_unique_authors=min_unique_authors,
+        min_unique_kol_mentions=min_unique_kol_mentions,
+    )
     return {
         "items": board,
         "count": len(board),
@@ -719,6 +760,8 @@ async def load_hot_coin_board(
         "window_start": since_dt.astimezone(timezone.utc).isoformat(),
         "platforms": selected_platforms,
         "kol_only": kol_only,
+        "min_unique_authors": min_unique_authors,
+        "min_unique_kol_mentions": min_unique_kol_mentions,
     }
 
 
