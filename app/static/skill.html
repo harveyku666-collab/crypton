@@ -1050,7 +1050,7 @@ function renderWhaleMonitorEntry(){
   area.innerHTML=`
     <div class="quick-launch">
       <div class="quick-launch-title">直接打开巨鲸监控台</div>
-      <div class="quick-launch-sub">这里是本次更新内容的可视化入口。打开后可以看最近巨鲸告警、低级别通道、历史回放、投递记录，以及 `UNKNOWN -> token` 的补名结果。</div>
+      <div class="quick-launch-sub">这里是本次更新内容的可视化入口。打开后可以看最近巨鲸告警、低级别通道、历史回放、投递记录，以及 UNKNOWN -&gt; token 的补名结果。</div>
       <div class="quick-launch-row">
         <select id="whale-monitor-severity">
           <option value=""${state.severity===''?' selected':''}>全部级别</option>
@@ -1089,9 +1089,9 @@ function renderWhaleMonitorEntry(){
         <tr><th>模块</th><th>说明</th></tr>
         <tr><td>最近告警</td><td>看级别、token、金额、投递状态和告警来源</td></tr>
         <tr><td>最近事件</td><td>直接看最近链上大额转账，不用再翻接口</td></tr>
-        <tr><td>通知通道</td><td>确认 `default-log` 和 `default-low-log` 是否都生效</td></tr>
+        <tr><td>通知通道</td><td>确认 default-log 和 default-low-log 是否都生效</td></tr>
         <tr><td>历史回放</td><td>按当前筛选条件重放历史告警并验证投递</td></tr>
-        <tr><td>Token 补名</td><td>检查 `BAYC / PUNK / KPER` 这类合约补名结果是否落库</td></tr>
+        <tr><td>Token 补名</td><td>检查 BAYC / PUNK / KPER 这类合约补名结果是否落库</td></tr>
       </table>
     </div>`;
 }
