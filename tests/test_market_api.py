@@ -91,6 +91,35 @@ async def test_estimate_market_amount_usd_uses_contract_price(monkeypatch):
     assert source == "dexscreener"
 
 
+@pytest.mark.anyio
+async def test_estimate_market_amount_usd_uses_coingecko_contract_price(monkeypatch):
+    async def fake_get_token_pairs(address, limit=20):
+        return []
+
+    async def fake_get_price_by_contract(blockchain, contract_address):
+        assert blockchain == "ethereum"
+        assert contract_address == "0xabc"
+        return {"price": 0.5, "source": "coingecko_contract"}
+
+    async def fake_get_symbol_price(symbol):
+        return None
+
+    monkeypatch.setattr("app.onchain.monitor_service.dexscreener.get_token_pairs", fake_get_token_pairs)
+    monkeypatch.setattr("app.onchain.monitor_service.coingecko.get_price_by_contract", fake_get_price_by_contract)
+    monkeypatch.setattr("app.onchain.monitor_service.aggregator.get_symbol_price", fake_get_symbol_price)
+
+    amount_usd, source = await _estimate_market_amount_usd(
+        token="UNKNOWN",
+        amount=100,
+        amount_usd=None,
+        blockchain="ethereum",
+        metadata={"token_address": "0xabc"},
+    )
+
+    assert amount_usd == pytest.approx(50.0)
+    assert source == "coingecko_contract"
+
+
 def test_merge_transfer_event_into_alert_backfills_metadata():
     alert = WhaleAlert(
         address="0xabc",

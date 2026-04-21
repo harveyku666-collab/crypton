@@ -21,7 +21,7 @@ from app.common.models import (
 )
 from app.config import settings
 from app.market import aggregator
-from app.market.sources import dexscreener, surf
+from app.market.sources import coingecko, dexscreener, surf
 
 logger = logging.getLogger("bitinfo.onchain.monitor")
 
@@ -355,6 +355,14 @@ async def _estimate_market_amount_usd(
             price_usd = _safe_float(pair.get("price_usd"))
             if price_usd is not None and price_usd > 0:
                 return normalized_amount * price_usd, "dexscreener"
+        try:
+            contract_snapshot = await coingecko.get_price_by_contract(blockchain or "", token_address)
+        except Exception:
+            logger.debug("CoinGecko contract valuation lookup failed for %s", token_address, exc_info=True)
+            contract_snapshot = None
+        contract_price = _safe_float((contract_snapshot or {}).get("price")) if isinstance(contract_snapshot, dict) else None
+        if contract_price is not None and contract_price > 0:
+            return normalized_amount * contract_price, str(contract_snapshot.get("source") or "coingecko_contract")
 
     for symbol in symbols:
         if symbol in UNKNOWN_TOKEN_SYMBOLS:

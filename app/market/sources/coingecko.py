@@ -9,6 +9,16 @@ from app.common.cache import cached
 
 BASE = "https://api.coingecko.com/api/v3"
 FNG_URL = "https://api.alternative.me/fng"
+COINGECKO_PLATFORM_IDS = {
+    "arbitrum": "arbitrum-one",
+    "avalanche": "avalanche",
+    "base": "base",
+    "bsc": "binance-smart-chain",
+    "ethereum": "ethereum",
+    "optimism": "optimistic-ethereum",
+    "polygon": "polygon-pos",
+    "solana": "solana",
+}
 
 
 def _safe_float(value: Any) -> float | None:
@@ -166,4 +176,36 @@ async def get_price_by_symbol(symbol: str) -> dict[str, Any] | None:
         "source": "coingecko",
         "gecko_id": coin_id,
         "name": row.get("name") or matches[0].get("name"),
+    }
+
+
+@cached(ttl=120, prefix="gecko_contract")
+async def get_price_by_contract(blockchain: str, contract_address: str) -> dict[str, Any] | None:
+    platform_id = COINGECKO_PLATFORM_IDS.get(str(blockchain or "").strip().lower())
+    normalized_address = str(contract_address or "").strip()
+    if not platform_id or not normalized_address:
+        return None
+
+    data = await fetch_json(f"{BASE}/coins/{platform_id}/contract/{normalized_address}")
+    if not isinstance(data, dict):
+        return None
+
+    market_data = data.get("market_data") if isinstance(data.get("market_data"), dict) else {}
+    current_price = market_data.get("current_price") if isinstance(market_data.get("current_price"), dict) else {}
+    price = _safe_float(current_price.get("usd"))
+    if price is None or price <= 0:
+        return None
+
+    return {
+        "symbol": str(data.get("symbol") or "").upper() or None,
+        "name": data.get("name"),
+        "price": price,
+        "market_cap": _safe_float((market_data.get("market_cap") or {}).get("usd")) if isinstance(market_data.get("market_cap"), dict) else None,
+        "volume": _safe_float((market_data.get("total_volume") or {}).get("usd")) if isinstance(market_data.get("total_volume"), dict) else None,
+        "high": _safe_float((market_data.get("high_24h") or {}).get("usd")) if isinstance(market_data.get("high_24h"), dict) else None,
+        "low": _safe_float((market_data.get("low_24h") or {}).get("usd")) if isinstance(market_data.get("low_24h"), dict) else None,
+        "source": "coingecko_contract",
+        "gecko_id": data.get("id"),
+        "platform_id": platform_id,
+        "contract_address": normalized_address,
     }
