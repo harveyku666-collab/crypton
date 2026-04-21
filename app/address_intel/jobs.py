@@ -19,15 +19,17 @@ async def sync_address_intel_sources_job() -> None:
     try:
         result = await sync_monitored_address_sources(
             include_legacy=True,
+            include_packaged_snapshot=True,
             include_default_seeds=True,
             legacy_limit=settings.address_intel_legacy_sync_limit,
         )
         logger.info(
-            "Address intel sync completed: count=%d created=%d updated=%d legacy=%d seeds=%d",
+            "Address intel sync completed: count=%d created=%d updated=%d legacy=%d snapshot=%d seeds=%d",
             result.get("count", 0),
             result.get("created", 0),
             result.get("updated", 0),
             result.get("source_counts", {}).get("legacy", 0),
+            result.get("source_counts", {}).get("packaged_snapshot", 0),
             result.get("source_counts", {}).get("default_seeds", 0),
         )
     except Exception:

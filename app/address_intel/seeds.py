@@ -7,6 +7,8 @@ server runs a scheduled sync.
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
 from typing import Any
 
 
@@ -112,3 +114,17 @@ DEFAULT_MONITORED_ADDRESS_SEEDS: list[dict[str, Any]] = [
 
 def get_default_monitored_address_seeds() -> list[dict[str, Any]]:
     return [dict(item) for item in DEFAULT_MONITORED_ADDRESS_SEEDS]
+
+
+def get_packaged_registry_snapshot() -> list[dict[str, Any]]:
+    data_path = Path(__file__).resolve().parent / "data" / "legacy_registry_snapshot.json"
+    if not data_path.exists():
+        return []
+    try:
+        payload = json.loads(data_path.read_text(encoding="utf-8"))
+    except Exception:
+        return []
+    items = payload.get("items") if isinstance(payload, dict) else None
+    if not isinstance(items, list):
+        return []
+    return [item for item in items if isinstance(item, dict)]

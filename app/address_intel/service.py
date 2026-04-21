@@ -16,7 +16,10 @@ from app.address_intel.legacy_store import (
     fetch_registry_entity_by_address,
     fetch_registry_watch_addresses,
 )
-from app.address_intel.seeds import get_default_monitored_address_seeds
+from app.address_intel.seeds import (
+    get_default_monitored_address_seeds,
+    get_packaged_registry_snapshot,
+)
 from app.common.cache import cached
 from app.common.database import async_session, db_available
 from app.common.models import MonitoredAddress
@@ -561,6 +564,7 @@ async def bulk_upsert_monitored_addresses(items: Iterable[dict[str, Any]]) -> di
 async def sync_monitored_address_sources(
     *,
     include_legacy: bool = True,
+    include_packaged_snapshot: bool = True,
     include_default_seeds: bool = True,
     legacy_entity_type: str | None = None,
     legacy_limit: int = 1000,
@@ -568,6 +572,7 @@ async def sync_monitored_address_sources(
     source_items: list[dict[str, Any]] = []
     source_counts: dict[str, int] = {
         "legacy": 0,
+        "packaged_snapshot": 0,
         "default_seeds": 0,
     }
     warnings: list[str] = []
@@ -583,6 +588,11 @@ async def sync_monitored_address_sources(
         except Exception:
             warnings.append("Failed to load legacy registry watch addresses")
 
+    if include_packaged_snapshot:
+        packaged_snapshot_items = get_packaged_registry_snapshot()
+        source_counts["packaged_snapshot"] = len(packaged_snapshot_items)
+        source_items.extend(packaged_snapshot_items)
+
     if include_default_seeds:
         default_seed_items = get_default_monitored_address_seeds()
         source_counts["default_seeds"] = len(default_seed_items)
@@ -591,6 +601,7 @@ async def sync_monitored_address_sources(
     result = await bulk_upsert_monitored_addresses(source_items)
     result["source_counts"] = source_counts
     result["include_legacy"] = include_legacy
+    result["include_packaged_snapshot"] = include_packaged_snapshot
     result["include_default_seeds"] = include_default_seeds
     result["legacy_entity_type"] = legacy_entity_type
     result["legacy_limit"] = legacy_limit
@@ -609,6 +620,7 @@ async def ensure_default_whale_watch_addresses() -> dict[str, Any]:
 
     sync_result = await sync_monitored_address_sources(
         include_legacy=False,
+        include_packaged_snapshot=False,
         include_default_seeds=True,
         legacy_limit=0,
     )

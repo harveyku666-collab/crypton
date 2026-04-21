@@ -3,6 +3,7 @@ from httpx import ASGITransport, AsyncClient
 
 from app.main import app
 from app.address_intel.service import infer_address_type, infer_is_whale
+from app.address_intel.seeds import get_packaged_registry_snapshot
 from app.address_intel.legacy_store import build_freshness_status
 
 
@@ -104,13 +105,21 @@ async def test_address_intel_bulk_upsert_endpoint(monkeypatch):
 
 @pytest.mark.anyio
 async def test_address_intel_sync_sources_endpoint(monkeypatch):
-    async def fake_sync(*, include_legacy=True, include_default_seeds=True, legacy_entity_type=None, legacy_limit=1000):
+    async def fake_sync(
+        *,
+        include_legacy=True,
+        include_packaged_snapshot=True,
+        include_default_seeds=True,
+        legacy_entity_type=None,
+        legacy_limit=1000,
+    ):
         return {
             "count": 30,
             "created": 6,
             "updated": 24,
-            "source_counts": {"legacy": 24, "default_seeds": 6},
+            "source_counts": {"legacy": 0, "packaged_snapshot": 24, "default_seeds": 6},
             "include_legacy": include_legacy,
+            "include_packaged_snapshot": include_packaged_snapshot,
             "include_default_seeds": include_default_seeds,
             "legacy_entity_type": legacy_entity_type,
             "legacy_limit": legacy_limit,
@@ -122,14 +131,26 @@ async def test_address_intel_sync_sources_endpoint(monkeypatch):
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         resp = await client.post(
             "/api/v1/address-intel/sync/sources",
-            params={"include_legacy": "true", "include_default_seeds": "true", "legacy_limit": 500},
+            params={
+                "include_legacy": "true",
+                "include_packaged_snapshot": "true",
+                "include_default_seeds": "true",
+                "legacy_limit": 500,
+            },
         )
 
     assert resp.status_code == 200
     data = resp.json()
     assert data["count"] == 30
-    assert data["source_counts"]["legacy"] == 24
+    assert data["source_counts"]["packaged_snapshot"] == 24
     assert data["legacy_limit"] == 500
+
+
+def test_packaged_registry_snapshot_is_available():
+    items = get_packaged_registry_snapshot()
+
+    assert len(items) >= 24
+    assert any(item.get("entity_name") == "Binance" for item in items)
 
 
 def test_address_type_heuristics_detect_exchange_and_whale():

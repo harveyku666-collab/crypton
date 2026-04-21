@@ -117,12 +117,14 @@ async def address_intel_bulk_upsert(
 @router.post("/sync/sources")
 async def address_intel_sync_sources(
     include_legacy: bool = Query(True),
+    include_packaged_snapshot: bool = Query(True),
     include_default_seeds: bool = Query(True),
     legacy_entity_type: str | None = Query(None),
     legacy_limit: int = Query(1000, ge=0, le=5000),
 ) -> dict[str, Any]:
     return await sync_monitored_address_sources(
         include_legacy=include_legacy,
+        include_packaged_snapshot=include_packaged_snapshot,
         include_default_seeds=include_default_seeds,
         legacy_entity_type=legacy_entity_type,
         legacy_limit=legacy_limit,
