@@ -5,17 +5,31 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import APIRouter, Query, Body
+from pydantic import BaseModel, Field
 
 from app.onchain.monitor_service import (
     collect_whale_transfer_events,
     get_whale_monitor_status,
+    list_whale_alerts,
+    list_whale_notification_channels,
+    list_whale_notification_deliveries,
     list_whale_transfer_events,
+    upsert_whale_notification_channels,
 )
 from app.onchain.whale_tracker import get_recent_transactions
 from app.onchain.exchange_flow import get_exchange_netflow, get_sopr
 from app.market.sources import surf
 
 router = APIRouter(prefix="/onchain", tags=["onchain"])
+
+
+class WhaleNotificationChannelInput(BaseModel):
+    name: str
+    channel_type: str
+    target: str
+    min_severity: str = "high"
+    is_active: bool = True
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 @router.get("/whales")
@@ -38,6 +52,46 @@ async def whale_monitor_events(
         "count": len(items),
         "chain": chain,
         "address": address,
+    }
+
+
+@router.get("/whale-monitor/alerts")
+async def whale_monitor_alerts(
+    severity: str | None = Query(None),
+    limit: int = Query(50, ge=1, le=200),
+) -> dict[str, Any]:
+    items = await list_whale_alerts(severity=severity, limit=limit)
+    return {
+        "items": items,
+        "count": len(items),
+        "severity": severity,
+    }
+
+
+@router.get("/whale-monitor/channels")
+async def whale_monitor_channels() -> dict[str, Any]:
+    items = await list_whale_notification_channels()
+    return {
+        "items": items,
+        "count": len(items),
+    }
+
+
+@router.post("/whale-monitor/channels/bulk-upsert")
+async def whale_monitor_channel_bulk_upsert(items: list[WhaleNotificationChannelInput]) -> dict[str, Any]:
+    return await upsert_whale_notification_channels([item.model_dump() for item in items])
+
+
+@router.get("/whale-monitor/deliveries")
+async def whale_monitor_deliveries(
+    delivery_status: str | None = Query(None),
+    limit: int = Query(50, ge=1, le=200),
+) -> dict[str, Any]:
+    items = await list_whale_notification_deliveries(delivery_status=delivery_status, limit=limit)
+    return {
+        "items": items,
+        "count": len(items),
+        "delivery_status": delivery_status,
     }
 
 

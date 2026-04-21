@@ -80,6 +80,16 @@ async def _run_migrations(engine: AsyncEngine) -> None:
         ("square_items", "matched_kol_name", "VARCHAR(120)"),
         ("square_items", "matched_kol_handle", "VARCHAR(120)"),
         ("square_items", "matched_kol_tier", "VARCHAR(30)"),
+        ("whale_alerts", "external_id", "VARCHAR(160)"),
+        ("whale_alerts", "event_id", "BIGINT"),
+        ("whale_alerts", "blockchain", "VARCHAR(30)"),
+        ("whale_alerts", "entity_name", "VARCHAR(160)"),
+        ("whale_alerts", "label", "VARCHAR(160)"),
+        ("whale_alerts", "amount_usd", "DOUBLE PRECISION"),
+        ("whale_alerts", "counterparty_address", "VARCHAR(120)"),
+        ("whale_alerts", "severity", "VARCHAR(20)"),
+        ("whale_alerts", "notification_status", "VARCHAR(20)"),
+        ("whale_alerts", "metadata_json", "JSON"),
     ]
     async with engine.begin() as conn:
         for table, col, col_def in migrations:

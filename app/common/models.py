@@ -218,11 +218,45 @@ class WhaleAlert(TimestampMixin, Base):
     __tablename__ = "whale_alerts"
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    external_id: Mapped[Optional[str]] = mapped_column(String(160), unique=True, index=True, nullable=True)
+    event_id: Mapped[Optional[int]] = mapped_column(BigInteger, index=True, nullable=True)
     address: Mapped[str] = mapped_column(String(100))
+    blockchain: Mapped[Optional[str]] = mapped_column(String(30), index=True, nullable=True)
+    entity_name: Mapped[Optional[str]] = mapped_column(String(160), nullable=True)
+    label: Mapped[Optional[str]] = mapped_column(String(160), nullable=True)
     action: Mapped[str] = mapped_column(String(20))
     amount: Mapped[float] = mapped_column(Float)
-    token: Mapped[str] = mapped_column(String(20))
-    tx_hash: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    amount_usd: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    token: Mapped[str] = mapped_column(String(40))
+    tx_hash: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    counterparty_address: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    severity: Mapped[Optional[str]] = mapped_column(String(20), index=True, nullable=True)
+    notification_status: Mapped[Optional[str]] = mapped_column(String(20), index=True, nullable=True)
+    metadata_json: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+
+
+class WhaleNotificationChannel(TimestampMixin, Base):
+    __tablename__ = "whale_notification_channels"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(120), unique=True, index=True)
+    channel_type: Mapped[str] = mapped_column(String(20), index=True)
+    target: Mapped[str] = mapped_column(Text)
+    min_severity: Mapped[str] = mapped_column(String(20), default="high")
+    is_active: Mapped[int] = mapped_column(Integer, default=1, index=True)
+    metadata_json: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+
+
+class WhaleNotificationDelivery(TimestampMixin, Base):
+    __tablename__ = "whale_notification_deliveries"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    alert_id: Mapped[int] = mapped_column(BigInteger, index=True)
+    channel_id: Mapped[int] = mapped_column(BigInteger, index=True)
+    delivery_status: Mapped[str] = mapped_column(String(20), index=True)
+    response_code: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    payload_json: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
 
 
 class WhaleTransferEvent(TimestampMixin, Base):

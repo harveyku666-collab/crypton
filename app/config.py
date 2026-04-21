@@ -38,6 +38,7 @@ class Settings(BaseSettings):
     onchain_whale_transfer_limit: int = 20
     onchain_whale_min_usd: float = 1000000.0
     onchain_whale_max_addresses: int = 25
+    onchain_whale_notify_timeout_seconds: int = 10
 
     class Config:
         env_file = ".env"

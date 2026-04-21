@@ -7,20 +7,64 @@ import logging
 from datetime import datetime, timezone
 from typing import Any
 
+import httpx
 from sqlalchemy import func, select
 
 from app.common.database import async_session, db_available
-from app.common.models import MonitoredAddress, WhaleAlert, WhaleMonitorState, WhaleTransferEvent
+from app.common.models import (
+    MonitoredAddress,
+    WhaleAlert,
+    WhaleMonitorState,
+    WhaleNotificationChannel,
+    WhaleNotificationDelivery,
+    WhaleTransferEvent,
+)
 from app.config import settings
 from app.market.sources import surf
 
 logger = logging.getLogger("bitinfo.onchain.monitor")
 
 GLOBAL_SCOPE = "global"
+DEFAULT_NOTIFICATION_CHANNEL = "default-log"
+SEVERITY_RANKS = {
+    "info": 0,
+    "low": 1,
+    "medium": 2,
+    "high": 3,
+    "critical": 4,
+}
 
 
 def utcnow_naive() -> datetime:
     return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+def _normalize_severity(value: Any, *, default: str = "high") -> str:
+    text = str(value or "").strip().lower()
+    if text in SEVERITY_RANKS:
+        return text
+    return default
+
+
+def _severity_rank(value: Any) -> int:
+    return SEVERITY_RANKS.get(_normalize_severity(value, default="info"), 0)
+
+
+def classify_whale_alert_severity(
+    *,
+    amount_usd: float | None,
+    threshold: float,
+) -> str:
+    if amount_usd is None:
+        return "low"
+    normalized_threshold = max(float(threshold or 0), float(settings.onchain_whale_min_usd), 1.0)
+    if amount_usd >= max(normalized_threshold * 10, 10_000_000):
+        return "critical"
+    if amount_usd >= max(normalized_threshold * 5, 5_000_000):
+        return "high"
+    if amount_usd >= normalized_threshold:
+        return "medium"
+    return "low"
 
 
 def _safe_float(value: Any) -> float | None:
@@ -196,6 +240,83 @@ def _serialize_transfer_event(row: WhaleTransferEvent) -> dict[str, Any]:
     }
 
 
+def _serialize_whale_alert(row: WhaleAlert) -> dict[str, Any]:
+    return {
+        "id": row.id,
+        "external_id": row.external_id,
+        "event_id": row.event_id,
+        "address": row.address,
+        "blockchain": row.blockchain,
+        "entity_name": row.entity_name,
+        "label": row.label,
+        "action": row.action,
+        "amount": row.amount,
+        "amount_usd": row.amount_usd,
+        "token": row.token,
+        "tx_hash": row.tx_hash,
+        "counterparty_address": row.counterparty_address,
+        "severity": row.severity,
+        "notification_status": row.notification_status,
+        "metadata": row.metadata_json or {},
+        "created_at": str(row.created_at) if row.created_at else None,
+    }
+
+
+def _serialize_notification_channel(row: WhaleNotificationChannel) -> dict[str, Any]:
+    return {
+        "id": row.id,
+        "name": row.name,
+        "channel_type": row.channel_type,
+        "target": row.target,
+        "min_severity": row.min_severity,
+        "is_active": bool(row.is_active),
+        "metadata": row.metadata_json or {},
+        "created_at": str(row.created_at) if row.created_at else None,
+    }
+
+
+def _serialize_notification_delivery(row: WhaleNotificationDelivery) -> dict[str, Any]:
+    return {
+        "id": row.id,
+        "alert_id": row.alert_id,
+        "channel_id": row.channel_id,
+        "delivery_status": row.delivery_status,
+        "response_code": row.response_code,
+        "error_message": row.error_message,
+        "payload": row.payload_json or {},
+        "created_at": str(row.created_at) if row.created_at else None,
+    }
+
+
+def _severity_matches(alert_severity: str, min_severity: str) -> bool:
+    return _severity_rank(alert_severity) >= _severity_rank(min_severity)
+
+
+def _build_alert_payload(alert: dict[str, Any], channel: WhaleNotificationChannel) -> dict[str, Any]:
+    return {
+        "type": "whale_alert",
+        "severity": alert.get("severity"),
+        "channel": {
+            "name": channel.name,
+            "type": channel.channel_type,
+        },
+        "alert": alert,
+    }
+
+
+def _build_log_message(alert: dict[str, Any]) -> str:
+    amount_usd = _safe_float(alert.get("amount_usd"))
+    if amount_usd is not None:
+        amount_text = f"${amount_usd:,.2f}"
+    else:
+        amount_text = str(alert.get("amount") or "unknown")
+    token = alert.get("token") or "UNKNOWN"
+    entity = alert.get("entity_name") or alert.get("label") or alert.get("address") or "unknown"
+    action = alert.get("action") or "transfer"
+    severity = str(alert.get("severity") or "info").upper()
+    return f"[{severity}] whale alert: {entity} {action} {amount_text} {token}"
+
+
 async def _load_watched_addresses(limit: int | None = None) -> list[MonitoredAddress]:
     if not db_available():
         return []
@@ -231,6 +352,268 @@ async def _get_or_create_state(session: Any, scope_key: str = GLOBAL_SCOPE) -> W
     return state
 
 
+async def ensure_default_notification_channels() -> dict[str, Any]:
+    if not db_available():
+        return {"created": 0, "count": 0, "warning": "Database not available"}
+
+    async with async_session() as session:
+        existing_count = int(
+            (
+                await session.execute(
+                    select(func.count()).select_from(WhaleNotificationChannel).where(
+                        WhaleNotificationChannel.is_active == 1
+                    )
+                )
+            ).scalar()
+            or 0
+        )
+        if existing_count > 0:
+            return {"created": 0, "count": existing_count}
+
+        session.add(
+            WhaleNotificationChannel(
+                name=DEFAULT_NOTIFICATION_CHANNEL,
+                channel_type="log",
+                target="bitinfo.onchain.alerts",
+                min_severity="high",
+                is_active=1,
+                metadata_json={"auto_created": True},
+            )
+        )
+        await session.commit()
+
+    return {"created": 1, "count": 1}
+
+
+async def _load_active_notification_channels() -> list[WhaleNotificationChannel]:
+    if not db_available():
+        return []
+    async with async_session() as session:
+        stmt = (
+            select(WhaleNotificationChannel)
+            .where(WhaleNotificationChannel.is_active == 1)
+            .order_by(WhaleNotificationChannel.created_at.asc())
+        )
+        return list((await session.execute(stmt)).scalars().all())
+
+
+async def upsert_whale_notification_channels(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    if not db_available():
+        raise RuntimeError("Database not available")
+
+    created = 0
+    updated = 0
+    async with async_session() as session:
+        for row in rows:
+            name = str(row.get("name") or "").strip()
+            channel_type = str(row.get("channel_type") or "").strip().lower()
+            target = str(row.get("target") or "").strip()
+            if not name or channel_type not in {"log", "webhook"} or not target:
+                continue
+            metadata = row.get("metadata") if isinstance(row.get("metadata"), dict) else {}
+            existing = (
+                await session.execute(
+                    select(WhaleNotificationChannel).where(WhaleNotificationChannel.name == name)
+                )
+            ).scalar_one_or_none()
+            payload = {
+                "channel_type": channel_type,
+                "target": target,
+                "min_severity": _normalize_severity(row.get("min_severity"), default="high"),
+                "is_active": 1 if row.get("is_active", True) else 0,
+                "metadata_json": metadata,
+            }
+            if existing is None:
+                session.add(WhaleNotificationChannel(name=name, **payload))
+                created += 1
+            else:
+                existing.channel_type = payload["channel_type"]
+                existing.target = payload["target"]
+                existing.min_severity = payload["min_severity"]
+                existing.is_active = payload["is_active"]
+                existing.metadata_json = payload["metadata_json"]
+                updated += 1
+        await session.commit()
+
+    return {"count": created + updated, "created": created, "updated": updated}
+
+
+async def list_whale_notification_channels() -> list[dict[str, Any]]:
+    if not db_available():
+        return []
+    async with async_session() as session:
+        stmt = select(WhaleNotificationChannel).order_by(
+            WhaleNotificationChannel.is_active.desc(),
+            WhaleNotificationChannel.created_at.asc(),
+        )
+        rows = (await session.execute(stmt)).scalars().all()
+        return [_serialize_notification_channel(row) for row in rows]
+
+
+async def list_whale_alerts(
+    *,
+    severity: str | None = None,
+    limit: int = 50,
+) -> list[dict[str, Any]]:
+    if not db_available():
+        return []
+
+    capped_limit = min(max(limit, 1), 200)
+    async with async_session() as session:
+        stmt = select(WhaleAlert)
+        if severity:
+            stmt = stmt.where(WhaleAlert.severity == _normalize_severity(severity, default="medium"))
+        stmt = stmt.order_by(WhaleAlert.created_at.desc()).limit(capped_limit)
+        rows = (await session.execute(stmt)).scalars().all()
+        return [_serialize_whale_alert(row) for row in rows]
+
+
+async def list_whale_notification_deliveries(
+    *,
+    delivery_status: str | None = None,
+    limit: int = 50,
+) -> list[dict[str, Any]]:
+    if not db_available():
+        return []
+
+    capped_limit = min(max(limit, 1), 200)
+    async with async_session() as session:
+        stmt = select(WhaleNotificationDelivery)
+        if delivery_status:
+            stmt = stmt.where(WhaleNotificationDelivery.delivery_status == str(delivery_status).strip().lower())
+        stmt = stmt.order_by(WhaleNotificationDelivery.created_at.desc()).limit(capped_limit)
+        rows = (await session.execute(stmt)).scalars().all()
+        return [_serialize_notification_delivery(row) for row in rows]
+
+
+async def _deliver_notification(
+    channel: WhaleNotificationChannel,
+    payload: dict[str, Any],
+) -> dict[str, Any]:
+    channel_type = str(channel.channel_type or "").strip().lower()
+    if channel_type == "log":
+        logger.warning(_build_log_message(payload.get("alert") or {}))
+        return {
+            "delivery_status": "sent",
+            "response_code": None,
+            "error_message": None,
+            "payload_json": payload,
+        }
+
+    if channel_type == "webhook":
+        headers = {}
+        metadata = channel.metadata_json if isinstance(channel.metadata_json, dict) else {}
+        if isinstance(metadata.get("headers"), dict):
+            headers = {str(key): str(value) for key, value in metadata["headers"].items()}
+        timeout = max(3, int(settings.onchain_whale_notify_timeout_seconds))
+        try:
+            async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as client:
+                resp = await client.post(channel.target, json=payload, headers=headers)
+            if 200 <= resp.status_code < 300:
+                return {
+                    "delivery_status": "sent",
+                    "response_code": resp.status_code,
+                    "error_message": None,
+                    "payload_json": payload,
+                }
+            return {
+                "delivery_status": "failed",
+                "response_code": resp.status_code,
+                "error_message": f"Webhook returned {resp.status_code}",
+                "payload_json": payload,
+            }
+        except Exception as exc:
+            return {
+                "delivery_status": "failed",
+                "response_code": None,
+                "error_message": str(exc),
+                "payload_json": payload,
+            }
+
+    return {
+        "delivery_status": "failed",
+        "response_code": None,
+        "error_message": f"Unsupported channel type: {channel_type}",
+        "payload_json": payload,
+    }
+
+
+async def _notify_alerts(alerts: list[dict[str, Any]]) -> dict[str, Any]:
+    if not alerts or not db_available():
+        return {
+            "alert_count": len(alerts),
+            "matched_channel_count": 0,
+            "delivery_count": 0,
+            "sent_count": 0,
+            "failed_count": 0,
+        }
+
+    await ensure_default_notification_channels()
+    channels = await _load_active_notification_channels()
+
+    matched_channel_count = 0
+    delivery_count = 0
+    sent_count = 0
+    failed_count = 0
+    deliveries_to_store: list[dict[str, Any]] = []
+    alert_status_map: dict[int, str] = {}
+
+    for alert in alerts:
+        alert_id = int(alert.get("id") or 0)
+        matched_for_alert = 0
+        sent_for_alert = 0
+        failed_for_alert = 0
+        for channel in channels:
+            if not _severity_matches(str(alert.get("severity") or "low"), str(channel.min_severity or "high")):
+                continue
+            matched_channel_count += 1
+            matched_for_alert += 1
+            payload = _build_alert_payload(alert, channel)
+            result = await _deliver_notification(channel, payload)
+            delivery_count += 1
+            if result["delivery_status"] == "sent":
+                sent_count += 1
+                sent_for_alert += 1
+            else:
+                failed_count += 1
+                failed_for_alert += 1
+            deliveries_to_store.append(
+                {
+                    "alert_id": alert_id,
+                    "channel_id": channel.id,
+                    **result,
+                }
+            )
+
+        if matched_for_alert == 0:
+            alert_status_map[alert_id] = "skipped"
+        elif sent_for_alert > 0 and failed_for_alert == 0:
+            alert_status_map[alert_id] = "sent"
+        elif sent_for_alert > 0:
+            alert_status_map[alert_id] = "partial"
+        else:
+            alert_status_map[alert_id] = "failed"
+
+    async with async_session() as session:
+        for delivery in deliveries_to_store:
+            session.add(WhaleNotificationDelivery(**delivery))
+        if alert_status_map:
+            rows = (
+                await session.execute(select(WhaleAlert).where(WhaleAlert.id.in_(list(alert_status_map.keys()))))
+            ).scalars().all()
+            for row in rows:
+                row.notification_status = alert_status_map.get(int(row.id), row.notification_status)
+        await session.commit()
+
+    return {
+        "alert_count": len(alerts),
+        "matched_channel_count": matched_channel_count,
+        "delivery_count": delivery_count,
+        "sent_count": sent_count,
+        "failed_count": failed_count,
+    }
+
+
 async def collect_whale_transfer_events(*, force: bool = False) -> dict[str, Any]:
     if not db_available():
         return {
@@ -263,8 +646,10 @@ async def collect_whale_transfer_events(*, force: bool = False) -> dict[str, Any
     skipped_existing_count = 0
     below_threshold_count = 0
     error_count = 0
+    alert_count = 0
     processed_addresses: list[str] = []
     warnings: list[str] = []
+    new_alerts: list[dict[str, Any]] = []
 
     async with async_session() as session:
         state = await _get_or_create_state(session)
@@ -344,15 +729,35 @@ async def collect_whale_transfer_events(*, force: bool = False) -> dict[str, Any
 
                 event = WhaleTransferEvent(**normalized)
                 session.add(event)
-                session.add(
-                    WhaleAlert(
-                        address=normalized["address"],
-                        action=normalized.get("direction") or "transfer",
-                        amount=float(normalized.get("amount") or 0),
-                        token=normalized.get("token") or "UNKNOWN",
-                        tx_hash=normalized.get("tx_hash"),
-                    )
+                await session.flush()
+                severity = classify_whale_alert_severity(
+                    amount_usd=_safe_float(normalized.get("amount_usd")),
+                    threshold=threshold,
                 )
+                alert = WhaleAlert(
+                    external_id=normalized.get("external_id"),
+                    event_id=event.id,
+                    address=normalized["address"],
+                    blockchain=normalized.get("blockchain"),
+                    entity_name=normalized.get("entity_name"),
+                    label=normalized.get("label"),
+                    action=normalized.get("direction") or "transfer",
+                    amount=float(normalized.get("amount") or 0),
+                    amount_usd=_safe_float(normalized.get("amount_usd")),
+                    token=normalized.get("token") or "UNKNOWN",
+                    tx_hash=normalized.get("tx_hash"),
+                    counterparty_address=normalized.get("counterparty_address"),
+                    severity=severity,
+                    notification_status="pending",
+                    metadata_json={
+                        "source": normalized.get("source"),
+                        "occurred_at": normalized.get("occurred_at"),
+                    },
+                )
+                session.add(alert)
+                await session.flush()
+                new_alerts.append(_serialize_whale_alert(alert))
+                alert_count += 1
                 stored_event_count += 1
 
         finished_at = utcnow_naive()
@@ -370,7 +775,25 @@ async def collect_whale_transfer_events(*, force: bool = False) -> dict[str, Any
             "below_threshold_count": below_threshold_count,
             "monitor_interval_minutes": settings.onchain_whale_monitor_interval_minutes,
             "min_usd": settings.onchain_whale_min_usd,
+            "alert_count": alert_count,
         }
+        await session.commit()
+
+    notification_result = await _notify_alerts(new_alerts)
+
+    async with async_session() as session:
+        state = await _get_or_create_state(session)
+        metadata = state.metadata_json if isinstance(state.metadata_json, dict) else {}
+        metadata.update(
+            {
+                "alert_count": alert_count,
+                "matched_channel_count": notification_result.get("matched_channel_count", 0),
+                "delivery_count": notification_result.get("delivery_count", 0),
+                "sent_count": notification_result.get("sent_count", 0),
+                "failed_delivery_count": notification_result.get("failed_count", 0),
+            }
+        )
+        state.metadata_json = metadata
         await session.commit()
 
     result = {
@@ -382,8 +805,10 @@ async def collect_whale_transfer_events(*, force: bool = False) -> dict[str, Any
         "skipped_existing_count": skipped_existing_count,
         "below_threshold_count": below_threshold_count,
         "error_count": error_count,
+        "alert_count": alert_count,
         "processed_addresses": processed_addresses,
         "warnings": warnings,
+        "notification": notification_result,
     }
     logger.info(
         "Whale monitor finished: watched=%d fetched=%d stored=%d skipped=%d errors=%d",
@@ -447,6 +872,9 @@ async def get_whale_monitor_status() -> dict[str, Any]:
             )
         ).scalar_one_or_none()
         event_count = int((await session.execute(select(func.count()).select_from(WhaleTransferEvent))).scalar() or 0)
+        alert_count = int((await session.execute(select(func.count()).select_from(WhaleAlert))).scalar() or 0)
+        channel_count = int((await session.execute(select(func.count()).select_from(WhaleNotificationChannel))).scalar() or 0)
+        delivery_count = int((await session.execute(select(func.count()).select_from(WhaleNotificationDelivery))).scalar() or 0)
 
     metadata = (state.metadata_json if state and isinstance(state.metadata_json, dict) else {}) if state else {}
     return {
@@ -464,6 +892,9 @@ async def get_whale_monitor_status() -> dict[str, Any]:
             for row in watched_addresses
         ],
         "event_count": event_count,
+        "alert_count": alert_count,
+        "channel_count": channel_count,
+        "delivery_count": delivery_count,
         "last_run_started_at": str(state.last_run_started_at) if state and state.last_run_started_at else None,
         "last_run_finished_at": str(state.last_run_finished_at) if state and state.last_run_finished_at else None,
         "fetched_transfer_count": state.fetched_transfer_count if state else 0,
