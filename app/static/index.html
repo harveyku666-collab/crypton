@@ -422,6 +422,41 @@ body {
     </div>
   </div>
 
+  <div style="margin-bottom:24px;position:relative;overflow:hidden;background:linear-gradient(140deg,rgba(23,18,7,.96),rgba(15,25,38,.94));border:1px solid rgba(255,202,112,0.24);border-radius:18px;padding:22px 24px;box-shadow:0 18px 42px rgba(0,0,0,.2)">
+    <div style="position:absolute;right:-36px;top:-32px;width:220px;height:220px;border-radius:50%;background:radial-gradient(circle,rgba(255,202,112,.18),transparent 68%);pointer-events:none"></div>
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:18px;flex-wrap:wrap;position:relative">
+      <div style="max-width:620px">
+        <div style="font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:#ffca70;margin-bottom:8px">Binance Market Rank</div>
+        <div style="font-size:22px;font-weight:800;margin-bottom:8px">直接进入币安市场榜单台，看趋势币、热搜、Alpha 和社交热度</div>
+        <div style="font-size:13px;color:var(--text2);line-height:1.8">这里打开的是完整可视化工作台，不是原始 JSON。你可以先按链、榜单类型、关键词筛一轮，再继续看聪明钱流入、Meme 榜和地址 PnL。</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;min-width:320px;flex:1">
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <input id="home-rank-keyword" placeholder="DOGE / AI / ETF / MEME" style="flex:1;min-width:180px;padding:12px 14px;border-radius:12px;border:1px solid var(--border);background:rgba(255,255,255,.03);color:var(--text);font-size:14px;outline:none">
+          <select id="home-rank-type" style="padding:12px 14px;border-radius:12px;border:1px solid var(--border);background:rgba(255,255,255,.03);color:var(--text);font-size:14px;outline:none">
+            <option value="10" selected>Trending</option>
+            <option value="11">Top Search</option>
+            <option value="20">Alpha</option>
+            <option value="40">Stock</option>
+          </select>
+          <select id="home-rank-chain" style="padding:12px 14px;border-radius:12px;border:1px solid var(--border);background:rgba(255,255,255,.03);color:var(--text);font-size:14px;outline:none">
+            <option value="56" selected>BSC</option>
+            <option value="8453">Base</option>
+            <option value="CT_501">Solana</option>
+            <option value="1">Ethereum</option>
+          </select>
+          <button class="btn-primary" style="white-space:nowrap" onclick="launchCryptoMarketRank({keyword:document.getElementById('home-rank-keyword').value,rankType:document.getElementById('home-rank-type').value,chainId:document.getElementById('home-rank-chain').value})">打开榜单台</button>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="tag" style="cursor:pointer" onclick="launchCryptoMarketRank({rankType:'10',chainId:'56'})">BSC Trending</button>
+          <button class="tag" style="cursor:pointer" onclick="launchCryptoMarketRank({keyword:'AI',rankType:'20',chainId:'8453'})">Base Alpha</button>
+          <button class="tag" style="cursor:pointer" onclick="launchCryptoMarketRank({keyword:'ETF',rankType:'11',chainId:'1'})">ETH Search</button>
+          <button class="tag" style="cursor:pointer" onclick="launchCryptoMarketRank({keyword:'MEME',rankType:'10',chainId:'CT_501',period:'40'})">Solana Meme</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="filter-bar" id="filters"></div>
   <div class="grid" id="skill-grid"></div>
   <div class="loading" id="loading">
@@ -500,7 +535,7 @@ function renderGrid() {
   const statusLabel = { active: '已上线', beta: '测试中', planned: '规划中' };
 
   let html = freeSkills.map(s => `
-    <div class="card" onclick="openDetail('${s.id}')">
+    <div class="card" onclick="${s.id === 'crypto-market-rank' ? `viewReport('${s.id}')` : `openDetail('${s.id}')`}">
       <div class="card-top">
         <div class="card-icon">${s.icon}</div>
         <div>

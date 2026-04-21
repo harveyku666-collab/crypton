@@ -835,6 +835,38 @@ tbody tr:hover{background:rgba(255,255,255,.025)}
           </select>
         </div>
         <div class="field">
+          <label for="socialLanguage">社交语种</label>
+          <select id="socialLanguage" class="select">
+            <option value="ALL">ALL</option>
+            <option value="en">English</option>
+            <option value="zh">中文</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="unifiedSortBy">主榜排序</label>
+          <select id="unifiedSortBy" class="select">
+            <option value="70">成交额</option>
+            <option value="50">涨跌幅</option>
+            <option value="40">市值</option>
+            <option value="20">流动性</option>
+            <option value="30">持有人</option>
+            <option value="80">KYC 持有人</option>
+            <option value="60">交易笔数</option>
+            <option value="100">独立交易者</option>
+            <option value="10">上线时间</option>
+            <option value="2">搜索热度</option>
+            <option value="90">价格</option>
+            <option value="0">默认</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="unifiedOrderAsc">排序方向</label>
+          <select id="unifiedOrderAsc" class="select">
+            <option value="0">降序</option>
+            <option value="1">升序</option>
+          </select>
+        </div>
+        <div class="field">
           <label for="smartMoneyPeriod">聪明钱周期</label>
           <select id="smartMoneyPeriod" class="select">
             <option value="24h">24h</option>
@@ -871,6 +903,106 @@ tbody tr:hover{background:rgba(255,255,255,.025)}
         <div class="field">
           <label>&nbsp;</label>
           <button id="resetBtn" class="button secondary">重置筛选</button>
+        </div>
+        <div class="field">
+          <label for="excludes">排除符号</label>
+          <input id="excludes" class="input" placeholder="DOGE,PEPE">
+        </div>
+        <div class="field">
+          <label for="socials">社交过滤</label>
+          <input id="socials" class="input" placeholder="1,2,3">
+        </div>
+        <div class="field">
+          <label for="alphaTagFilter">Alpha 标签</label>
+          <input id="alphaTagFilter" class="input" placeholder="AI,MEME">
+        </div>
+        <div class="field">
+          <label for="auditFilter">审计过滤</label>
+          <input id="auditFilter" class="input" placeholder="0,1,2">
+        </div>
+        <div class="field">
+          <label for="tagFilter">标签过滤</label>
+          <input id="tagFilter" class="input" placeholder="23,29">
+        </div>
+        <div class="field">
+          <label for="percentChangeMin">涨跌幅 Min</label>
+          <input id="percentChangeMin" class="input" type="number" step="0.01" placeholder="-20">
+        </div>
+        <div class="field">
+          <label for="percentChangeMax">涨跌幅 Max</label>
+          <input id="percentChangeMax" class="input" type="number" step="0.01" placeholder="200">
+        </div>
+        <div class="field">
+          <label for="marketCapMin">市值 Min</label>
+          <input id="marketCapMin" class="input" type="number" step="0.01" placeholder="1000000">
+        </div>
+        <div class="field">
+          <label for="marketCapMax">市值 Max</label>
+          <input id="marketCapMax" class="input" type="number" step="0.01" placeholder="5000000000">
+        </div>
+        <div class="field">
+          <label for="volumeMin">成交额 Min</label>
+          <input id="volumeMin" class="input" type="number" step="0.01" placeholder="500000">
+        </div>
+        <div class="field">
+          <label for="volumeMax">成交额 Max</label>
+          <input id="volumeMax" class="input" type="number" step="0.01" placeholder="100000000">
+        </div>
+        <div class="field">
+          <label for="liquidityMin">流动性 Min</label>
+          <input id="liquidityMin" class="input" type="number" step="0.01" placeholder="100000">
+        </div>
+        <div class="field">
+          <label for="liquidityMax">流动性 Max</label>
+          <input id="liquidityMax" class="input" type="number" step="0.01" placeholder="50000000">
+        </div>
+        <div class="field">
+          <label for="holdersMin">持有人 Min</label>
+          <input id="holdersMin" class="input" type="number" step="1" placeholder="1000">
+        </div>
+        <div class="field">
+          <label for="holdersMax">持有人 Max</label>
+          <input id="holdersMax" class="input" type="number" step="1" placeholder="500000">
+        </div>
+        <div class="field">
+          <label for="holdersTop10PercentMin">Top10 占比 Min</label>
+          <input id="holdersTop10PercentMin" class="input" type="number" step="0.01" placeholder="0">
+        </div>
+        <div class="field">
+          <label for="holdersTop10PercentMax">Top10 占比 Max</label>
+          <input id="holdersTop10PercentMax" class="input" type="number" step="0.01" placeholder="80">
+        </div>
+        <div class="field">
+          <label for="kycHoldersMin">KYC 持有人 Min</label>
+          <input id="kycHoldersMin" class="input" type="number" step="1" placeholder="100">
+        </div>
+        <div class="field">
+          <label for="kycHoldersMax">KYC 持有人 Max</label>
+          <input id="kycHoldersMax" class="input" type="number" step="1" placeholder="200000">
+        </div>
+        <div class="field">
+          <label for="countMin">交易笔数 Min</label>
+          <input id="countMin" class="input" type="number" step="1" placeholder="100">
+        </div>
+        <div class="field">
+          <label for="countMax">交易笔数 Max</label>
+          <input id="countMax" class="input" type="number" step="1" placeholder="200000">
+        </div>
+        <div class="field">
+          <label for="launchTimeMin">上线时间 Min</label>
+          <input id="launchTimeMin" class="input" type="number" step="1" placeholder="1704067200000">
+        </div>
+        <div class="field">
+          <label for="launchTimeMax">上线时间 Max</label>
+          <input id="launchTimeMax" class="input" type="number" step="1" placeholder="1767225600000">
+        </div>
+        <div class="field">
+          <label for="uniqueTraderMin">独立交易者 Min</label>
+          <input id="uniqueTraderMin" class="input" type="number" step="1" placeholder="50">
+        </div>
+        <div class="field">
+          <label for="uniqueTraderMax">独立交易者 Max</label>
+          <input id="uniqueTraderMax" class="input" type="number" step="1" placeholder="50000">
         </div>
       </div>
     </details>
@@ -1045,6 +1177,40 @@ function sanitizeKeyword(value){
   return String(value || '').replace(/\s+/g,' ').trim().slice(0,40);
 }
 
+function sanitizeCsv(value, maxLength=120){
+  return String(value || '').replace(/\s+/g,'').trim().slice(0, maxLength);
+}
+
+function sanitizeNumberish(value){
+  const text=String(value ?? '').trim();
+  return /^-?\d+(\.\d+)?$/.test(text) ? text : '';
+}
+
+const MARKET_RANK_CSV_FIELDS=['excludes','socials','alphaTagFilter','auditFilter','tagFilter'];
+const MARKET_RANK_NUMERIC_FIELDS=[
+  'percentChangeMin',
+  'percentChangeMax',
+  'marketCapMin',
+  'marketCapMax',
+  'volumeMin',
+  'volumeMax',
+  'liquidityMin',
+  'liquidityMax',
+  'holdersMin',
+  'holdersMax',
+  'holdersTop10PercentMin',
+  'holdersTop10PercentMax',
+  'kycHoldersMin',
+  'kycHoldersMax',
+  'countMin',
+  'countMax',
+  'launchTimeMin',
+  'launchTimeMax',
+  'uniqueTraderMin',
+  'uniqueTraderMax',
+];
+const MARKET_RANK_SORT_OPTIONS=['0','2','10','20','30','40','50','60','70','80','90','100'];
+
 function proxyIconUrl(rawUrl, symbol=''){
   const params=new URLSearchParams();
   if(rawUrl) params.set('url', rawUrl);
@@ -1126,18 +1292,28 @@ function renderStatusTag(item){
 
 function getStateFromUrl(){
   const params=new URLSearchParams(location.search);
-  return {
+  const state={
     keyword:sanitizeKeyword(params.get('q') || ''),
     rankType:['10','11','20','40'].includes(params.get('rankType')) ? params.get('rankType') : '10',
     chainId:['56','8453','CT_501','1'].includes(params.get('chainId')) ? params.get('chainId') : '56',
     period:['10','20','30','40','50'].includes(params.get('period')) ? params.get('period') : '50',
     targetLanguage:params.get('targetLanguage') === 'en' ? 'en' : 'zh',
+    socialLanguage:['ALL','en','zh'].includes(params.get('socialLanguage')) ? params.get('socialLanguage') : 'ALL',
     socialSentiment:['All','Positive','Neutral','Negative'].includes(params.get('socialSentiment')) ? params.get('socialSentiment') : 'All',
+    unifiedSortBy:MARKET_RANK_SORT_OPTIONS.includes(params.get('unifiedSortBy')) ? params.get('unifiedSortBy') : '70',
+    unifiedOrderAsc:params.get('unifiedOrderAsc') === '1' ? '1' : '0',
     smartMoneyPeriod:['5m','1h','4h','24h'].includes(params.get('smartMoneyPeriod')) ? params.get('smartMoneyPeriod') : '24h',
     pnlPeriod:['7d','30d','90d'].includes(params.get('pnlPeriod')) ? params.get('pnlPeriod') : '7d',
     pnlTag:params.get('pnlTag') === 'KOL' ? 'KOL' : 'ALL',
     limit:['8','10','12','15','20'].includes(params.get('limit')) ? params.get('limit') : '20',
   };
+  MARKET_RANK_CSV_FIELDS.forEach(field=>{
+    state[field]=sanitizeCsv(params.get(field) || '');
+  });
+  MARKET_RANK_NUMERIC_FIELDS.forEach(field=>{
+    state[field]=sanitizeNumberish(params.get(field));
+  });
+  return state;
 }
 
 function syncUrl(state){
@@ -1147,11 +1323,20 @@ function syncUrl(state){
   params.set('chainId', state.chainId);
   params.set('period', state.period);
   params.set('targetLanguage', state.targetLanguage);
+  if(state.socialLanguage !== 'ALL') params.set('socialLanguage', state.socialLanguage);
   params.set('socialSentiment', state.socialSentiment);
+  if(state.unifiedSortBy !== '70') params.set('unifiedSortBy', state.unifiedSortBy);
+  if(state.unifiedOrderAsc === '1') params.set('unifiedOrderAsc', '1');
   params.set('smartMoneyPeriod', state.smartMoneyPeriod);
   params.set('pnlPeriod', state.pnlPeriod);
   params.set('pnlTag', state.pnlTag);
   params.set('limit', state.limit);
+  MARKET_RANK_CSV_FIELDS.forEach(field=>{
+    if(state[field]) params.set(field, state[field]);
+  });
+  MARKET_RANK_NUMERIC_FIELDS.forEach(field=>{
+    if(state[field]) params.set(field, state[field]);
+  });
   history.replaceState({},'',`${location.pathname}?${params.toString()}`);
 }
 
@@ -1161,26 +1346,45 @@ function applyStateToControls(state){
   document.getElementById('chainId').value=state.chainId;
   document.getElementById('period').value=state.period;
   document.getElementById('targetLanguage').value=state.targetLanguage;
+  document.getElementById('socialLanguage').value=state.socialLanguage;
   document.getElementById('socialSentiment').value=state.socialSentiment;
+  document.getElementById('unifiedSortBy').value=state.unifiedSortBy;
+  document.getElementById('unifiedOrderAsc').value=state.unifiedOrderAsc;
   document.getElementById('smartMoneyPeriod').value=state.smartMoneyPeriod;
   document.getElementById('pnlPeriod').value=state.pnlPeriod;
   document.getElementById('pnlTag').value=state.pnlTag;
   document.getElementById('limit').value=state.limit;
+  MARKET_RANK_CSV_FIELDS.forEach(field=>{
+    document.getElementById(field).value=state[field] || '';
+  });
+  MARKET_RANK_NUMERIC_FIELDS.forEach(field=>{
+    document.getElementById(field).value=state[field] || '';
+  });
 }
 
 function readStateFromControls(){
-  return {
+  const state={
     keyword:sanitizeKeyword(document.getElementById('keyword').value),
     rankType:document.getElementById('rankType').value,
     chainId:document.getElementById('chainId').value,
     period:document.getElementById('period').value,
     targetLanguage:document.getElementById('targetLanguage').value,
+    socialLanguage:document.getElementById('socialLanguage').value,
     socialSentiment:document.getElementById('socialSentiment').value,
+    unifiedSortBy:document.getElementById('unifiedSortBy').value,
+    unifiedOrderAsc:document.getElementById('unifiedOrderAsc').value,
     smartMoneyPeriod:document.getElementById('smartMoneyPeriod').value,
     pnlPeriod:document.getElementById('pnlPeriod').value,
     pnlTag:document.getElementById('pnlTag').value,
     limit:document.getElementById('limit').value,
   };
+  MARKET_RANK_CSV_FIELDS.forEach(field=>{
+    state[field]=sanitizeCsv(document.getElementById(field)?.value || '');
+  });
+  MARKET_RANK_NUMERIC_FIELDS.forEach(field=>{
+    state[field]=sanitizeNumberish(document.getElementById(field)?.value || '');
+  });
+  return state;
 }
 
 function renderAvailability(payload){
@@ -2005,14 +2209,46 @@ async function loadDashboard({silent=false}={}){
   if(state.keyword) params.set('keyword', state.keyword);
   params.set('chain_id', state.chainId);
   params.set('target_language', state.targetLanguage);
+  params.set('social_language', state.socialLanguage);
   params.set('social_sentiment', state.socialSentiment);
   params.set('unified_rank_type', state.rankType);
   params.set('unified_period', state.period);
-  params.set('unified_sort_by', '70');
+  params.set('unified_sort_by', state.unifiedSortBy);
+  if(state.unifiedOrderAsc === '1') params.set('unified_order_asc', '1');
   params.set('smart_money_period', state.smartMoneyPeriod);
   params.set('pnl_period', state.pnlPeriod);
   params.set('pnl_tag', state.pnlTag);
   params.set('limit', state.limit);
+  const dashboardParamMap={
+    excludes:'unified_excludes',
+    socials:'unified_socials',
+    alphaTagFilter:'unified_alpha_tag_filter',
+    auditFilter:'unified_audit_filter',
+    tagFilter:'unified_tag_filter',
+    percentChangeMin:'unified_percent_change_min',
+    percentChangeMax:'unified_percent_change_max',
+    marketCapMin:'unified_market_cap_min',
+    marketCapMax:'unified_market_cap_max',
+    volumeMin:'unified_volume_min',
+    volumeMax:'unified_volume_max',
+    liquidityMin:'unified_liquidity_min',
+    liquidityMax:'unified_liquidity_max',
+    holdersMin:'unified_holders_min',
+    holdersMax:'unified_holders_max',
+    holdersTop10PercentMin:'unified_holders_top10_percent_min',
+    holdersTop10PercentMax:'unified_holders_top10_percent_max',
+    kycHoldersMin:'unified_kyc_holders_min',
+    kycHoldersMax:'unified_kyc_holders_max',
+    countMin:'unified_count_min',
+    countMax:'unified_count_max',
+    launchTimeMin:'unified_launch_time_min',
+    launchTimeMax:'unified_launch_time_max',
+    uniqueTraderMin:'unified_unique_trader_min',
+    uniqueTraderMax:'unified_unique_trader_max',
+  };
+  Object.entries(dashboardParamMap).forEach(([field, param])=>{
+    if(state[field]) params.set(param, state[field]);
+  });
 
   const t0=Date.now();
   try{
@@ -2040,12 +2276,17 @@ function resetState(){
     chainId:'56',
     period:'50',
     targetLanguage:'zh',
+    socialLanguage:'ALL',
     socialSentiment:'All',
+    unifiedSortBy:'70',
+    unifiedOrderAsc:'0',
     smartMoneyPeriod:'24h',
     pnlPeriod:'7d',
     pnlTag:'ALL',
     limit:'20',
   };
+  MARKET_RANK_CSV_FIELDS.forEach(field=>{state[field]='';});
+  MARKET_RANK_NUMERIC_FIELDS.forEach(field=>{state[field]='';});
   applyStateToControls(state);
   loadDashboard();
 }
