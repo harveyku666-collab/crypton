@@ -389,39 +389,6 @@ body {
     </div>
   </div>
 
-  <div style="margin-bottom:24px;position:relative;overflow:hidden;background:linear-gradient(140deg,rgba(11,23,34,.97),rgba(11,17,26,.95));border:1px solid rgba(85,214,255,0.2);border-radius:18px;padding:22px 24px;box-shadow:0 18px 42px rgba(0,0,0,.2)">
-    <div style="position:absolute;right:-24px;top:-28px;width:190px;height:190px;border-radius:50%;background:radial-gradient(circle,rgba(85,214,255,.16),transparent 68%);pointer-events:none"></div>
-    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:18px;flex-wrap:wrap;position:relative">
-      <div style="max-width:620px">
-        <div style="font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:#55d6ff;margin-bottom:8px">Whale Monitor</div>
-        <div style="font-size:22px;font-weight:800;margin-bottom:8px">直接进入巨鲸监控台，查看告警、回放和投递</div>
-        <div style="font-size:13px;color:var(--text2);line-height:1.8">这次更新里的 low 通道、历史回放、告警投递记录和 `UNKNOWN -> token` 补名，已经都能在页面里直接看到。</div>
-      </div>
-      <div style="display:flex;flex-direction:column;gap:10px;min-width:320px;flex:1">
-        <div style="display:flex;gap:10px;flex-wrap:wrap">
-          <select id="whale-launch-severity" style="flex:1;min-width:180px;padding:12px 14px;border-radius:12px;border:1px solid var(--border);background:rgba(255,255,255,.03);color:var(--text);font-size:14px;outline:none">
-            <option value="" selected>全部级别</option>
-            <option value="low">low</option>
-            <option value="medium">medium</option>
-            <option value="high">high</option>
-            <option value="critical">critical</option>
-          </select>
-          <select id="whale-launch-unsent" style="padding:12px 14px;border-radius:12px;border:1px solid var(--border);background:rgba(255,255,255,.03);color:var(--text);font-size:14px;outline:none">
-            <option value="1" selected>仅待重发</option>
-            <option value="0">全部告警</option>
-          </select>
-          <button class="btn-primary" style="white-space:nowrap" onclick="launchWhaleMonitor()">打开监控台</button>
-        </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="tag" style="cursor:pointer" onclick="launchWhaleMonitor({severity:'low'})">Low 告警</button>
-          <button class="tag" style="cursor:pointer" onclick="launchWhaleMonitor({severity:'medium',onlyUnsent:false})">Medium+</button>
-          <button class="tag" style="cursor:pointer" onclick="launchWhaleMonitor({severity:'critical',onlyUnsent:false})">Critical</button>
-          <button class="tag" style="cursor:pointer" onclick="launchWhaleMonitor({deliveryStatus:'sent',onlyUnsent:false})">看投递记录</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
   <div style="margin-bottom:24px;position:relative;overflow:hidden;background:linear-gradient(140deg,rgba(23,18,7,.96),rgba(15,25,38,.94));border:1px solid rgba(255,202,112,0.24);border-radius:18px;padding:22px 24px;box-shadow:0 18px 42px rgba(0,0,0,.2)">
     <div style="position:absolute;right:-36px;top:-32px;width:220px;height:220px;border-radius:50%;background:radial-gradient(circle,rgba(255,202,112,.18),transparent 68%);pointer-events:none"></div>
     <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:18px;flex-wrap:wrap;position:relative">
