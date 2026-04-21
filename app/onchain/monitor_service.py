@@ -441,6 +441,7 @@ async def upsert_whale_notification_channels(rows: list[dict[str, Any]]) -> dict
 async def list_whale_notification_channels() -> list[dict[str, Any]]:
     if not db_available():
         return []
+    await ensure_default_notification_channels()
     async with async_session() as session:
         stmt = select(WhaleNotificationChannel).order_by(
             WhaleNotificationChannel.is_active.desc(),
@@ -865,6 +866,7 @@ async def get_whale_monitor_status() -> dict[str, Any]:
             "monitor_interval_minutes": settings.onchain_whale_monitor_interval_minutes,
         }
 
+    await ensure_default_notification_channels()
     async with async_session() as session:
         state = (
             await session.execute(
