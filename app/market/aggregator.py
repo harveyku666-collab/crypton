@@ -11,6 +11,15 @@ from app.market.sources import desk3, binance, coingecko, surf
 logger = logging.getLogger("bitinfo.market")
 
 
+def _safe_float(value: Any) -> float | None:
+    try:
+        if value in {None, ""}:
+            return None
+        return float(value)
+    except Exception:
+        return None
+
+
 async def get_market_overview() -> dict[str, Any]:
     """Aggregate core market data — Surf first, legacy fallback."""
     tasks = {
@@ -47,29 +56,74 @@ async def get_market_overview() -> dict[str, Any]:
 
 async def get_symbol_price(symbol: str) -> dict[str, Any] | None:
     """Get price for a single symbol — Surf > Binance > Desk3."""
-    surf_price = await surf.get_price(symbol)
-    if surf_price and surf_price.get("price"):
-        return surf_price
+    normalized_symbol = str(symbol or "").strip().upper()
+    if not normalized_symbol:
+        return None
 
-    ticker = await binance.get_ticker_24h(f"{symbol}USDT")
-    if ticker:
-        return {
-            "symbol": symbol,
-            "price": float(ticker.get("lastPrice", 0)),
-            "change_pct": float(ticker.get("priceChangePercent", 0)),
-            "volume": float(ticker.get("quoteVolume", 0)),
-            "high": float(ticker.get("highPrice", 0)),
-            "low": float(ticker.get("lowPrice", 0)),
-            "source": "binance",
-        }
-    desk3_prices = await desk3.get_prices(f"{symbol}USDT")
-    for item in desk3_prices:
-        if item.get("s") == f"{symbol}USDT":
+    try:
+        surf_price = await surf.get_price(normalized_symbol)
+    except Exception:
+        logger.debug("Surf price lookup failed for %s", normalized_symbol, exc_info=True)
+        surf_price = None
+    if isinstance(surf_price, dict):
+        price = _safe_float(surf_price.get("price"))
+        if price is not None and price > 0:
             return {
-                "symbol": symbol,
-                "price": float(item.get("c", 0)),
-                "change_pct": float(item.get("P", 0)),
-                "volume": float(item.get("q", 0)),
+                **surf_price,
+                "symbol": normalized_symbol,
+                "price": price,
+                "source": str(surf_price.get("source") or "surf"),
+            }
+
+    try:
+        ticker = await binance.get_ticker_24h(f"{normalized_symbol}USDT")
+    except Exception:
+        logger.debug("Binance price lookup failed for %s", normalized_symbol, exc_info=True)
+        ticker = None
+    if isinstance(ticker, dict):
+        price = _safe_float(ticker.get("lastPrice"))
+        if price is not None and price > 0:
+            return {
+                "symbol": normalized_symbol,
+                "price": price,
+                "change_pct": _safe_float(ticker.get("priceChangePercent")),
+                "volume": _safe_float(ticker.get("quoteVolume")),
+                "high": _safe_float(ticker.get("highPrice")),
+                "low": _safe_float(ticker.get("lowPrice")),
+                "source": "binance",
+            }
+
+    try:
+        desk3_prices = await desk3.get_prices(f"{normalized_symbol}USDT")
+    except Exception:
+        logger.debug("Desk3 price lookup failed for %s", normalized_symbol, exc_info=True)
+        desk3_prices = []
+    for item in desk3_prices if isinstance(desk3_prices, list) else []:
+        if item.get("s") == f"{normalized_symbol}USDT":
+            price = _safe_float(item.get("c"))
+            if price is None or price <= 0:
+                continue
+            return {
+                "symbol": normalized_symbol,
+                "price": price,
+                "change_pct": _safe_float(item.get("P")),
+                "volume": _safe_float(item.get("q")),
                 "source": "desk3",
             }
+
+    try:
+        gecko_price = await coingecko.get_price_by_symbol(normalized_symbol)
+    except Exception:
+        logger.debug("CoinGecko price lookup failed for %s", normalized_symbol, exc_info=True)
+        gecko_price = None
+    if isinstance(gecko_price, dict):
+        price = _safe_float(gecko_price.get("price"))
+        if price is not None and price > 0:
+            return {
+                **gecko_price,
+                "symbol": normalized_symbol,
+                "price": price,
+                "source": str(gecko_price.get("source") or "coingecko"),
+            }
+
     return None

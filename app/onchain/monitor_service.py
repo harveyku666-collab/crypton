@@ -20,13 +20,15 @@ from app.common.models import (
     WhaleTransferEvent,
 )
 from app.config import settings
-from app.market.sources import surf
+from app.market import aggregator
+from app.market.sources import dexscreener, surf
 
 logger = logging.getLogger("bitinfo.onchain.monitor")
 
 GLOBAL_SCOPE = "global"
 DEFAULT_NOTIFICATION_CHANNEL = "default-log"
 DEFAULT_NOTIFICATION_MIN_SEVERITY = "medium"
+UNKNOWN_TOKEN_SYMBOLS = {"", "COIN", "NATIVE", "TOKEN", "UNKNOWN"}
 USD_EQUIVALENT_TOKENS = {
     "USD1",
     "USDB",
@@ -45,6 +47,16 @@ SEVERITY_RANKS = {
     "medium": 2,
     "high": 3,
     "critical": 4,
+}
+DEXSCREENER_CHAIN_ALIASES = {
+    "arbitrum": {"arbitrum", "arbitrum-one"},
+    "avalanche": {"avax", "avalanche"},
+    "base": {"base"},
+    "bsc": {"bsc", "bnb", "binance-smart-chain"},
+    "ethereum": {"eth", "ethereum"},
+    "optimism": {"optimism", "op"},
+    "polygon": {"matic", "polygon", "polygon-pos"},
+    "solana": {"solana"},
 }
 
 
@@ -123,6 +135,179 @@ def _normalize_direction(
     if to_address and watched_address and to_address == watched_address:
         return "incoming"
     return "unknown"
+
+
+def _normalize_token_symbol(value: Any) -> str | None:
+    text = "".join(ch for ch in str(value or "").upper() if ch.isalnum())
+    return text[:24] if text else None
+
+
+def _extract_nested_value(mapping: dict[str, Any], *paths: tuple[str, ...]) -> Any:
+    for path in paths:
+        current: Any = mapping
+        for key in path:
+            if not isinstance(current, dict):
+                current = None
+                break
+            current = current.get(key)
+        if current is not None and current != "":
+            return current
+    return None
+
+
+def _extract_token_address(metadata: dict[str, Any] | None) -> str | None:
+    payload = metadata if isinstance(metadata, dict) else {}
+    value = _extract_nested_value(
+        payload,
+        ("token_address",),
+        ("tokenAddress",),
+        ("contract_address",),
+        ("contractAddress",),
+        ("asset_address",),
+        ("assetAddress",),
+        ("currency_address",),
+        ("currencyAddress",),
+        ("token", "address"),
+        ("tokenInfo", "address"),
+        ("asset", "address"),
+        ("coin", "address"),
+    )
+    text = str(value or "").strip()
+    return text or None
+
+
+def _extract_candidate_symbols(token: Any, metadata: dict[str, Any] | None) -> list[str]:
+    payload = metadata if isinstance(metadata, dict) else {}
+    values = [
+        token,
+        payload.get("symbol"),
+        payload.get("token_symbol"),
+        payload.get("asset_symbol"),
+        payload.get("currency"),
+        _extract_nested_value(payload, ("token", "symbol")),
+        _extract_nested_value(payload, ("tokenInfo", "symbol")),
+        _extract_nested_value(payload, ("asset", "symbol")),
+        _extract_nested_value(payload, ("baseToken", "symbol")),
+        _extract_nested_value(payload, ("coin", "symbol")),
+    ]
+    normalized: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        symbol = _normalize_token_symbol(value)
+        if not symbol or symbol in seen:
+            continue
+        seen.add(symbol)
+        normalized.append(symbol)
+    return normalized
+
+
+def _match_dexscreener_chain(blockchain: Any, chain: Any) -> bool:
+    normalized_blockchain = str(blockchain or "").strip().lower()
+    normalized_chain = str(chain or "").strip().lower()
+    if not normalized_blockchain or not normalized_chain:
+        return False
+    allowed = DEXSCREENER_CHAIN_ALIASES.get(normalized_blockchain, {normalized_blockchain})
+    return normalized_chain in allowed
+
+
+def _pick_best_dex_pair(
+    pairs: list[dict[str, Any]],
+    *,
+    blockchain: str | None,
+    symbols: list[str],
+) -> dict[str, Any] | None:
+    filtered: list[dict[str, Any]] = []
+    normalized_symbols = set(symbols)
+    for pair in pairs:
+        if not isinstance(pair, dict):
+            continue
+        price_usd = _safe_float(pair.get("price_usd"))
+        if price_usd is None or price_usd <= 0:
+            continue
+        base_symbol = _normalize_token_symbol(((pair.get("base_token") or {}).get("symbol")))
+        if normalized_symbols and base_symbol and base_symbol not in normalized_symbols:
+            continue
+        filtered.append(pair)
+
+    if not filtered:
+        return None
+
+    chain_matched = [pair for pair in filtered if _match_dexscreener_chain(blockchain, pair.get("chain"))]
+    ranked = chain_matched or filtered
+    ranked.sort(
+        key=lambda pair: (
+            _safe_float(pair.get("liquidity_usd")) or 0.0,
+            _safe_float(pair.get("volume_24h")) or 0.0,
+        ),
+        reverse=True,
+    )
+    return ranked[0] if ranked else None
+
+
+async def _estimate_market_amount_usd(
+    *,
+    token: Any,
+    amount: Any,
+    amount_usd: Any,
+    blockchain: str | None,
+    metadata: dict[str, Any] | None,
+) -> tuple[float | None, str | None]:
+    normalized_amount_usd = _safe_float(amount_usd)
+    if normalized_amount_usd is not None:
+        return normalized_amount_usd, None
+
+    payload = metadata if isinstance(metadata, dict) else {}
+    direct_amount_usd = _safe_float(
+        _extract_nested_value(
+            payload,
+            ("amount_usd",),
+            ("usd_value",),
+            ("value_usd",),
+            ("amountUsd",),
+            ("volume_usd",),
+            ("quote_amount_usd",),
+            ("price", "usd"),
+        )
+    )
+    if direct_amount_usd is not None:
+        return direct_amount_usd, "metadata"
+
+    normalized_amount = _safe_float(amount)
+    if normalized_amount is None or normalized_amount <= 0:
+        return None, None
+
+    symbols = _extract_candidate_symbols(token, payload)
+    for symbol in symbols:
+        if symbol in USD_EQUIVALENT_TOKENS:
+            return normalized_amount, "stablecoin_parity"
+
+    token_address = _extract_token_address(payload)
+    if token_address:
+        try:
+            pairs = await dexscreener.get_token_pairs(token_address, limit=20)
+        except Exception:
+            logger.debug("DEX Screener valuation lookup failed for %s", token_address, exc_info=True)
+            pairs = []
+        pair = _pick_best_dex_pair(pairs, blockchain=blockchain, symbols=symbols)
+        if pair is not None:
+            price_usd = _safe_float(pair.get("price_usd"))
+            if price_usd is not None and price_usd > 0:
+                return normalized_amount * price_usd, "dexscreener"
+
+    for symbol in symbols:
+        if symbol in UNKNOWN_TOKEN_SYMBOLS:
+            continue
+        try:
+            snapshot = await aggregator.get_symbol_price(symbol)
+        except Exception:
+            logger.debug("Market valuation lookup failed for %s", symbol, exc_info=True)
+            snapshot = None
+        price = _safe_float((snapshot or {}).get("price")) if isinstance(snapshot, dict) else None
+        if price is not None and price > 0:
+            source = str(snapshot.get("source") or "market") if isinstance(snapshot, dict) else "market"
+            return normalized_amount * price, source
+
+    return None, None
 
 
 def _normalize_transfer_item(item: dict[str, Any], watcher: MonitoredAddress) -> dict[str, Any] | None:
@@ -616,15 +801,32 @@ async def _backfill_legacy_whale_alerts(session: Any, rows: list[WhaleAlert]) ->
                 row.label = watcher.label
                 changed = True
 
-        inferred_amount_usd = _infer_legacy_alert_amount_usd(
+        estimated_amount_usd, valuation_source = await _estimate_market_amount_usd(
             token=row.token,
             amount=row.amount,
             amount_usd=row.amount_usd,
-            threshold=threshold,
+            blockchain=row.blockchain or (watcher.blockchain if watcher else None),
+            metadata=row.metadata_json if isinstance(row.metadata_json, dict) else None,
         )
+        inferred_amount_usd = estimated_amount_usd
+        if inferred_amount_usd is None:
+            inferred_amount_usd = _infer_legacy_alert_amount_usd(
+                token=row.token,
+                amount=row.amount,
+                amount_usd=row.amount_usd,
+                threshold=threshold,
+            )
         if row.amount_usd is None and inferred_amount_usd is not None:
             row.amount_usd = inferred_amount_usd
             changed = True
+            metadata = row.metadata_json if isinstance(row.metadata_json, dict) else {}
+            if valuation_source:
+                row.metadata_json = {
+                    **metadata,
+                    "amount_usd_estimated": inferred_amount_usd,
+                    "amount_usd_source": valuation_source,
+                }
+                changed = True
 
         if not row.severity:
             severity_basis = _safe_float(row.amount_usd)
@@ -947,6 +1149,22 @@ async def collect_whale_transfer_events(*, force: bool = False) -> dict[str, Any
                 normalized = _normalize_transfer_item(transfer, watcher)
                 if not normalized:
                     continue
+                estimated_amount_usd, valuation_source = await _estimate_market_amount_usd(
+                    token=normalized.get("token"),
+                    amount=normalized.get("amount"),
+                    amount_usd=normalized.get("amount_usd"),
+                    blockchain=normalized.get("blockchain"),
+                    metadata=normalized.get("metadata_json") if isinstance(normalized.get("metadata_json"), dict) else None,
+                )
+                if normalized.get("amount_usd") is None and estimated_amount_usd is not None:
+                    normalized["amount_usd"] = estimated_amount_usd
+                    metadata = normalized.get("metadata_json") if isinstance(normalized.get("metadata_json"), dict) else {}
+                    if valuation_source:
+                        normalized["metadata_json"] = {
+                            **metadata,
+                            "amount_usd_estimated": estimated_amount_usd,
+                            "amount_usd_source": valuation_source,
+                        }
                 fetched_transfer_count += 1
 
                 if not force and normalized.get("amount_usd") is not None and float(normalized["amount_usd"]) < threshold:
