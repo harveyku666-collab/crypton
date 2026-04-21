@@ -201,6 +201,68 @@ def _extract_candidate_symbols(token: Any, metadata: dict[str, Any] | None) -> l
     return normalized
 
 
+def _is_unknown_token(value: Any) -> bool:
+    normalized = _normalize_token_symbol(value) or "UNKNOWN"
+    return normalized in UNKNOWN_TOKEN_SYMBOLS
+
+
+def _transfer_lookup_key(address: Any, tx_hash: Any) -> tuple[str, str] | None:
+    normalized_address = str(address or "").strip().lower()
+    normalized_tx_hash = str(tx_hash or "").strip().lower()
+    if not normalized_address or not normalized_tx_hash:
+        return None
+    return normalized_address, normalized_tx_hash
+
+
+def _select_preferred_token(token: Any, metadata: dict[str, Any] | None) -> str | None:
+    symbols = _extract_candidate_symbols(token, metadata)
+    for symbol in symbols:
+        if symbol not in UNKNOWN_TOKEN_SYMBOLS:
+            return symbol
+    return symbols[0] if symbols else None
+
+
+def _merge_transfer_event_into_alert(row: WhaleAlert, transfer: WhaleTransferEvent) -> bool:
+    changed = False
+    transfer_metadata = transfer.metadata_json if isinstance(transfer.metadata_json, dict) else {}
+    existing_metadata = row.metadata_json if isinstance(row.metadata_json, dict) else {}
+    merged_metadata = {**transfer_metadata, **existing_metadata}
+    preferred_token = _select_preferred_token(transfer.token, transfer_metadata)
+
+    if row.event_id is None and transfer.id is not None:
+        row.event_id = int(transfer.id)
+        changed = True
+    if not row.external_id and transfer.external_id:
+        row.external_id = transfer.external_id
+        changed = True
+    if not row.blockchain and transfer.blockchain:
+        row.blockchain = transfer.blockchain
+        changed = True
+    if not row.entity_name and transfer.entity_name:
+        row.entity_name = transfer.entity_name
+        changed = True
+    if not row.label and transfer.label:
+        row.label = transfer.label
+        changed = True
+    if not row.counterparty_address and transfer.counterparty_address:
+        row.counterparty_address = transfer.counterparty_address
+        changed = True
+    if (row.amount in {None, 0}) and transfer.amount not in {None, 0}:
+        row.amount = float(transfer.amount or 0)
+        changed = True
+    if row.amount_usd is None and transfer.amount_usd is not None:
+        row.amount_usd = float(transfer.amount_usd)
+        changed = True
+    if preferred_token and (not row.token or _is_unknown_token(row.token)):
+        row.token = preferred_token
+        changed = True
+    if merged_metadata != existing_metadata:
+        row.metadata_json = merged_metadata
+        changed = True
+
+    return changed
+
+
 def _match_dexscreener_chain(blockchain: Any, chain: Any) -> bool:
     normalized_blockchain = str(blockchain or "").strip().lower()
     normalized_chain = str(chain or "").strip().lower()
@@ -765,11 +827,19 @@ async def _backfill_legacy_whale_alerts(session: Any, rows: list[WhaleAlert]) ->
         return 0
 
     watch_map: dict[str, MonitoredAddress] = {}
+    transfer_map: dict[tuple[str, str], WhaleTransferEvent] = {}
     addresses = sorted(
         {
             str(row.address or "").strip().lower()
             for row in rows
             if str(row.address or "").strip()
+        }
+    )
+    tx_hashes = sorted(
+        {
+            str(row.tx_hash or "").strip().lower()
+            for row in rows
+            if str(row.tx_hash or "").strip()
         }
     )
     if addresses:
@@ -783,12 +853,29 @@ async def _backfill_legacy_whale_alerts(session: Any, rows: list[WhaleAlert]) ->
             for item in watch_rows
             if str(item.address or "").strip()
         }
+    if addresses and tx_hashes:
+        transfer_rows = (
+            await session.execute(
+                select(WhaleTransferEvent).where(
+                    WhaleTransferEvent.address.in_(addresses),
+                    WhaleTransferEvent.tx_hash.in_(tx_hashes),
+                )
+            )
+        ).scalars().all()
+        for item in transfer_rows:
+            key = _transfer_lookup_key(item.address, item.tx_hash)
+            if key is None:
+                continue
+            current = transfer_map.get(key)
+            if current is None or str(item.created_at or "") > str(current.created_at or ""):
+                transfer_map[key] = item
 
     updated_count = 0
     for row in rows:
         changed = False
         watcher = watch_map.get(str(row.address or "").strip().lower())
         threshold = _safe_float(watcher.alert_threshold if watcher else None) or float(settings.onchain_whale_min_usd)
+        transfer = transfer_map.get(_transfer_lookup_key(row.address, row.tx_hash) or ("", ""))
 
         if watcher:
             if not row.blockchain and watcher.blockchain:
@@ -800,6 +887,8 @@ async def _backfill_legacy_whale_alerts(session: Any, rows: list[WhaleAlert]) ->
             if not row.label and watcher.label:
                 row.label = watcher.label
                 changed = True
+        if transfer and _merge_transfer_event_into_alert(row, transfer):
+            changed = True
 
         estimated_amount_usd, valuation_source = await _estimate_market_amount_usd(
             token=row.token,

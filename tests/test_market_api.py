@@ -1,7 +1,8 @@
 import pytest
 
+from app.common.models import WhaleAlert, WhaleTransferEvent
 from app.market.aggregator import get_symbol_price
-from app.onchain.monitor_service import _estimate_market_amount_usd
+from app.onchain.monitor_service import _estimate_market_amount_usd, _merge_transfer_event_into_alert
 
 
 @pytest.mark.anyio
@@ -88,3 +89,42 @@ async def test_estimate_market_amount_usd_uses_contract_price(monkeypatch):
 
     assert amount_usd == pytest.approx(150.0)
     assert source == "dexscreener"
+
+
+def test_merge_transfer_event_into_alert_backfills_metadata():
+    alert = WhaleAlert(
+        address="0xabc",
+        action="incoming",
+        amount=10,
+        token="UNKNOWN",
+        tx_hash="0xhash",
+        notification_status=None,
+        metadata_json={},
+    )
+    transfer = WhaleTransferEvent(
+        id=12,
+        external_id="evt-12",
+        address="0xabc",
+        blockchain="ethereum",
+        entity_name="Wintermute",
+        label="Wintermute Multisig",
+        counterparty_address="0xdef",
+        token=None,
+        amount=10,
+        amount_usd=None,
+        tx_hash="0xhash",
+        source="surf:wallet-transfers",
+        metadata_json={"token_address": "0x123", "token_symbol": "NEWT"},
+    )
+
+    changed = _merge_transfer_event_into_alert(alert, transfer)
+
+    assert changed is True
+    assert alert.event_id == 12
+    assert alert.external_id == "evt-12"
+    assert alert.blockchain == "ethereum"
+    assert alert.entity_name == "Wintermute"
+    assert alert.label == "Wintermute Multisig"
+    assert alert.counterparty_address == "0xdef"
+    assert alert.token == "NEWT"
+    assert alert.metadata_json["token_address"] == "0x123"
