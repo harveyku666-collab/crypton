@@ -140,7 +140,7 @@ async def test_whale_monitor_channels_endpoint(monkeypatch):
             {
                 "name": "default-log",
                 "channel_type": "log",
-                "min_severity": "high",
+                "min_severity": "medium",
                 "is_active": True,
             }
         ]
@@ -159,7 +159,10 @@ async def test_whale_monitor_channels_endpoint(monkeypatch):
 
 @pytest.mark.anyio
 async def test_whale_monitor_channel_bulk_upsert_endpoint(monkeypatch):
+    captured = {}
+
     async def fake_upsert(rows):
+        captured["rows"] = rows
         return {"count": len(rows), "created": len(rows), "updated": 0}
 
     monkeypatch.setattr("app.onchain.router.upsert_whale_notification_channels", fake_upsert)
@@ -173,7 +176,6 @@ async def test_whale_monitor_channel_bulk_upsert_endpoint(monkeypatch):
                     "name": "ops-webhook",
                     "channel_type": "webhook",
                     "target": "https://example.com/hook",
-                    "min_severity": "critical",
                     "is_active": True,
                     "metadata": {"headers": {"X-Test": "1"}},
                 }
@@ -183,6 +185,7 @@ async def test_whale_monitor_channel_bulk_upsert_endpoint(monkeypatch):
     assert resp.status_code == 200
     data = resp.json()
     assert data["created"] == 1
+    assert captured["rows"][0]["min_severity"] == "medium"
 
 
 @pytest.mark.anyio

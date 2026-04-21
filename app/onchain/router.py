@@ -28,7 +28,7 @@ class WhaleNotificationChannelInput(BaseModel):
     name: str
     channel_type: str
     target: str
-    min_severity: str = "high"
+    min_severity: str = "medium"
     is_active: bool = True
     metadata: dict[str, Any] = Field(default_factory=dict)
 

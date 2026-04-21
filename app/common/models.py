@@ -242,7 +242,7 @@ class WhaleNotificationChannel(TimestampMixin, Base):
     name: Mapped[str] = mapped_column(String(120), unique=True, index=True)
     channel_type: Mapped[str] = mapped_column(String(20), index=True)
     target: Mapped[str] = mapped_column(Text)
-    min_severity: Mapped[str] = mapped_column(String(20), default="high")
+    min_severity: Mapped[str] = mapped_column(String(20), default="medium")
     is_active: Mapped[int] = mapped_column(Integer, default=1, index=True)
     metadata_json: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
 

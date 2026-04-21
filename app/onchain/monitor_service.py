@@ -26,6 +26,7 @@ logger = logging.getLogger("bitinfo.onchain.monitor")
 
 GLOBAL_SCOPE = "global"
 DEFAULT_NOTIFICATION_CHANNEL = "default-log"
+DEFAULT_NOTIFICATION_MIN_SEVERITY = "medium"
 USD_EQUIVALENT_TOKENS = {
     "USD1",
     "USDB",
@@ -368,8 +369,57 @@ async def ensure_default_notification_channels() -> dict[str, Any]:
     if not db_available():
         return {"created": 0, "count": 0, "warning": "Database not available"}
 
+    created = 0
+    updated = 0
     async with async_session() as session:
-        existing_count = int(
+        existing = (
+            await session.execute(
+                select(WhaleNotificationChannel).where(
+                    WhaleNotificationChannel.name == DEFAULT_NOTIFICATION_CHANNEL
+                )
+            )
+        ).scalar_one_or_none()
+
+        if existing is None:
+            session.add(
+                WhaleNotificationChannel(
+                    name=DEFAULT_NOTIFICATION_CHANNEL,
+                    channel_type="log",
+                    target="bitinfo.onchain.alerts",
+                    min_severity=DEFAULT_NOTIFICATION_MIN_SEVERITY,
+                    is_active=1,
+                    metadata_json={"auto_created": True},
+                )
+            )
+            created = 1
+        else:
+            metadata = existing.metadata_json if isinstance(existing.metadata_json, dict) else {}
+            if metadata.get("auto_created"):
+                changed = False
+                normalized_min_severity = _normalize_severity(
+                    existing.min_severity,
+                    default=DEFAULT_NOTIFICATION_MIN_SEVERITY,
+                )
+                if existing.channel_type != "log":
+                    existing.channel_type = "log"
+                    changed = True
+                if existing.target != "bitinfo.onchain.alerts":
+                    existing.target = "bitinfo.onchain.alerts"
+                    changed = True
+                if normalized_min_severity != DEFAULT_NOTIFICATION_MIN_SEVERITY:
+                    existing.min_severity = DEFAULT_NOTIFICATION_MIN_SEVERITY
+                    changed = True
+                if int(existing.is_active or 0) != 1:
+                    existing.is_active = 1
+                    changed = True
+                if metadata.get("auto_created") is not True:
+                    existing.metadata_json = {**metadata, "auto_created": True}
+                    changed = True
+                if changed:
+                    updated = 1
+
+        await session.commit()
+        active_count = int(
             (
                 await session.execute(
                     select(func.count()).select_from(WhaleNotificationChannel).where(
@@ -379,22 +429,7 @@ async def ensure_default_notification_channels() -> dict[str, Any]:
             ).scalar()
             or 0
         )
-        if existing_count > 0:
-            return {"created": 0, "count": existing_count}
-
-        session.add(
-            WhaleNotificationChannel(
-                name=DEFAULT_NOTIFICATION_CHANNEL,
-                channel_type="log",
-                target="bitinfo.onchain.alerts",
-                min_severity="high",
-                is_active=1,
-                metadata_json={"auto_created": True},
-            )
-        )
-        await session.commit()
-
-    return {"created": 1, "count": 1}
+    return {"created": created, "updated": updated, "count": active_count}
 
 
 async def _load_active_notification_channels() -> list[WhaleNotificationChannel]:
@@ -431,7 +466,10 @@ async def upsert_whale_notification_channels(rows: list[dict[str, Any]]) -> dict
             payload = {
                 "channel_type": channel_type,
                 "target": target,
-                "min_severity": _normalize_severity(row.get("min_severity"), default="high"),
+                "min_severity": _normalize_severity(
+                    row.get("min_severity"),
+                    default=DEFAULT_NOTIFICATION_MIN_SEVERITY,
+                ),
                 "is_active": 1 if row.get("is_active", True) else 0,
                 "metadata_json": metadata,
             }
@@ -760,7 +798,10 @@ async def _notify_alerts(alerts: list[dict[str, Any]]) -> dict[str, Any]:
         sent_for_alert = 0
         failed_for_alert = 0
         for channel in channels:
-            if not _severity_matches(str(alert.get("severity") or "low"), str(channel.min_severity or "high")):
+            if not _severity_matches(
+                str(alert.get("severity") or "low"),
+                str(channel.min_severity or DEFAULT_NOTIFICATION_MIN_SEVERITY),
+            ):
                 continue
             matched_channel_count += 1
             matched_for_alert += 1
