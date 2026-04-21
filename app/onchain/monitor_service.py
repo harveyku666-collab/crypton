@@ -404,13 +404,15 @@ async def _estimate_market_snapshot(
 ) -> dict[str, Any] | None:
     payload = metadata if isinstance(metadata, dict) else {}
     preferred_symbol = _select_preferred_token(token, payload)
-    normalized_amount_usd = _safe_float(amount_usd)
-    if normalized_amount_usd is not None:
+    resolved_preferred_symbol = _resolve_token_symbol(preferred_symbol)
+    locked_amount_usd = _safe_float(amount_usd)
+    locked_amount_source: str | None = None
+    if locked_amount_usd is not None and resolved_preferred_symbol:
         return _normalize_market_resolution(
             {
-                "amount_usd": normalized_amount_usd,
+                "amount_usd": locked_amount_usd,
                 "amount_usd_source": None,
-                "resolved_symbol": preferred_symbol,
+                "resolved_symbol": resolved_preferred_symbol,
                 "resolved_name": None,
                 "resolved_symbol_source": None,
             }
@@ -429,34 +431,49 @@ async def _estimate_market_snapshot(
         )
     )
     if direct_amount_usd is not None:
-        return _normalize_market_resolution(
-            {
-                "amount_usd": direct_amount_usd,
-                "amount_usd_source": "metadata",
-                "resolved_symbol": preferred_symbol,
-                "resolved_name": None,
-                "resolved_symbol_source": "metadata",
-            }
-        )
+        locked_amount_usd = direct_amount_usd
+        locked_amount_source = "metadata"
+        if resolved_preferred_symbol:
+            return _normalize_market_resolution(
+                {
+                    "amount_usd": direct_amount_usd,
+                    "amount_usd_source": "metadata",
+                    "resolved_symbol": resolved_preferred_symbol,
+                    "resolved_name": None,
+                    "resolved_symbol_source": "metadata",
+                }
+            )
 
     normalized_amount = _safe_float(amount)
-    if normalized_amount is None or normalized_amount <= 0:
+    token_address = _extract_token_address(payload)
+    if (normalized_amount is None or normalized_amount <= 0) and not token_address:
+        if locked_amount_usd is not None:
+            return _normalize_market_resolution(
+                {
+                    "amount_usd": locked_amount_usd,
+                    "amount_usd_source": locked_amount_source,
+                    "resolved_symbol": resolved_preferred_symbol,
+                    "resolved_name": None,
+                    "resolved_symbol_source": None,
+                }
+            )
         return None
 
     symbols = _extract_candidate_symbols(token, payload)
     for symbol in symbols:
         if symbol in USD_EQUIVALENT_TOKENS:
+            parity_amount = locked_amount_usd if locked_amount_usd is not None else normalized_amount
+            parity_source = locked_amount_source if locked_amount_usd is not None else "stablecoin_parity"
             return _normalize_market_resolution(
                 {
-                    "amount_usd": normalized_amount,
-                    "amount_usd_source": "stablecoin_parity",
+                    "amount_usd": parity_amount,
+                    "amount_usd_source": parity_source,
                     "resolved_symbol": symbol,
                     "resolved_name": None,
-                    "resolved_symbol_source": "stablecoin_parity",
+                    "resolved_symbol_source": parity_source or "stablecoin_parity",
                 }
             )
 
-    token_address = _extract_token_address(payload)
     if token_address:
         try:
             geckoterminal_snapshot = await geckoterminal.get_token_price(blockchain or "", token_address)
@@ -465,10 +482,24 @@ async def _estimate_market_snapshot(
             geckoterminal_snapshot = None
         geckoterminal_price = _safe_float((geckoterminal_snapshot or {}).get("price")) if isinstance(geckoterminal_snapshot, dict) else None
         if geckoterminal_price is not None and geckoterminal_price > 0:
+            resolved_amount = (
+                locked_amount_usd
+                if locked_amount_usd is not None
+                else (
+                    normalized_amount * geckoterminal_price
+                    if normalized_amount is not None and normalized_amount > 0
+                    else None
+                )
+            )
+            resolved_amount_source = (
+                locked_amount_source
+                if locked_amount_usd is not None
+                else str((geckoterminal_snapshot or {}).get("source") or "geckoterminal")
+            )
             return _normalize_market_resolution(
                 {
-                    "amount_usd": normalized_amount * geckoterminal_price,
-                    "amount_usd_source": str((geckoterminal_snapshot or {}).get("source") or "geckoterminal"),
+                    "amount_usd": resolved_amount,
+                    "amount_usd_source": resolved_amount_source,
                     "resolved_symbol": (geckoterminal_snapshot or {}).get("symbol"),
                     "resolved_name": (geckoterminal_snapshot or {}).get("name"),
                     "resolved_symbol_source": str((geckoterminal_snapshot or {}).get("source") or "geckoterminal"),
@@ -484,10 +515,19 @@ async def _estimate_market_snapshot(
             price_usd = _safe_float(pair.get("price_usd"))
             if price_usd is not None and price_usd > 0:
                 base_token = pair.get("base_token") or {}
+                resolved_amount = (
+                    locked_amount_usd
+                    if locked_amount_usd is not None
+                    else (
+                        normalized_amount * price_usd
+                        if normalized_amount is not None and normalized_amount > 0
+                        else None
+                    )
+                )
                 return _normalize_market_resolution(
                     {
-                        "amount_usd": normalized_amount * price_usd,
-                        "amount_usd_source": "dexscreener",
+                        "amount_usd": resolved_amount,
+                        "amount_usd_source": locked_amount_source if locked_amount_usd is not None else "dexscreener",
                         "resolved_symbol": base_token.get("symbol"),
                         "resolved_name": base_token.get("name"),
                         "resolved_symbol_source": "dexscreener",
@@ -500,36 +540,57 @@ async def _estimate_market_snapshot(
             contract_snapshot = None
         contract_price = _safe_float((contract_snapshot or {}).get("price")) if isinstance(contract_snapshot, dict) else None
         if contract_price is not None and contract_price > 0:
+            resolved_amount = (
+                locked_amount_usd
+                if locked_amount_usd is not None
+                else (
+                    normalized_amount * contract_price
+                    if normalized_amount is not None and normalized_amount > 0
+                    else None
+                )
+            )
             return _normalize_market_resolution(
                 {
-                    "amount_usd": normalized_amount * contract_price,
-                    "amount_usd_source": str((contract_snapshot or {}).get("source") or "coingecko_contract"),
+                    "amount_usd": resolved_amount,
+                    "amount_usd_source": locked_amount_source if locked_amount_usd is not None else str((contract_snapshot or {}).get("source") or "coingecko_contract"),
                     "resolved_symbol": (contract_snapshot or {}).get("symbol"),
                     "resolved_name": (contract_snapshot or {}).get("name"),
                     "resolved_symbol_source": str((contract_snapshot or {}).get("source") or "coingecko_contract"),
                 }
             )
 
-    for symbol in symbols:
-        if symbol in UNKNOWN_TOKEN_SYMBOLS:
-            continue
-        try:
-            snapshot = await aggregator.get_symbol_price(symbol)
-        except Exception:
-            logger.debug("Market valuation lookup failed for %s", symbol, exc_info=True)
-            snapshot = None
-        price = _safe_float((snapshot or {}).get("price")) if isinstance(snapshot, dict) else None
-        if price is not None and price > 0:
-            source = str(snapshot.get("source") or "market") if isinstance(snapshot, dict) else "market"
-            return _normalize_market_resolution(
-                {
-                    "amount_usd": normalized_amount * price,
-                    "amount_usd_source": source,
-                    "resolved_symbol": (snapshot or {}).get("symbol") or symbol,
-                    "resolved_name": (snapshot or {}).get("name"),
-                    "resolved_symbol_source": source,
-                }
-            )
+    if normalized_amount is not None and normalized_amount > 0:
+        for symbol in symbols:
+            if symbol in UNKNOWN_TOKEN_SYMBOLS:
+                continue
+            try:
+                snapshot = await aggregator.get_symbol_price(symbol)
+            except Exception:
+                logger.debug("Market valuation lookup failed for %s", symbol, exc_info=True)
+                snapshot = None
+            price = _safe_float((snapshot or {}).get("price")) if isinstance(snapshot, dict) else None
+            if price is not None and price > 0:
+                source = str(snapshot.get("source") or "market") if isinstance(snapshot, dict) else "market"
+                return _normalize_market_resolution(
+                    {
+                        "amount_usd": locked_amount_usd if locked_amount_usd is not None else normalized_amount * price,
+                        "amount_usd_source": locked_amount_source if locked_amount_usd is not None else source,
+                        "resolved_symbol": (snapshot or {}).get("symbol") or symbol,
+                        "resolved_name": (snapshot or {}).get("name"),
+                        "resolved_symbol_source": source,
+                    }
+                )
+
+    if locked_amount_usd is not None:
+        return _normalize_market_resolution(
+            {
+                "amount_usd": locked_amount_usd,
+                "amount_usd_source": locked_amount_source,
+                "resolved_symbol": resolved_preferred_symbol,
+                "resolved_name": None,
+                "resolved_symbol_source": None,
+            }
+        )
 
     return None
 
