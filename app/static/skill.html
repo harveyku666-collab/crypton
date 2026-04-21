@@ -266,6 +266,16 @@ async function init(){
       renderOkxIntelligenceEntry();
       return;
     }
+    if(skill.id==='address-intelligence'){
+      document.getElementById('toolbar').style.display='none';
+      renderAddressIntelEntry();
+      return;
+    }
+    if(skill.id==='whale-monitor'){
+      document.getElementById('toolbar').style.display='none';
+      renderWhaleMonitorEntry();
+      return;
+    }
     const features=SKILL_FEATURES[skill.id];
     if(features){
       document.getElementById('toolbar').style.display='none';
@@ -446,6 +456,63 @@ function launchSquareDesk({platforms='binance,okx',language='zh-CN',hours='24',i
   if(q) params.set('q', q);
   if(kolOnly) params.set('kolOnly', '1');
   location.href = `${BASE}/square?${params.toString()}`;
+}
+
+function getAddressIntelStateFromUrl(){
+  const params=new URLSearchParams(location.search);
+  const q=String(params.get('q')||'').trim().slice(0,80);
+  const chain=String(params.get('chain')||'ethereum').trim().toLowerCase()||'ethereum';
+  const entityType=String(params.get('entityType')||'').trim().toLowerCase();
+  return {q,chain,entityType};
+}
+
+function syncAddressIntelUrl({q='',chain='ethereum',entityType=''}={}){
+  const params=new URLSearchParams(location.search);
+  params.set('id','address-intelligence');
+  if(q)params.set('q', q);
+  else params.delete('q');
+  params.set('chain', chain || 'ethereum');
+  if(entityType)params.set('entityType', entityType);
+  else params.delete('entityType');
+  history.replaceState({},'',`${location.pathname}?${params.toString()}`);
+}
+
+function launchAddressIntel(q='',chain='ethereum',entityType=''){
+  const params=new URLSearchParams();
+  const query=String(q??'').trim().slice(0,80);
+  if(query)params.set('q', query);
+  params.set('chain', String(chain||'ethereum').trim().toLowerCase()||'ethereum');
+  if(entityType)params.set('entityType', String(entityType).trim().toLowerCase());
+  location.href=`${BASE}/address-intel?${params.toString()}`;
+}
+
+function getWhaleMonitorStateFromUrl(){
+  const params=new URLSearchParams(location.search);
+  return {
+    severity:['low','medium','high','critical'].includes(String(params.get('severity')||'').toLowerCase())
+      ? String(params.get('severity')).toLowerCase()
+      : '',
+    deliveryStatus:['sent','failed'].includes(String(params.get('deliveryStatus')||'').toLowerCase())
+      ? String(params.get('deliveryStatus')).toLowerCase()
+      : '',
+    limit:['6','10','20','50'].includes(String(params.get('limit')||'10')) ? String(params.get('limit')||'10') : '10',
+    onlyUnsent: params.get('onlyUnsent') !== '0',
+  };
+}
+
+function launchWhaleMonitor(severity='',deliveryStatus='',limit='10',onlyUnsent=true){
+  const params=new URLSearchParams();
+  const normalizedSeverity=String(severity??document.getElementById('whale-monitor-severity')?.value??'').trim().toLowerCase();
+  if(['low','medium','high','critical'].includes(normalizedSeverity))params.set('severity',normalizedSeverity);
+  const normalizedDelivery=String(deliveryStatus??document.getElementById('whale-monitor-delivery')?.value??'').trim().toLowerCase();
+  if(['sent','failed'].includes(normalizedDelivery))params.set('deliveryStatus',normalizedDelivery);
+  const normalizedLimit=String(limit??document.getElementById('whale-monitor-limit')?.value??'10');
+  if(['6','10','20','50'].includes(normalizedLimit))params.set('limit',normalizedLimit);
+  const unsentValue=typeof onlyUnsent==='boolean'
+    ? onlyUnsent
+    : (String(document.getElementById('whale-monitor-unsent')?.value||'1')!=='0');
+  if(!unsentValue)params.set('onlyUnsent','0');
+  location.href=`${BASE}/whale-monitor?${params.toString()}`;
 }
 
 function getBtcPredictStateFromUrl(){
@@ -977,6 +1044,58 @@ function renderCryptoMarketRankEntry(){
   });
 }
 
+function renderWhaleMonitorEntry(){
+  const area=document.getElementById('report-area');
+  const state=getWhaleMonitorStateFromUrl();
+  area.innerHTML=`
+    <div class="quick-launch">
+      <div class="quick-launch-title">直接打开巨鲸监控台</div>
+      <div class="quick-launch-sub">这里是本次更新内容的可视化入口。打开后可以看最近巨鲸告警、低级别通道、历史回放、投递记录，以及 `UNKNOWN -> token` 的补名结果。</div>
+      <div class="quick-launch-row">
+        <select id="whale-monitor-severity">
+          <option value=""${state.severity===''?' selected':''}>全部级别</option>
+          <option value="low"${state.severity==='low'?' selected':''}>low</option>
+          <option value="medium"${state.severity==='medium'?' selected':''}>medium</option>
+          <option value="high"${state.severity==='high'?' selected':''}>high</option>
+          <option value="critical"${state.severity==='critical'?' selected':''}>critical</option>
+        </select>
+        <select id="whale-monitor-delivery">
+          <option value=""${state.deliveryStatus===''?' selected':''}>全部投递</option>
+          <option value="sent"${state.deliveryStatus==='sent'?' selected':''}>sent</option>
+          <option value="failed"${state.deliveryStatus==='failed'?' selected':''}>failed</option>
+        </select>
+        <select id="whale-monitor-limit">
+          <option value="6"${state.limit==='6'?' selected':''}>6</option>
+          <option value="10"${state.limit==='10'?' selected':''}>10</option>
+          <option value="20"${state.limit==='20'?' selected':''}>20</option>
+          <option value="50"${state.limit==='50'?' selected':''}>50</option>
+        </select>
+        <select id="whale-monitor-unsent">
+          <option value="1"${state.onlyUnsent?' selected':''}>仅待重发</option>
+          <option value="0"${!state.onlyUnsent?' selected':''}>全部告警</option>
+        </select>
+        <button class="btn-load" onclick="launchWhaleMonitor()">打开监控台</button>
+      </div>
+      <div class="mini-tags">
+        <button onclick="launchWhaleMonitor('low','','10',true)">Low</button>
+        <button onclick="launchWhaleMonitor('medium','','10',false)">Medium+</button>
+        <button onclick="launchWhaleMonitor('critical','','10',false)">Critical</button>
+        <button onclick="launchWhaleMonitor('','sent','20',false)">投递记录</button>
+      </div>
+    </div>
+    <div class="b-section">
+      <h3>🐋 页面能力</h3>
+      <table>
+        <tr><th>模块</th><th>说明</th></tr>
+        <tr><td>最近告警</td><td>看级别、token、金额、投递状态和告警来源</td></tr>
+        <tr><td>最近事件</td><td>直接看最近链上大额转账，不用再翻接口</td></tr>
+        <tr><td>通知通道</td><td>确认 `default-log` 和 `default-low-log` 是否都生效</td></tr>
+        <tr><td>历史回放</td><td>按当前筛选条件重放历史告警并验证投递</td></tr>
+        <tr><td>Token 补名</td><td>检查 `BAYC / PUNK / KPER` 这类合约补名结果是否落库</td></tr>
+      </table>
+    </div>`;
+}
+
 function renderNewsIntelligenceEntry(){
   const area=document.getElementById('report-area');
   const state=getNewsIntelligenceStateFromUrl();
@@ -1158,6 +1277,63 @@ function renderOkxIntelligenceEntry(){
 
   document.getElementById('okx-intelligence-symbol')?.addEventListener('keydown',e=>{
     if(e.key==='Enter')openOkxIntelligence();
+  });
+}
+
+function renderAddressIntelEntry(){
+  const area=document.getElementById('report-area');
+  const state=getAddressIntelStateFromUrl();
+  area.innerHTML=`
+    <div class="quick-launch">
+      <div class="quick-launch-title">地址情报台</div>
+      <div class="quick-launch-sub">把交易所钱包、机构实体和巨鲸地址拆成独立工作台。支持关键词搜索、单地址画像、内部监控名单和批量标签识别。</div>
+      <div class="quick-launch-row">
+        <input id="address-intel-q" value="${esc(state.q)}" placeholder="Binance / BlackRock / 0x...">
+        <select id="address-intel-chain">
+          <option value="ethereum"${state.chain==='ethereum'?' selected':''}>Ethereum</option>
+          <option value="base"${state.chain==='base'?' selected':''}>Base</option>
+          <option value="arbitrum"${state.chain==='arbitrum'?' selected':''}>Arbitrum</option>
+          <option value="bsc"${state.chain==='bsc'?' selected':''}>BSC</option>
+          <option value="solana"${state.chain==='solana'?' selected':''}>Solana</option>
+        </select>
+        <select id="address-intel-type">
+          <option value=""${!state.entityType?' selected':''}>全部实体</option>
+          <option value="exchange"${state.entityType==='exchange'?' selected':''}>交易所</option>
+          <option value="institution"${state.entityType==='institution'?' selected':''}>机构</option>
+          <option value="whale"${state.entityType==='whale'?' selected':''}>巨鲸</option>
+        </select>
+        <button class="btn-load" onclick="openAddressIntel()">打开情报台</button>
+      </div>
+      <div class="mini-tags">
+        <button onclick="launchAddressIntel('Binance','ethereum','exchange')">Binance</button>
+        <button onclick="launchAddressIntel('Coinbase','ethereum','exchange')">Coinbase</button>
+        <button onclick="launchAddressIntel('BlackRock','ethereum','institution')">BlackRock</button>
+        <button onclick="launchAddressIntel('Wintermute','ethereum','institution')">Wintermute</button>
+        <button onclick="launchAddressIntel('0x226250f0f7154a247cfa8e8c6ea9353fdc1f38e8','ethereum','')">示例地址</button>
+      </div>
+    </div>
+    <div class="b-section">
+      <h3>🏦 页面能力</h3>
+      <table>
+        <tr><th>模块</th><th>说明</th></tr>
+        <tr><td>实体检索</td><td>按关键词同时搜钱包标签和基金实体，优先找出交易所、机构和高价值地址</td></tr>
+        <tr><td>地址画像</td><td>对单个地址拉取标签、历史、转账和净值曲线，适合做地址背景核验</td></tr>
+        <tr><td>监控名单</td><td>把已确认地址加入内部 watchlist，后续按类型或链筛选</td></tr>
+        <tr><td>批量分类</td><td>后端提供批量地址分类接口，方便后续接入导表和定时任务</td></tr>
+      </table>
+    </div>`;
+
+  const openAddressIntel=()=>{
+    const q=document.getElementById('address-intel-q')?.value||state.q;
+    const chain=document.getElementById('address-intel-chain')?.value||state.chain;
+    const entityType=document.getElementById('address-intel-type')?.value||state.entityType;
+    syncAddressIntelUrl({q:String(q).trim().slice(0,80),chain,entityType});
+    launchAddressIntel(q,chain,entityType);
+  };
+  window.openAddressIntel=openAddressIntel;
+
+  document.getElementById('address-intel-q')?.addEventListener('keydown',e=>{
+    if(e.key==='Enter')openAddressIntel();
   });
 }
 
@@ -1599,6 +1775,28 @@ function renderInfo(){
             <option value="168">7d</option>
           </select>
           <button class="btn-load" onclick="launchSquareDesk({platforms:document.getElementById('square-inline-platforms').value,language:document.getElementById('square-inline-language').value,hours:document.getElementById('square-inline-hours').value})">打开情报台</button>
+        </div>
+      </div>`
+    : skill.id==='address-intelligence'
+    ? `<div class="quick-launch" style="margin-top:0">
+        <div class="quick-launch-title">地址情报台支持直接打开</div>
+        <div class="quick-launch-sub">输入机构名、交易所名或具体地址后，进入独立地址情报台查看实体检索、监控地址和单地址画像。</div>
+        <div class="quick-launch-row">
+          <input id="address-inline-q" value="Binance" placeholder="Binance / BlackRock / 0x...">
+          <select id="address-inline-chain">
+            <option value="ethereum" selected>Ethereum</option>
+            <option value="base">Base</option>
+            <option value="arbitrum">Arbitrum</option>
+            <option value="bsc">BSC</option>
+            <option value="solana">Solana</option>
+          </select>
+          <select id="address-inline-type">
+            <option value="" selected>全部实体</option>
+            <option value="exchange">交易所</option>
+            <option value="institution">机构</option>
+            <option value="whale">巨鲸</option>
+          </select>
+          <button class="btn-load" onclick="launchAddressIntel(document.getElementById('address-inline-q').value,document.getElementById('address-inline-chain').value,document.getElementById('address-inline-type').value)">打开情报台</button>
         </div>
       </div>`
     : '';
