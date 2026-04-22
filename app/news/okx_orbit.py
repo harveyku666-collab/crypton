@@ -11,6 +11,7 @@ from typing import Any
 
 from app.common.cache import cached
 from app.common.http_client import fetch_json
+from app.news.url_utils import normalize_news_source_url
 
 BASE = "https://www.okx.com/api/v5/orbit"
 HEADERS = {"User-Agent": "Mozilla/5.0", "Accept": "application/json"}
@@ -80,6 +81,21 @@ def _unwrap_page(data: Any) -> dict[str, Any]:
     return page if isinstance(page, dict) else {}
 
 
+def _response_status(data: Any) -> tuple[Any, Any, str | None]:
+    code = None
+    msg = None
+    if isinstance(data, dict):
+        code = data.get("code")
+        msg = data.get("msg")
+
+    warning = None
+    if code not in {"0", 0, None}:
+        warning = f"OKX Orbit API returned code {code}"
+        if str(code) == "50026":
+            warning = "OKX Orbit is currently app-only; the public web Orbit API is unavailable"
+    return code, msg, warning
+
+
 def _normalize_article(item: dict[str, Any]) -> dict[str, Any]:
     raw_content = str(item.get("content") or "")
     summary = str(item.get("summary") or "").strip()
@@ -90,7 +106,7 @@ def _normalize_article(item: dict[str, Any]) -> dict[str, Any]:
         "summary": summary or None,
         "excerpt": excerpt or None,
         "content": raw_content or None,
-        "source_url": item.get("sourceUrl"),
+        "source_url": normalize_news_source_url(item.get("sourceUrl"), source="okx_orbit"),
         "platforms": item.get("platformList") if isinstance(item.get("platformList"), list) else [],
         "coins": item.get("ccyList") if isinstance(item.get("ccyList"), list) else [],
         "importance": item.get("importance"),
@@ -107,18 +123,9 @@ def _normalize_news_page(
     limit: int,
     kind: str,
 ) -> dict[str, Any]:
-    code = None
-    msg = None
-    if isinstance(data, dict):
-        code = data.get("code")
-        msg = data.get("msg")
+    code, msg, warning = _response_status(data)
     page = _unwrap_page(data)
     details = page.get("details") if isinstance(page.get("details"), list) else []
-    warning = None
-    if code not in {"0", 0, None}:
-        warning = f"OKX Orbit API returned code {code}"
-        if str(code) == "50026":
-            warning = "OKX Orbit is currently app-only; the public web Orbit API is unavailable"
     return {
         "kind": kind,
         "language": _normalize_language(language),
@@ -264,6 +271,7 @@ async def get_news_detail(
     language: str = "zh-CN",
 ) -> dict[str, Any]:
     data = await _orbit_get("/news-detail", {"id": article_id}, language=language)
+    code, msg, warning = _response_status(data)
     page = _unwrap_page(data)
     details = page.get("details") if isinstance(page.get("details"), list) else None
     if isinstance(details, list) and details and isinstance(details[0], dict):
@@ -273,17 +281,24 @@ async def get_news_detail(
         article = rows[0] if isinstance(rows, list) and rows and isinstance(rows[0], dict) else None
     return {
         "item": _normalize_article(article) if isinstance(article, dict) else None,
+        "code": code,
+        "msg": msg,
+        "warning": warning,
     }
 
 
 @cached(ttl=1800, prefix="okx_news_platforms")
 async def get_news_platforms() -> dict[str, Any]:
     data = await _orbit_get("/news-platform")
+    code, msg, warning = _response_status(data)
     page = _unwrap_page(data)
     platforms = page.get("platform") if isinstance(page.get("platform"), list) else []
     return {
         "items": [str(item) for item in platforms if item],
         "count": len(platforms),
+        "code": code,
+        "msg": msg,
+        "warning": warning,
     }
 
 
@@ -305,12 +320,16 @@ async def get_coin_sentiment(
             "limit": min(max(trend_points or 0, 1), 48) if include_trend else None,
         }),
     )
+    code, msg, warning = _response_status(data)
     page = _unwrap_page(data)
     details = page.get("details") if isinstance(page.get("details"), list) else []
     return {
         "period": resolved_period,
         "items": [_normalize_sentiment_item(item) for item in details if isinstance(item, dict)],
         "count": len(details),
+        "code": code,
+        "msg": msg,
+        "warning": warning,
     }
 
 
@@ -331,6 +350,7 @@ async def get_sentiment_ranking(
             "limit": min(max(limit, 1), 50),
         },
     )
+    code, msg, warning = _response_status(data)
     page = _unwrap_page(data)
     details = page.get("details") if isinstance(page.get("details"), list) else []
     return {
@@ -338,4 +358,7 @@ async def get_sentiment_ranking(
         "sort_by": resolved_sort,
         "items": [_normalize_sentiment_item(item) for item in details if isinstance(item, dict)],
         "count": len(details),
+        "code": code,
+        "msg": msg,
+        "warning": warning,
     }

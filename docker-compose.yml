@@ -21,10 +21,13 @@ services:
     build: .
     ports:
       - "8000:8000"
+    env_file:
+      - .env
     environment:
       DATABASE_URL: postgresql+asyncpg://bitinfo:bitinfo@postgres:5432/bitinfo
       REDIS_URL: redis://redis:6379/0
       LOG_LEVEL: INFO
+      PROXY_URL: ${PROXY_URL:-}
     depends_on:
       - postgres
       - redis

@@ -20,7 +20,7 @@ logger = logging.getLogger("bitinfo")
 async def lifespan(app: FastAPI):
     from app.address_intel.legacy_store import close_legacy_engines
     from app.common.database import init_db, close_db
-    from app.common.http_client import close_client
+    from app.common.http_client import close_client, get_proxy_status
     from app.common.cache import close_redis
     from app.common.scheduler import start_scheduler, stop_scheduler
     from app.market.jobs import register_market_jobs
@@ -32,6 +32,14 @@ async def lifespan(app: FastAPI):
     from app.address_intel.jobs import register_address_intel_jobs
 
     logger.info("Starting %s v%s", settings.project_name, settings.version)
+    proxy_status = get_proxy_status()
+    if proxy_status["configured"]:
+        logger.info("Outbound proxy enabled for restricted hosts: %s", proxy_status["url"])
+    else:
+        logger.warning(
+            "Outbound proxy is not configured. Restricted hosts may fail: %s",
+            ", ".join(proxy_status["restricted_hosts"]),
+        )
 
     try:
         await init_db()
@@ -77,7 +85,14 @@ app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "version": settings.version}
+    from app.common.http_client import get_proxy_status
+
+    proxy_status = get_proxy_status()
+    return {
+        "status": "ok",
+        "version": settings.version,
+        "proxy_configured": proxy_status["configured"],
+    }
 
 
 @app.get("/")

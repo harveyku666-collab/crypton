@@ -9,6 +9,13 @@ from fastapi import APIRouter, Query
 from sqlalchemy import desc, func, or_, select
 
 from app.news import okx_orbit
+from app.news.okx_fallback import (
+    get_fallback_coin_sentiment_payload,
+    get_fallback_detail_payload,
+    get_fallback_news_payload,
+    get_fallback_platforms_payload,
+    get_fallback_sentiment_ranking_payload,
+)
 from app.news.fetcher import (
     NEWS_CATEGORIES,
     SUPPORTED_LANGUAGES,
@@ -16,6 +23,7 @@ from app.news.fetcher import (
     fetch_desk3_news,
     fetch_multilang_news,
 )
+from app.news.market_overview import get_market_overview_snapshot
 
 router = APIRouter(prefix="/news", tags=["news"])
 
@@ -88,6 +96,12 @@ def _apply_live_filters(
     if importance:
         filtered = [item for item in filtered if item.get("importance") == importance]
     return filtered
+
+
+def _okx_items_missing(payload: dict[str, Any] | None) -> bool:
+    if not isinstance(payload, dict):
+        return True
+    return not bool(payload.get("items"))
 
 
 async def _fetch_live_news_page(
@@ -202,6 +216,26 @@ async def get_multilang_news(
     langs = [l.strip() for l in languages.split(",")]
     cats = [c.strip() for c in categories.split(",")]
     return await fetch_multilang_news(langs, cats, count)
+
+
+@router.get("/market-overview")
+async def get_market_overview(
+    symbols: str | None = Query(None, description="Comma-separated symbols, e.g. BTC,ETH,SOL"),
+    limit: int = Query(10, ge=3, le=30, description="Maximum tracked symbols"),
+    movers: int = Query(3, ge=1, le=10, description="Top gainers/losers to return"),
+) -> dict[str, Any]:
+    selected_symbols = None
+    if isinstance(symbols, str) and symbols.strip():
+        selected_symbols = tuple(
+            part.strip().upper()
+            for part in symbols.split(",")
+            if part.strip()
+        )
+    return await get_market_overview_snapshot(
+        symbols=selected_symbols,
+        limit=limit,
+        movers=movers,
+    )
 
 
 @router.get("/history")
@@ -319,7 +353,7 @@ async def okx_latest_news(
     after: str | None = Query(None, description="Pagination cursor"),
 ) -> dict[str, Any]:
     try:
-        return await okx_orbit.get_latest_news(
+        payload = await okx_orbit.get_latest_news(
             coins=coins,
             importance=importance,
             platform=platform,
@@ -330,7 +364,33 @@ async def okx_latest_news(
             limit=limit,
             after=after,
         )
+        if _okx_items_missing(payload) and payload.get("warning"):
+            return await get_fallback_news_payload(
+                kind="latest",
+                language=language,
+                limit=limit,
+                coins=coins,
+                importance=importance,
+                platform=platform,
+                begin=begin,
+                end=end,
+                reason=str(payload.get("warning")),
+            )
+        return payload
     except Exception as exc:
+        fallback = await get_fallback_news_payload(
+            kind="latest",
+            language=language,
+            limit=limit,
+            coins=coins,
+            importance=importance,
+            platform=platform,
+            begin=begin,
+            end=end,
+            reason=f"Failed to fetch OKX latest news: {exc}",
+        )
+        if fallback.get("items"):
+            return fallback
         return {"items": [], "count": 0, "error": f"Failed to fetch OKX latest news: {exc}"}
 
 
@@ -345,7 +405,7 @@ async def okx_important_news(
     limit: int = Query(10, ge=1, le=50),
 ) -> dict[str, Any]:
     try:
-        return await okx_orbit.get_latest_news(
+        payload = await okx_orbit.get_latest_news(
             coins=coins,
             importance="high",
             platform=platform,
@@ -355,7 +415,33 @@ async def okx_important_news(
             detail_lvl=detail_lvl,
             limit=limit,
         )
+        if _okx_items_missing(payload) and payload.get("warning"):
+            return await get_fallback_news_payload(
+                kind="important",
+                language=language,
+                limit=limit,
+                coins=coins,
+                importance="high",
+                platform=platform,
+                begin=begin,
+                end=end,
+                reason=str(payload.get("warning")),
+            )
+        return payload
     except Exception as exc:
+        fallback = await get_fallback_news_payload(
+            kind="important",
+            language=language,
+            limit=limit,
+            coins=coins,
+            importance="high",
+            platform=platform,
+            begin=begin,
+            end=end,
+            reason=f"Failed to fetch OKX important news: {exc}",
+        )
+        if fallback.get("items"):
+            return fallback
         return {"items": [], "count": 0, "error": f"Failed to fetch OKX important news: {exc}"}
 
 
@@ -371,7 +457,7 @@ async def okx_news_by_coin(
     limit: int = Query(10, ge=1, le=50),
 ) -> dict[str, Any]:
     try:
-        return await okx_orbit.get_news_by_coin(
+        payload = await okx_orbit.get_news_by_coin(
             coins=coins,
             importance=importance,
             platform=platform,
@@ -381,7 +467,33 @@ async def okx_news_by_coin(
             detail_lvl=detail_lvl,
             limit=limit,
         )
+        if _okx_items_missing(payload):
+            return await get_fallback_news_payload(
+                kind="coin",
+                language=language,
+                limit=limit,
+                coins=coins,
+                importance=importance,
+                platform=platform,
+                begin=begin,
+                end=end,
+                reason=str(payload.get("warning") or "OKX coin news returned no data"),
+            )
+        return payload
     except Exception as exc:
+        fallback = await get_fallback_news_payload(
+            kind="coin",
+            language=language,
+            limit=limit,
+            coins=coins,
+            importance=importance,
+            platform=platform,
+            begin=begin,
+            end=end,
+            reason=f"Failed to fetch OKX coin news: {exc}",
+        )
+        if fallback.get("items"):
+            return fallback
         return {"items": [], "count": 0, "error": f"Failed to fetch OKX coin news: {exc}"}
 
 
@@ -401,7 +513,7 @@ async def okx_news_search(
     after: str | None = Query(None, description="Pagination cursor"),
 ) -> dict[str, Any]:
     try:
-        return await okx_orbit.search_news(
+        payload = await okx_orbit.search_news(
             keyword=keyword,
             coins=coins,
             importance=importance,
@@ -415,7 +527,39 @@ async def okx_news_search(
             limit=limit,
             after=after,
         )
+        if _okx_items_missing(payload):
+            return await get_fallback_news_payload(
+                kind="search",
+                language=language,
+                limit=limit,
+                coins=coins,
+                keyword=keyword,
+                importance=importance,
+                platform=platform,
+                sentiment=sentiment,
+                begin=begin,
+                end=end,
+                sort_by=sort_by,
+                reason=str(payload.get("warning") or "OKX news search returned no data"),
+            )
+        return payload
     except Exception as exc:
+        fallback = await get_fallback_news_payload(
+            kind="search",
+            language=language,
+            limit=limit,
+            coins=coins,
+            keyword=keyword,
+            importance=importance,
+            platform=platform,
+            sentiment=sentiment,
+            begin=begin,
+            end=end,
+            sort_by=sort_by,
+            reason=f"Failed to search OKX news: {exc}",
+        )
+        if fallback.get("items"):
+            return fallback
         return {"items": [], "count": 0, "error": f"Failed to search OKX news: {exc}"}
 
 
@@ -425,16 +569,40 @@ async def okx_news_detail(
     language: str = Query("zh-CN"),
 ) -> dict[str, Any]:
     try:
-        return await okx_orbit.get_news_detail(article_id, language=language)
+        payload = await okx_orbit.get_news_detail(article_id, language=language)
+        if payload.get("item") is None:
+            fallback = await get_fallback_detail_payload(
+                article_id,
+                language=language,
+                reason=str(payload.get("warning") or "OKX news detail returned no item"),
+            )
+            if fallback.get("item") is not None:
+                return fallback
+        return payload
     except Exception as exc:
+        fallback = await get_fallback_detail_payload(
+            article_id,
+            language=language,
+            reason=f"Failed to fetch OKX news detail: {exc}",
+        )
+        if fallback.get("item") is not None:
+            return fallback
         return {"item": None, "error": f"Failed to fetch OKX news detail: {exc}"}
 
 
 @router.get("/okx/platforms")
 async def okx_news_platforms() -> dict[str, Any]:
     try:
-        return await okx_orbit.get_news_platforms()
+        payload = await okx_orbit.get_news_platforms()
+        if _okx_items_missing(payload):
+            return await get_fallback_platforms_payload(
+                str(payload.get("warning") or "OKX news platforms returned no data")
+            )
+        return payload
     except Exception as exc:
+        fallback = await get_fallback_platforms_payload(f"Failed to fetch OKX news platforms: {exc}")
+        if fallback.get("items"):
+            return fallback
         return {"items": [], "count": 0, "error": f"Failed to fetch OKX news platforms: {exc}"}
 
 
@@ -445,12 +613,28 @@ async def okx_coin_sentiment(
     trend_points: int | None = Query(None, ge=1, le=48),
 ) -> dict[str, Any]:
     try:
-        return await okx_orbit.get_coin_sentiment(
+        payload = await okx_orbit.get_coin_sentiment(
             coins=coins,
             period=period,
             trend_points=trend_points,
         )
+        if _okx_items_missing(payload):
+            return await get_fallback_coin_sentiment_payload(
+                coins=coins,
+                period=period,
+                trend_points=trend_points,
+                reason=str(payload.get("warning") or "OKX coin sentiment returned no data"),
+            )
+        return payload
     except Exception as exc:
+        fallback = await get_fallback_coin_sentiment_payload(
+            coins=coins,
+            period=period,
+            trend_points=trend_points,
+            reason=f"Failed to fetch OKX coin sentiment: {exc}",
+        )
+        if fallback.get("items"):
+            return fallback
         return {"items": [], "count": 0, "error": f"Failed to fetch OKX coin sentiment: {exc}"}
 
 
@@ -461,12 +645,28 @@ async def okx_sentiment_ranking(
     limit: int = Query(10, ge=1, le=50),
 ) -> dict[str, Any]:
     try:
-        return await okx_orbit.get_sentiment_ranking(
+        payload = await okx_orbit.get_sentiment_ranking(
             period=period,
             sort_by=sort_by,
             limit=limit,
         )
+        if _okx_items_missing(payload):
+            return await get_fallback_sentiment_ranking_payload(
+                period=period,
+                sort_by=sort_by,
+                limit=limit,
+                reason=str(payload.get("warning") or "OKX sentiment ranking returned no data"),
+            )
+        return payload
     except Exception as exc:
+        fallback = await get_fallback_sentiment_ranking_payload(
+            period=period,
+            sort_by=sort_by,
+            limit=limit,
+            reason=f"Failed to fetch OKX sentiment ranking: {exc}",
+        )
+        if fallback.get("items"):
+            return fallback
         return {"items": [], "count": 0, "error": f"Failed to fetch OKX sentiment ranking: {exc}"}
 
 

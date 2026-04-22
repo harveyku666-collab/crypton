@@ -188,12 +188,18 @@ def _normalize_orderbook(row: dict[str, Any], inst_id: str, depth: int) -> dict[
     norm_bids = [
         {"price": _safe_float(level[0]), "size": _safe_float(level[1])}
         for level in bids[:depth]
-        if isinstance(level, list) and len(level) >= 2
+        if isinstance(level, list)
+        and len(level) >= 2
+        and (_safe_float(level[0]) or 0) > 0
+        and (_safe_float(level[1]) or 0) > 0
     ]
     norm_asks = [
         {"price": _safe_float(level[0]), "size": _safe_float(level[1])}
         for level in asks[:depth]
-        if isinstance(level, list) and len(level) >= 2
+        if isinstance(level, list)
+        and len(level) >= 2
+        and (_safe_float(level[0]) or 0) > 0
+        and (_safe_float(level[1]) or 0) > 0
     ]
     best_bid = norm_bids[0]["price"] if norm_bids else None
     best_ask = norm_asks[0]["price"] if norm_asks else None
@@ -325,6 +331,25 @@ async def get_orderbook(inst_id: str, sz: int = 20) -> dict[str, Any] | None:
     return _normalize_orderbook(rows[0], inst_id, min(max(sz, 1), 400))
 
 
+def _normalize_trade_rows(rows: list[dict[str, Any]], limit: int) -> list[dict[str, Any]]:
+    normalized: list[dict[str, Any]] = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        price = _safe_float(row.get("px"))
+        size = _safe_float(row.get("sz"))
+        if price is None or price <= 0 or size is None or size <= 0:
+            continue
+        item = dict(row)
+        item["px"] = price
+        item["sz"] = size
+        item["ts"] = _safe_int(row.get("ts"))
+        normalized.append(item)
+        if len(normalized) >= limit:
+            break
+    return normalized
+
+
 @cached(ttl=30, prefix="okx_candles")
 async def get_candles(
     inst_id: str,
@@ -442,7 +467,7 @@ async def get_mark_price(
 @cached(ttl=10, prefix="okx_trades")
 async def get_trades(inst_id: str, limit: int = 20) -> list[dict[str, Any]]:
     rows = _unwrap_rows(await _public_get("/market/trades", {"instId": inst_id, "limit": min(max(limit, 1), 500)}))
-    return rows
+    return _normalize_trade_rows(rows, min(max(limit, 1), 500))
 
 
 @cached(ttl=120, prefix="okx_price_limit")
@@ -568,11 +593,37 @@ async def market_filter(
         "sortOrder": sort_order,
         "limit": min(max(limit, 1), 100),
     })
-    data = await _public_post("/aigc/mcp/market-filter", body)
+    try:
+        data = await _public_post("/aigc/mcp/market-filter", body)
+    except Exception:
+        return []
     if isinstance(data, dict):
         rows = data.get("data")
         return rows if isinstance(rows, list) else []
     return []
+
+
+def _normalize_legacy_oi_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    normalized: list[dict[str, Any]] = []
+    resolved_oi = [_safe_float(row.get("open_interest_usd")) for row in rows]
+    for idx, row in enumerate(rows):
+        ts = _safe_int(row.get("timestamp"))
+        oi_usd = resolved_oi[idx]
+        volume_usd = _safe_float(row.get("volume_usd"))
+        mapped = {
+            "ts": ts * 1000 if ts is not None and ts < 10**12 else ts,
+            "oiUsd": oi_usd,
+            "volUsd24h": volume_usd,
+            "oiDeltaUsd": None,
+            "oiDeltaPct": None,
+        }
+        next_oi = resolved_oi[idx + 1] if idx + 1 < len(resolved_oi) else None
+        if oi_usd is not None and next_oi not in {None, 0}:
+            delta_usd = oi_usd - next_oi
+            mapped["oiDeltaUsd"] = delta_usd
+            mapped["oiDeltaPct"] = (delta_usd / next_oi) * 100
+        normalized.append(mapped)
+    return normalized
 
 
 @cached(ttl=120, prefix="okx_oi_history")
@@ -590,11 +641,17 @@ async def get_oi_history(
         "limit": min(max(limit, 1), 500),
         "ts": ts,
     })
-    data = await _public_post("/aigc/mcp/oi-history", body)
-    if isinstance(data, dict):
-        rows = data.get("data")
-        return rows if isinstance(rows, list) else []
-    return []
+    try:
+        data = await _public_post("/aigc/mcp/oi-history", body)
+        if isinstance(data, dict):
+            rows = data.get("data")
+            if isinstance(rows, list) and rows:
+                return rows
+    except Exception:
+        pass
+
+    legacy_rows = await get_open_interest_history(_extract_base_symbol(inst_id), period=resolved_bar, limit=limit)
+    return _normalize_legacy_oi_rows(legacy_rows)
 
 
 @cached(ttl=120, prefix="okx_oi_change")
@@ -620,7 +677,10 @@ async def filter_oi_change(
         "sortOrder": sort_order,
         "limit": min(max(limit, 1), 100),
     })
-    data = await _public_post("/aigc/mcp/oi-change-filter", body)
+    try:
+        data = await _public_post("/aigc/mcp/oi-change-filter", body)
+    except Exception:
+        return []
     if isinstance(data, dict):
         rows = data.get("data")
         return rows if isinstance(rows, list) else []
@@ -640,6 +700,7 @@ async def build_market_intelligence(
     inst_type = _infer_inst_type(inst_id)
     base_symbol = _extract_base_symbol(inst_id)
     include_funding = inst_type == "SWAP"
+    include_mark_price = inst_type in {"SWAP", "FUTURES", "OPTION"}
     include_oi = inst_type in {"SWAP", "FUTURES", "OPTION"}
     include_price_limit = inst_type in {"SWAP", "FUTURES"}
 
@@ -649,7 +710,7 @@ async def build_market_intelligence(
     trades_task = get_trades(inst_id, limit=trade_limit)
     instruments_task = get_instruments(inst_type, inst_id=inst_id)
     funding_task = get_funding_rate(inst_id) if include_funding else asyncio.sleep(0, result=None)
-    mark_price_task = get_mark_price(inst_type, inst_id=inst_id)
+    mark_price_task = get_mark_price(inst_type, inst_id=inst_id) if include_mark_price else asyncio.sleep(0, result=None)
     open_interest_task = get_public_open_interest(inst_type, inst_id=inst_id) if include_oi else asyncio.sleep(0, result=None)
     price_limit_task = get_price_limit(inst_id) if include_price_limit else asyncio.sleep(0, result=None)
     oi_history_task = get_oi_history(inst_id, bar=oi_bar, limit=oi_limit) if include_price_limit else asyncio.sleep(0, result=[])

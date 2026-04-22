@@ -20,6 +20,14 @@ from app.news import okx_orbit
 router = APIRouter(prefix="/analysis", tags=["analysis"])
 
 
+def _needs_okx_items_fallback(payload: Any) -> bool:
+    if not isinstance(payload, dict):
+        return True
+    if payload.get("error"):
+        return True
+    return not bool(payload.get("items"))
+
+
 @router.get("/indicators")
 async def technical_indicators(
     symbol: str = Query("BTC", description="币种符号，如 BTC、ETH、SOL"),
@@ -185,6 +193,7 @@ async def okx_overview(
     ranking_limit: int = Query(8, ge=1, le=20),
 ) -> dict[str, Any]:
     base_symbol = inst_id.split("-")[0].upper()
+    resolved_market_type = "SPOT" if not inst_id.upper().endswith("-SWAP") else "SWAP"
 
     tasks = await asyncio.gather(
         okx.build_market_intelligence(
@@ -229,14 +238,75 @@ async def okx_overview(
             return {"error": f"Failed to load {label}: {value}"}
         return value
 
+    market = _section(market, "market intelligence")
+    coin_news = _section(coin_news, "coin news")
+    important_news = _section(important_news, "important news")
+    coin_sentiment = _section(coin_sentiment, "coin sentiment")
+    ranking = _section(ranking, "sentiment ranking")
+
+    if any(
+        _needs_okx_items_fallback(section)
+        for section in (coin_news, important_news, coin_sentiment, ranking)
+    ):
+        try:
+            master = await build_market_intel_master(
+                symbol=inst_id,
+                market_type=resolved_market_type,
+                timeframe=candle_bar,
+                language=language,
+                platform=platform,
+                news_limit=news_limit,
+                important_limit=important_limit,
+                ranking_limit=ranking_limit,
+            )
+        except Exception:
+            master = {}
+
+        daily_brief = master.get("daily_brief") if isinstance(master, dict) else {}
+        fallback_coin_news = list((daily_brief or {}).get("coin_news") or [])
+        fallback_important_news = list((daily_brief or {}).get("important_news") or [])
+        fallback_coin_sentiment = master.get("coin_sentiment") if isinstance(master, dict) else {}
+        fallback_ranking = master.get("sentiment_ranking") if isinstance(master, dict) else {}
+
+        if _needs_okx_items_fallback(coin_news) and fallback_coin_news:
+            coin_news = {
+                "kind": "coin",
+                "language": language,
+                "items": fallback_coin_news,
+                "count": len(fallback_coin_news),
+                "warning": "OKX coin news fallback active",
+            }
+        if _needs_okx_items_fallback(important_news) and fallback_important_news:
+            important_news = {
+                "kind": "latest",
+                "language": language,
+                "items": fallback_important_news,
+                "count": len(fallback_important_news),
+                "warning": "OKX important news fallback active",
+            }
+        if _needs_okx_items_fallback(coin_sentiment) and isinstance(fallback_coin_sentiment, dict):
+            fallback_items = list(fallback_coin_sentiment.get("items") or [])
+            if fallback_items:
+                coin_sentiment = {
+                    **fallback_coin_sentiment,
+                    "warning": "OKX coin sentiment fallback active",
+                }
+        if _needs_okx_items_fallback(ranking) and isinstance(fallback_ranking, dict):
+            fallback_items = list(fallback_ranking.get("items") or [])
+            if fallback_items:
+                ranking = {
+                    **fallback_ranking,
+                    "warning": "OKX sentiment ranking fallback active",
+                }
+
     return {
         "instId": inst_id,
         "coin": base_symbol,
-        "market": _section(market, "market intelligence"),
-        "coin_news": _section(coin_news, "coin news"),
-        "important_news": _section(important_news, "important news"),
-        "coin_sentiment": _section(coin_sentiment, "coin sentiment"),
-        "sentiment_ranking": _section(ranking, "sentiment ranking"),
+        "market": market,
+        "coin_news": coin_news,
+        "important_news": important_news,
+        "coin_sentiment": coin_sentiment,
+        "sentiment_ranking": ranking,
     }
 
 

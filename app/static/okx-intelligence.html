@@ -661,28 +661,39 @@ function timeframeToSentimentPeriod(timeframe){
 }
 
 function formatCompact(value){
-  if(value === null || value === undefined || Number.isNaN(Number(value))) return '—';
-  return new Intl.NumberFormat('en', {notation:'compact', maximumFractionDigits:2}).format(Number(value));
+  const num = Number(value);
+  if(!Number.isFinite(num)) return '—';
+  return new Intl.NumberFormat('en-US', {notation:'compact', maximumFractionDigits:2}).format(num);
+}
+
+function formatQuantity(value){
+  const num = Number(value);
+  if(!Number.isFinite(num)) return '—';
+  if(Math.abs(num) >= 1000) return num.toLocaleString('en-US', {maximumFractionDigits:2});
+  if(Math.abs(num) >= 1) return num.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:4});
+  if(num === 0) return '0';
+  return num.toLocaleString('en-US', {minimumFractionDigits:4, maximumFractionDigits:6});
 }
 
 function formatUsd(value){
-  if(value === null || value === undefined || Number.isNaN(Number(value))) return '—';
   const num = Number(value);
-  if(Math.abs(num) >= 1_000_000) return `$${formatCompact(num)}`;
-  return new Intl.NumberFormat('en-US', {style:'currency', currency:'USD', maximumFractionDigits:2}).format(num);
+  if(!Number.isFinite(num)) return '—';
+  if(Math.abs(num) >= 1_000_000_000) return `$${(num / 1_000_000_000).toFixed(2)}B`;
+  if(Math.abs(num) >= 1_000_000) return `$${(num / 1_000_000).toFixed(2)}M`;
+  if(Math.abs(num) >= 1_000) return `$${(num / 1_000).toFixed(2)}K`;
+  if(Math.abs(num) >= 100) return `$${num.toFixed(0)}`;
+  if(Math.abs(num) >= 1) return `$${num.toFixed(2)}`;
+  if(num === 0) return '$0';
+  return `$${num.toFixed(Math.abs(num) < 0.01 ? 6 : 4)}`;
 }
 
 function formatPrice(value){
-  if(value === null || value === undefined || Number.isNaN(Number(value))) return '—';
   const num = Number(value);
-  const abs = Math.abs(num);
-  let digits = 2;
-  if(abs < 100 && abs >= 1) digits = 4;
-  if(abs < 1 && abs >= 0.1) digits = 5;
-  if(abs < 0.1 && abs >= 0.01) digits = 6;
-  if(abs < 0.01 && abs >= 0.001) digits = 7;
-  if(abs < 0.001) digits = 8;
-  return `$${num.toLocaleString('en-US', {minimumFractionDigits: digits, maximumFractionDigits: digits})}`;
+  if(!Number.isFinite(num)) return '—';
+  if(Math.abs(num) >= 1000) return `$${num.toLocaleString('en-US',{maximumFractionDigits:2})}`;
+  if(Math.abs(num) >= 1) return `$${num.toLocaleString('en-US',{minimumFractionDigits:2, maximumFractionDigits:4})}`;
+  if(num === 0) return '$0';
+  return `$${num.toLocaleString('en-US',{minimumFractionDigits:4, maximumFractionDigits:6})}`;
 }
 
 function formatPct(value){
@@ -693,15 +704,81 @@ function formatPct(value){
 }
 
 function formatRatio(value){
-  if(value === null || value === undefined || Number.isNaN(Number(value))) return '—';
-  return `${(Number(value) * 100).toFixed(1)}%`;
+  const num = Number(value);
+  if(!Number.isFinite(num)) return '—';
+  return num.toFixed(2);
 }
 
 function formatTime(value){
-  if(!value) return '—';
-  const ts = Number(value);
-  if(Number.isNaN(ts)) return '—';
-  return new Date(ts).toLocaleString('zh-CN', {hour12:false});
+  const num = Number(value);
+  if(!Number.isFinite(num) || num <= 0) return '—';
+  return new Date(num).toLocaleString('zh-CN', {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'});
+}
+
+function formatTradeTime(value){
+  const num = Number(value);
+  if(!Number.isFinite(num) || num <= 0) return '—';
+  return new Date(num).toLocaleTimeString('zh-CN', {hour12:false});
+}
+
+function fractionDigitsFromStep(step, fallback=6){
+  const raw = String(step ?? '').trim().toLowerCase();
+  if(!raw) return fallback;
+  if(raw.includes('e-')){
+    const exponent = Number(raw.split('e-')[1]);
+    return Number.isFinite(exponent) ? exponent : fallback;
+  }
+  const parts = raw.split('.');
+  if(parts.length < 2) return 0;
+  return parts[1].replace(/0+$/,'').length;
+}
+
+function formatSizeByStep(value, step, fallback=6){
+  const num = Number(value);
+  if(!Number.isFinite(num)) return '—';
+  const digits = fractionDigitsFromStep(step, fallback);
+  return num.toLocaleString('en-US', {minimumFractionDigits:0, maximumFractionDigits:digits});
+}
+
+function formatQuoteAmount(value, ccy){
+  const num = Number(value);
+  if(!Number.isFinite(num)) return '—';
+  const unit = String(ccy || '').toUpperCase();
+  if(['USD','USDT','USDC'].includes(unit)) return formatUsd(num);
+  if(Math.abs(num) >= 1000) return `${formatCompact(num)} ${unit || ''}`.trim();
+  return `${num.toLocaleString('en-US', {maximumFractionDigits:2})} ${unit || ''}`.trim();
+}
+
+function resolveTradeMeta(market){
+  const instrument = market?.instrument || {};
+  const instType = String(market?.instType || instrument?.instType || '').toUpperCase();
+  const instId = String(market?.instId || instrument?.instId || '');
+  const baseSymbol = extractBaseSymbol(instId);
+  const lotStep = instrument?.lotSz || instrument?.minSz || '';
+  const quoteCcy = instrument?.quoteCcy || instrument?.settleCcy || 'USDT';
+
+  if(instType === 'SPOT'){
+    const baseCcy = instrument?.baseCcy || baseSymbol || 'BASE';
+    return {
+      headerLabel: `数量 (${baseCcy})`,
+      lotStep,
+      quoteCcy,
+      notionalValue: trade => Number(trade?.px) * Number(trade?.sz),
+    };
+  }
+
+  const ctVal = Number(instrument?.ctVal);
+  return {
+    headerLabel: '数量 (张)',
+    lotStep,
+    quoteCcy,
+    notionalValue: trade => {
+      const px = Number(trade?.px);
+      const sz = Number(trade?.sz);
+      if(!Number.isFinite(px) || !Number.isFinite(sz) || !Number.isFinite(ctVal) || ctVal <= 0) return NaN;
+      return px * sz * ctVal;
+    },
+  };
 }
 
 function escapeHtml(value){
@@ -821,8 +898,32 @@ function renderSummary(payload){
   const sentiment = payload?.coin_sentiment?.items?.[0] || null;
   const snapshot = market?.snapshot || {};
   const diagnosis = market?.diagnosis || {};
+  const orderbook = market?.orderbook || {};
   const orderbookBias = diagnosis.orderbook_bias || '—';
   const fundingBias = diagnosis.funding_bias || '—';
+  const bidNotional = Number(orderbook.bid_depth_notional_top5 || 0);
+  const askNotional = Number(orderbook.ask_depth_notional_top5 || 0);
+  const totalDepth = bidNotional + askNotional;
+  const imbalance = totalDepth > 0 ? ((bidNotional - askNotional) / totalDepth) * 100 : null;
+  const mention = sentiment?.mention_count == null ? null : Number(sentiment.mention_count);
+  const bullRatio = sentiment?.bullish_ratio == null ? null : Number(sentiment.bullish_ratio);
+  const bearRatio = sentiment?.bearish_ratio == null ? null : Number(sentiment.bearish_ratio);
+  const mentionSub = mention == null
+    ? '暂无稳定情绪样本'
+    : `Bull ${formatRatio(bullRatio)} · Bear ${formatRatio(bearRatio)}`;
+  const isSpot = state.marketType === 'SPOT';
+
+  if(isSpot){
+    $('summary-grid').innerHTML = [
+      metricCard('最新价格', formatPrice(snapshot.last), `24H 高/低 ${formatPrice(snapshot.high24h)} / ${formatPrice(snapshot.low24h)}`, 'neutral'),
+      metricCard('24H 涨跌', formatPct(snapshot.price_change_pct_24h), `24H 成交额 ${formatUsd(snapshot.volume_24h_quote)}`, toneClassFromNumber(snapshot.price_change_pct_24h)),
+      metricCard('24H 成交量', formatCompact(snapshot.volume_24h_base), `现货成交额 ${formatUsd(snapshot.volume_24h_quote)}`, 'neutral'),
+      metricCard('盘口深度', imbalance == null ? '—' : formatPct(imbalance), `买 ${formatUsd(bidNotional)} · 卖 ${formatUsd(askNotional)}`, toneClassFromNumber(imbalance)),
+      metricCard('盘口偏向', escapeHtml(orderbookBias || '—'), `结构解读 ${escapeHtml(diagnosis.price_oi_comment || '—')}`, 'neutral'),
+      metricCard('Mention', mention == null ? '—' : mention.toLocaleString('en-US'), mentionSub, 'neutral'),
+    ].join('');
+    return;
+  }
 
   $('summary-grid').innerHTML = [
     metricCard('最新价格', formatPrice(snapshot.last), `标记价 ${formatPrice(snapshot.mark_price)}`, 'neutral'),
@@ -830,7 +931,7 @@ function renderSummary(payload){
     metricCard('持仓 OI', snapshot.oi_usd != null ? formatUsd(snapshot.oi_usd) : '—', `OI 变化 ${formatPct(snapshot.oi_delta_pct)}`, toneClassFromNumber(snapshot.oi_delta_pct)),
     metricCard('资金费率', snapshot.funding_rate != null ? formatPct(Number(snapshot.funding_rate) * 100) : '—', `拥挤方向 ${escapeHtml(fundingBias)}`, toneClassFromNumber(snapshot.funding_rate)),
     metricCard('盘口偏向', escapeHtml(orderbookBias || '—'), `价格/OI 结构 ${escapeHtml(diagnosis.price_oi_regime || '—')}`, 'neutral'),
-    metricCard('新闻情绪', escapeHtml(sentiment?.label || '—'), `提及次数 ${sentiment?.mention_count ?? '—'}`, 'neutral'),
+    metricCard('Mention', mention == null ? '—' : mention.toLocaleString('en-US'), mentionSub, 'neutral'),
   ].join('');
 }
 
@@ -851,6 +952,8 @@ function renderMarketPanel(payload){
   const totalDepth = bidNotional + askNotional || 1;
   const bidWidth = Math.max(6, (bidNotional / totalDepth) * 100);
   const askWidth = Math.max(6, (askNotional / totalDepth) * 100);
+  const isSpot = state.marketType === 'SPOT';
+  const tradeMeta = resolveTradeMeta(market);
 
   const indicatorCard = (label, item) => {
     if(!item?.values){
@@ -879,7 +982,7 @@ function renderMarketPanel(payload){
     return safeLevels.map(level => `
       <div class="level">
         <div class="${side === 'bid' ? 'good' : 'danger'}">${formatPrice(level.price)}</div>
-        <div>${formatCompact(level.size)}</div>
+        <div>${formatQuantity(level.size)}</div>
       </div>
     `).join('');
   };
@@ -904,9 +1007,9 @@ function renderMarketPanel(payload){
           <div class="sub">最佳买 ${formatPrice(orderbook.best_bid)} · 最佳卖 ${formatPrice(orderbook.best_ask)}</div>
         </div>
         <div class="mini">
-          <div class="label">价格限制</div>
-          <div class="value">${formatPrice(market.price_limit?.buyLmt)} / ${formatPrice(market.price_limit?.sellLmt)}</div>
-          <div class="sub">合约模式下可帮助判断订单是否接近拒单边界</div>
+          <div class="label">${isSpot ? '现货模式' : '价格限制'}</div>
+          <div class="value">${isSpot ? '成交 / 深度 / 新闻' : `${formatPrice(market.price_limit?.buyLmt)} / ${formatPrice(market.price_limit?.sellLmt)}`}</div>
+          <div class="sub">${isSpot ? '现货不展示 Funding、OI 和价格限制，重点看价格结构与订单簿。' : '合约模式下可帮助判断订单是否接近拒单边界'}</div>
         </div>
       </div>
 
@@ -943,7 +1046,7 @@ function renderMarketPanel(payload){
       <div class="table-wrap">
         <table>
           <thead>
-            <tr><th>最近成交</th><th>方向</th><th>价格</th><th>数量</th><th>时间</th></tr>
+            <tr><th>最近成交</th><th>方向</th><th>价格</th><th>${escapeHtml(tradeMeta.headerLabel)}</th><th>时间</th></tr>
           </thead>
           <tbody>
             ${trades.length ? trades.map(trade => `
@@ -951,8 +1054,11 @@ function renderMarketPanel(payload){
                 <td class="mono">${escapeHtml(trade.tradeId || '—')}</td>
                 <td class="${String(trade.side || '').toLowerCase() === 'buy' ? 'good' : 'danger'}">${escapeHtml(trade.side || '—')}</td>
                 <td class="mono">${formatPrice(trade.px)}</td>
-                <td class="mono">${formatCompact(trade.sz)}</td>
-                <td class="mono">${formatTime(trade.ts)}</td>
+                <td class="mono">
+                  <div>${formatSizeByStep(trade.sz, tradeMeta.lotStep)}</div>
+                  <div class="muted">约 ${formatQuoteAmount(tradeMeta.notionalValue(trade), tradeMeta.quoteCcy)}</div>
+                </td>
+                <td class="mono">${formatTradeTime(trade.ts)}</td>
               </tr>
             `).join('') : '<tr><td colspan="5" class="muted">暂无逐笔成交数据</td></tr>'}
           </tbody>
@@ -969,18 +1075,20 @@ function renderNewsPanel(payload){
   const mainItems = Array.isArray(primary?.items) ? primary.items : [];
   const importantItems = Array.isArray(important?.items) ? important.items.slice(0, 4) : [];
 
-  const articleCard = (item, compact=false) => `
+  const articleCard = (item) => `
     <article class="news-card" data-article-id="${escapeHtml(item.id)}">
-      <div class="news-top">
-        <div class="news-title">${escapeHtml(item.title || '未命名文章')}</div>
-        ${item.importance === 'high' ? '<span class="badge important">重要</span>' : '<span class="badge">快讯</span>'}
+      <div class="meta-line">
+        <span>${escapeHtml(item.importance || 'normal')}</span>
+        <span>${escapeHtml(item.sentiment || 'neutral')}</span>
+        <span>${formatTime(item.published_at)}</span>
       </div>
+      <div class="news-title">${escapeHtml(item.title || 'Untitled')}</div>
+      <div class="news-text">${escapeHtml((item.summary || item.excerpt || '暂无摘要').slice(0, 150))}</div>
       <div class="news-meta">
-        <span class="badge">${escapeHtml((item.platforms || []).slice(0,2).join(', ') || 'OKX Orbit')}</span>
-        <span class="badge">${escapeHtml((item.coins || []).join(', ') || '市场')}</span>
-        <span class="badge">${formatTime(item.published_at)}</span>
+        <span class="badge">${escapeHtml((item.coins || []).join(' / ') || '—')}</span>
+        <span class="badge">${escapeHtml((item.platforms || []).slice(0, 2).join(' / ') || 'okx_orbit')}</span>
+        ${item.source_url ? `<a class="badge" href="${escapeHtml(item.source_url)}" target="_blank" rel="noreferrer">原文 ↗</a>` : ''}
       </div>
-      <div class="news-text">${escapeHtml(compact ? (item.summary || item.excerpt || '').slice(0, 88) : (item.summary || item.excerpt || '暂无摘要').slice(0, 150))}</div>
     </article>
   `;
 
@@ -992,12 +1100,12 @@ function renderNewsPanel(payload){
       </div>
 
       <div class="news-list">
-        ${mainItems.length ? mainItems.map(item => articleCard(item)).join('') : `<div class="empty">${escapeHtml(primary?.error || '没有可展示的新闻结果')}</div>`}
+        ${mainItems.length ? mainItems.map(item => articleCard(item)).join('') : `<div class="empty">${escapeHtml(primary?.error || '当前没有可显示的新闻样本。')}</div>`}
       </div>
 
       <div class="panel-sub">重要快讯</div>
       <div class="news-list">
-        ${importantItems.length ? importantItems.map(item => articleCard(item, true)).join('') : `<div class="empty">${escapeHtml(important?.error || '暂时拿不到重要快讯')}</div>`}
+        ${importantItems.length ? importantItems.map(item => articleCard(item)).join('') : `<div class="empty">${escapeHtml(important?.error || '当前没有可显示的新闻样本。')}</div>`}
       </div>
     </div>
   `;
@@ -1005,6 +1113,17 @@ function renderNewsPanel(payload){
   $('news-panel').querySelectorAll('[data-article-id]').forEach(card => {
     card.addEventListener('click', () => openArticle(card.dataset.articleId));
   });
+
+  const visibleArticleIds = new Set([...mainItems, ...importantItems].map(item => String(item?.id || '')));
+  const activeArticleId = visibleArticleIds.has(String(state.activeArticle?.id || ''))
+    ? state.activeArticle?.id
+    : null;
+  const preferredArticleId = activeArticleId || mainItems[0]?.id || importantItems[0]?.id || null;
+  if(preferredArticleId){
+    openArticle(preferredArticleId);
+  }else{
+    $('detail-panel').innerHTML = '<div class="detail-empty">当前没有可展示的文章详情</div>';
+  }
 }
 
 function renderSentimentPanel(payload){
@@ -1025,23 +1144,23 @@ function renderSentimentPanel(payload){
         <div class="sentiment-card">
           <div class="label">币种快照</div>
           <div class="value" style="margin-top:10px;font-size:28px;font-weight:700">${escapeHtml(first?.symbol || '—')}</div>
-          <div class="sub" style="margin-top:8px;color:var(--muted)">${escapeHtml(first?.label || '暂无标签')}</div>
+          <div class="sub" style="margin-top:8px;color:var(--muted)">${first?.mention_count == null ? '暂无稳定情绪样本' : `Bull ${formatRatio(first?.bullish_ratio)} · Bear ${formatRatio(first?.bearish_ratio)}`}</div>
           <div class="ratio-grid">
-            <div class="ratio"><span>看涨占比</span><strong class="good">${formatRatio(first?.bullish_ratio)}</strong></div>
-            <div class="ratio"><span>看跌占比</span><strong class="danger">${formatRatio(first?.bearish_ratio)}</strong></div>
-            <div class="ratio"><span>提及次数</span><strong>${first?.mention_count ?? '—'}</strong></div>
+            <div class="ratio"><span>Bull</span><strong class="good">${formatRatio(first?.bullish_ratio)}</strong></div>
+            <div class="ratio"><span>Bear</span><strong class="danger">${formatRatio(first?.bearish_ratio)}</strong></div>
+            <div class="ratio"><span>Mention</span><strong>${first?.mention_count ?? '—'}</strong></div>
           </div>
         </div>
         <div class="chart-box">
           <div class="chart-title">情绪趋势（Bullish Ratio）</div>
-          ${trendValues.length ? renderSparkline(trendValues, '#75de8f') : '<div class="empty">当前没有趋势样本，快照模式仍然可用。</div>'}
+          ${trendValues.length ? renderSparkline(trendValues, '#75de8f') : '<div class="empty">没有可展示的情绪时间样本。</div>'}
         </div>
       </div>
 
       <div class="table-wrap">
         <table>
           <thead>
-            <tr><th>排名</th><th>币种</th><th>标签</th><th>看涨</th><th>看跌</th><th>提及</th></tr>
+            <tr><th>排名</th><th>币种</th><th>标签</th><th>Bull</th><th>Bear</th><th>Mention</th></tr>
           </thead>
           <tbody>
             ${rows.length ? rows.map((item, idx) => `
@@ -1061,32 +1180,89 @@ function renderSentimentPanel(payload){
   `;
 }
 
+function collectLoadedArticles(){
+  const groups = [
+    state.searchPayload?.items,
+    state.payload?.coin_news?.items,
+    state.payload?.important_news?.items,
+  ];
+  return groups.flatMap(items => Array.isArray(items) ? items : []);
+}
+
+function findLoadedArticle(articleId){
+  return collectLoadedArticles().find(item => String(item?.id || '') === String(articleId)) || null;
+}
+
+function renderArticleDetail(item){
+  if(!item){
+    $('detail-panel').innerHTML = '<div class="detail-empty">当前没有可展示的文章详情</div>';
+    return;
+  }
+  state.activeArticle = item;
+  $('detail-panel').innerHTML = `
+    <div class="detail-box">
+      <div class="detail-title">${escapeHtml(item.title || 'Untitled')}</div>
+      <div class="detail-meta">
+        <span class="badge">${escapeHtml(item.importance || 'normal')}</span>
+        <span class="badge">${escapeHtml(item.sentiment || 'neutral')}</span>
+        <span class="badge">${formatTime(item.published_at)}</span>
+      </div>
+      <div class="detail-meta" style="margin-top:12px">
+        <span class="badge">${escapeHtml((item.coins || []).join(' / ') || '—')}</span>
+        <span class="badge">${escapeHtml((item.platforms || []).slice(0, 2).join(' / ') || 'okx_orbit')}</span>
+        ${item.source_url ? `<a class="badge" href="${escapeHtml(item.source_url)}" target="_blank" rel="noopener noreferrer">原文 ↗</a>` : ''}
+      </div>
+      <div class="detail-text">${escapeHtml(item.content || item.summary || item.excerpt || '暂无摘要')}</div>
+    </div>
+  `;
+}
+
+function articleHasReadableBody(item){
+  return Boolean(item && (item.content || item.summary || item.excerpt));
+}
+
 async function openArticle(articleId){
   if(!articleId) return;
-  $('detail-panel').innerHTML = '<div class="loading">正在拉取文章详情...</div>';
+  const localItem = findLoadedArticle(articleId);
+  if(localItem && articleHasReadableBody(localItem)){
+    renderArticleDetail(localItem);
+  }else{
+    $('detail-panel').innerHTML = '<div class="loading">正在拉取文章详情...</div>';
+  }
+  if(localItem && String(localItem.id || '').startsWith('analysis-')){
+    renderArticleDetail(localItem);
+    return;
+  }
   try{
     const detail = await fetchJson(`${API}/news/okx/detail/${encodeURIComponent(articleId)}?language=${encodeURIComponent(state.language)}`);
     const item = detail?.item;
     if(!item){
+      if(localItem){
+        renderArticleDetail(localItem);
+        return;
+      }
       $('detail-panel').innerHTML = `<div class="detail-empty">${escapeHtml(detail?.error || '拿不到文章详情')}</div>`;
       return;
     }
-    state.activeArticle = item;
-    $('detail-panel').innerHTML = `
-      <div class="detail-box">
-        <div class="detail-title">${escapeHtml(item.title || '未命名文章')}</div>
-        <div class="detail-meta">
-          <span class="badge">${escapeHtml((item.platforms || []).join(', ') || 'OKX Orbit')}</span>
-          <span class="badge">${escapeHtml((item.coins || []).join(', ') || '市场')}</span>
-          <span class="badge">${formatTime(item.published_at)}</span>
-          ${item.importance === 'high' ? '<span class="badge important">重要</span>' : ''}
-        </div>
-        <div class="detail-text">${escapeHtml(item.content || item.summary || item.excerpt || '暂无正文')}</div>
-        ${item.source_url ? `<div class="status-line"><a href="${escapeHtml(item.source_url)}" target="_blank" rel="noopener noreferrer">打开源链接</a></div>` : ''}
-      </div>
-    `;
+    renderArticleDetail({
+      ...(localItem || {}),
+      ...item,
+      title: item.title || localItem?.title,
+      summary: item.summary || localItem?.summary,
+      excerpt: item.excerpt || localItem?.excerpt,
+      content: item.content || localItem?.content || localItem?.summary || localItem?.excerpt,
+      platforms: item.platforms || localItem?.platforms,
+      coins: item.coins || localItem?.coins,
+      published_at: item.published_at || localItem?.published_at,
+      importance: item.importance || localItem?.importance,
+      source_url: item.source_url || localItem?.source_url,
+    });
   }catch(error){
-    $('detail-panel').innerHTML = `<div class="detail-empty">${escapeHtml(error.message || '文章详情加载失败')}</div>`;
+    if(localItem){
+      renderArticleDetail(localItem);
+      return;
+    }
+    $('detail-panel').innerHTML = `<div class="detail-empty">${escapeHtml(error.message || '当前没有可展示的文章详情')}</div>`;
   }
 }
 
@@ -1154,7 +1330,7 @@ async function loadDashboard({silent=false} = {}){
   if(!silent){
     state.loading = false;
     $('refresh-btn').disabled = false;
-    setToolbarStatus('已加载，自动同步已开启');
+    setToolbarStatus('情报已更新 · 120s 静默同步');
   }
 }
 

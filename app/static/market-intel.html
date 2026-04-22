@@ -447,7 +447,7 @@ a{color:inherit}
       </div>
       <div class="eyebrow">OKX Narrative Desk</div>
       <h1>市场情报大师</h1>
-      <p>把官方 skill 页里的三条主线复刻成一个真正能用的前台：`Daily Brief` 看一页判断，`Anomaly Alerts` 盯异动，`Keyword Research` 拿关键词往下追。数据全部来自你现在项目里的 OKX 公共行情和 Orbit 新闻栈。</p>
+      <p>把官方 skill 页里的三条主线复刻成一个真正能用的前台：`Daily Brief` 看一页判断，`Anomaly Alerts` 盯异动，`Keyword Research` 拿关键词往下追。现在又把 legacy crypto 项目里的市场概览模块抽进来了，新闻和行情情报可以放在同一页看。</p>
     </section>
 
     <section class="hero-grid">
@@ -549,6 +549,34 @@ a{color:inherit}
 
         <div class="panel">
           <div class="section-title">
+            <h2>Market Overview</h2>
+            <span>Legacy Module · News Intel</span>
+          </div>
+          <div class="distribution" id="market-overview-summary">
+            <div class="dist-card"><div class="label">Sentiment</div><div class="value">—</div></div>
+            <div class="dist-card"><div class="label">Avg Change</div><div class="value">—</div></div>
+            <div class="dist-card"><div class="label">Breadth</div><div class="value">—</div></div>
+          </div>
+          <div class="split" style="margin-top:14px">
+            <div>
+              <div class="section-title">
+                <h2 style="font-size:22px">Top Gainers</h2>
+                <span>优势币种</span>
+              </div>
+              <div class="pair-grid" id="market-gainers"><div class="empty">等待概览加载</div></div>
+            </div>
+            <div>
+              <div class="section-title">
+                <h2 style="font-size:22px">Top Losers</h2>
+                <span>弱势币种</span>
+              </div>
+              <div class="pair-grid" id="market-losers"><div class="empty">等待概览加载</div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="section-title">
             <h2>Important News</h2>
             <span>高优先级快讯</span>
           </div>
@@ -634,6 +662,7 @@ const state = {
   language: 'zh-CN',
   platform: '',
   payload: null,
+  marketOverview: null,
 };
 
 function $(id){ return document.getElementById(id); }
@@ -768,6 +797,18 @@ function readInputs(){
   state.platform = $('platform-select').value;
 }
 
+function buildOverviewSymbols(){
+  const picked = [];
+  const seen = new Set();
+  [state.symbol, 'BTC', 'ETH', 'BNB', 'SOL', 'XRP', 'ADA', 'DOGE', 'DOT', 'LINK'].forEach(symbol => {
+    const normalized = sanitizeSymbol(symbol);
+    if(!normalized || seen.has(normalized)) return;
+    seen.add(normalized);
+    picked.push(normalized);
+  });
+  return picked.slice(0, 10);
+}
+
 async function fetchJson(url){
   const res = await fetch(url);
   if(!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -825,6 +866,50 @@ function renderFocusPairs(items){
       <div class="excerpt">${escapeHtml(item.note || '暂无补充说明')}</div>
     </article>
   `).join('');
+}
+
+function renderMarketMovers(items, targetId, emptyText){
+  if(!Array.isArray(items) || !items.length){
+    $(targetId).innerHTML = `<div class="empty">${escapeHtml(emptyText)}</div>`;
+    return;
+  }
+  $(targetId).innerHTML = items.map(item => `
+    <article class="pair-card">
+      <div class="pair-head">
+        <div>
+          <div class="meta-line"><span>${escapeHtml(item.exchange || 'market')}</span></div>
+          <h3>${escapeHtml(item.symbol || '—')}</h3>
+        </div>
+        <div class="pair-price ${toneClass(item.change_24h)}">${formatPct(item.change_24h)}</div>
+      </div>
+      <div class="meta-line">
+        <span>${formatPrice(item.price)}</span>
+        <span>${formatUsd(item.volume_24h)}</span>
+        <span>${escapeHtml(item.exchange || 'market')}</span>
+      </div>
+      <div class="excerpt">24h 区间 ${formatPrice(item.low_24h)} - ${formatPrice(item.high_24h)}</div>
+    </article>
+  `).join('');
+}
+
+function renderMarketOverview(overview){
+  if(!overview || overview.error){
+    $('market-overview-summary').innerHTML = [
+      `<div class="dist-card"><div class="label">Sentiment</div><div class="value">—</div></div>`,
+      `<div class="dist-card"><div class="label">Avg Change</div><div class="value">—</div></div>`,
+      `<div class="dist-card"><div class="label">Breadth</div><div class="value">—</div></div>`
+    ].join('');
+    renderMarketMovers([], 'market-gainers', overview?.error || '市场概览暂时不可用。');
+    renderMarketMovers([], 'market-losers', overview?.error || '市场概览暂时不可用。');
+    return;
+  }
+  $('market-overview-summary').innerHTML = [
+    `<div class="dist-card"><div class="label">Sentiment</div><div class="value">${escapeHtml(overview.sentiment || '—')}</div></div>`,
+    `<div class="dist-card"><div class="label">Avg Change</div><div class="value" style="color:${Number(overview.avg_change_24h || 0) >= 0 ? 'var(--green)' : 'var(--red)'}">${formatPct(overview.avg_change_24h)}</div></div>`,
+    `<div class="dist-card"><div class="label">Breadth</div><div class="value">${Number(overview.up_count || 0)} / ${Number(overview.down_count || 0)}</div></div>`
+  ].join('');
+  renderMarketMovers(overview.top_gainers || [], 'market-gainers', '当前没有明显强势币种。');
+  renderMarketMovers(overview.top_losers || [], 'market-losers', '当前没有明显弱势币种。');
 }
 
 function renderTopics(items, targetId){
@@ -949,26 +1034,42 @@ async function loadDashboard({silent=false} = {}){
     keyword: state.keyword,
   });
   if(state.platform) params.set('platform', state.platform);
+  const overviewParams = new URLSearchParams({
+    symbols: buildOverviewSymbols().join(','),
+    limit: '10',
+    movers: '4',
+  });
 
   try{
-    const payload = await fetchJson(`${API}/analysis/okx/market-intel?${params.toString()}`);
+    const [payload, marketOverview] = await Promise.all([
+      fetchJson(`${API}/analysis/okx/market-intel?${params.toString()}`),
+      fetchJson(`${API}/news/market-overview?${overviewParams.toString()}`).catch(error => ({
+        error: error?.message || 'market overview unavailable',
+      })),
+    ]);
     state.payload = payload;
+    state.marketOverview = marketOverview;
     updatePlatformOptions(payload.available_platforms || []);
     renderHero(payload);
     renderFocusPairs(payload?.daily_brief?.focus_pairs || []);
+    renderMarketOverview(marketOverview);
     renderTopics(payload?.daily_brief?.hot_topics || [], 'hot-topics');
     renderNews(payload?.daily_brief?.important_news || [], 'important-news');
     renderNews(payload?.daily_brief?.coin_news || [], 'coin-news');
     renderAlerts(payload);
     renderTrend(payload);
     renderResearch(payload);
-    $('last-updated').textContent = `上次更新 ${new Date().toLocaleTimeString('zh-CN', {hour:'2-digit', minute:'2-digit', second:'2-digit'})}${payload.status === 'partial' ? ' · 部分模块降级' : ''}`;
+    const notes = [];
+    if(payload.status === 'partial') notes.push('部分模块降级');
+    if(marketOverview?.error) notes.push('市场概览降级');
+    $('last-updated').textContent = `上次更新 ${new Date().toLocaleTimeString('zh-CN', {hour:'2-digit', minute:'2-digit', second:'2-digit'})}${notes.length ? ` · ${notes.join(' · ')}` : ''}`;
     $('sync-label').textContent = silent ? '静默同步已开启 · 120s' : '情报已更新 · 120s 静默同步';
   }catch(error){
     const message = error?.message || '未知错误';
     $('lead-title').textContent = '情报加载失败';
     $('lead-summary').textContent = `当前无法完成聚合请求：${message}`;
     $('alert-list').innerHTML = `<div class="empty">接口异常：${escapeHtml(message)}</div>`;
+    renderMarketOverview(state.marketOverview);
     $('last-updated').textContent = `加载失败 · ${new Date().toLocaleTimeString('zh-CN', {hour:'2-digit', minute:'2-digit'})}`;
     $('sync-label').textContent = '自动同步已暂停，请手动刷新';
   }finally{

@@ -21,27 +21,58 @@ from urllib.parse import urlparse
 
 import httpx
 
+from app.config import settings
+
 logger = logging.getLogger("bitinfo.http")
 security_logger = logging.getLogger("bitinfo.security")
 
 _client: httpx.AsyncClient | None = None
 _proxy_client: httpx.AsyncClient | None = None
+_proxy_client_url: str = ""
+_warned_missing_proxy_hosts: set[str] = set()
 
 DEFAULT_TIMEOUT = 15.0
 MAX_RETRIES = 3
 BACKOFF_BASE = 0.5
 
-PROXY_URL = os.environ.get("PROXY_URL") or os.environ.get("HTTPS_PROXY") or os.environ.get("HTTP_PROXY") or ""
-
 RESTRICTED_HOSTS = {
     "fapi.binance.com",
     "dapi.binance.com",
     "api.bybit.com",
-    "www.okx.com",
     "api.deribit.com",
     "api.coinbase.com",
     "advanced-api.coinbase.com",
 }
+
+
+def _resolve_proxy_url() -> str:
+    return str(
+        os.environ.get("PROXY_URL")
+        or os.environ.get("HTTPS_PROXY")
+        or os.environ.get("HTTP_PROXY")
+        or settings.proxy_url
+        or ""
+    ).strip()
+
+
+def _mask_proxy_url(proxy_url: str) -> str:
+    if not proxy_url:
+        return ""
+    parsed = urlparse(proxy_url)
+    host = parsed.hostname or ""
+    port = f":{parsed.port}" if parsed.port else ""
+    if parsed.scheme and host:
+        return f"{parsed.scheme}://{host}{port}"
+    return proxy_url.split("@")[-1]
+
+
+def get_proxy_status() -> dict[str, Any]:
+    proxy_url = _resolve_proxy_url()
+    return {
+        "configured": bool(proxy_url),
+        "url": _mask_proxy_url(proxy_url),
+        "restricted_hosts": sorted(RESTRICTED_HOSTS),
+    }
 
 
 def _check_host_allowed(url: str) -> None:
@@ -78,17 +109,23 @@ async def get_client() -> httpx.AsyncClient:
 
 async def get_proxy_client() -> httpx.AsyncClient | None:
     """Return a proxy-enabled client if PROXY_URL is configured."""
-    global _proxy_client
-    if not PROXY_URL:
+    global _proxy_client, _proxy_client_url
+    proxy_url = _resolve_proxy_url()
+    if not proxy_url:
         return None
-    if _proxy_client is None or _proxy_client.is_closed:
+    if _proxy_client is not None and ( _proxy_client.is_closed or _proxy_client_url != proxy_url):
+        await _proxy_client.aclose()
+        _proxy_client = None
+        _proxy_client_url = ""
+    if _proxy_client is None:
         _proxy_client = httpx.AsyncClient(
             timeout=DEFAULT_TIMEOUT,
             limits=httpx.Limits(max_connections=50, max_keepalive_connections=10),
             follow_redirects=True,
-            proxy=PROXY_URL,
+            proxy=proxy_url,
         )
-        logger.info("Proxy client initialized: %s", PROXY_URL.split("@")[-1])
+        _proxy_client_url = proxy_url
+        logger.info("Proxy client initialized: %s", _mask_proxy_url(proxy_url))
     return _proxy_client
 
 
@@ -97,20 +134,29 @@ async def _select_client(url: str) -> httpx.AsyncClient:
     if use_proxy:
         client = await get_proxy_client()
         if client is None:
-            logger.warning("No proxy configured for restricted host: %s", urlparse(url).hostname)
+            host = urlparse(url).hostname or ""
+            if host not in _warned_missing_proxy_hosts:
+                logger.warning(
+                    "No proxy configured for restricted host: %s. "
+                    "Configure PROXY_URL in .env or the service environment.",
+                    host,
+                )
+                _warned_missing_proxy_hosts.add(host)
             return await get_client()
         return client
     return await get_client()
 
 
 async def close_client() -> None:
-    global _client, _proxy_client
+    global _client, _proxy_client, _proxy_client_url
     if _client and not _client.is_closed:
         await _client.aclose()
         _client = None
     if _proxy_client and not _proxy_client.is_closed:
         await _proxy_client.aclose()
         _proxy_client = None
+    _proxy_client_url = ""
+    _warned_missing_proxy_hosts.clear()
 
 
 async def _request_json(

@@ -7,6 +7,7 @@ from typing import Any
 
 from app.common.http_client import fetch_json
 from app.common.cache import cached
+from app.news.url_utils import normalize_news_source_url
 
 DESK3_API = "https://api1.desk3.io/v1"
 
@@ -56,7 +57,7 @@ async def fetch_desk3_news(
             "category": category,
             "language": language,
             "published_at": i.get("published_at"),
-            "url": i.get("url"),
+            "url": normalize_news_source_url(i.get("url"), source="desk3"),
             "external_id": f"desk3_{catid}_{i.get('id', i.get('published_at', ''))}",
         })
         for i in items

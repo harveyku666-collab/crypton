@@ -21,6 +21,7 @@ pip install -r requirements.txt
 ```bash
 cp .env.example .env
 # Edit .env with your API keys
+# If you need Binance / OKX / Bybit access, also set PROXY_URL
 ```
 
 ### 4. Run Server
@@ -28,6 +29,8 @@ cp .env.example .env
 ```bash
 uvicorn app.main:app --reload --port 8000
 ```
+
+When the app starts it will log whether an outbound proxy is configured. You can also check `GET /health`, which now includes `proxy_configured`.
 
 ### 5. Open API Docs
 

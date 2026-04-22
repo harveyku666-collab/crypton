@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from pydantic_settings import BaseSettings
 
 
@@ -14,6 +13,7 @@ class Settings(BaseSettings):
 
     database_url: str = "postgresql+asyncpg://bitinfo:bitinfo@localhost:5432/bitinfo"
     redis_url: str = "redis://localhost:6379/0"
+    proxy_url: str = ""
 
     openai_api_key: str = ""
     openai_base_url: str = "https://api.openai.com/v1"

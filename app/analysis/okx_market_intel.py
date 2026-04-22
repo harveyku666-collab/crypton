@@ -8,13 +8,17 @@ already integrated in this project.
 from __future__ import annotations
 
 import asyncio
+import math
 import time
 from collections import Counter
+from datetime import datetime
 from typing import Any
 
 from app.common.cache import cached
 from app.market.sources import okx
 from app.news import okx_orbit
+from app.news.token_matching import build_search_terms, item_matches_terms
+from app.news.url_utils import normalize_news_source_url
 
 LANGUAGE_MAP = {
     "zh": "zh-CN",
@@ -61,7 +65,6 @@ REGIME_LABELS = {
     "price_down_oi_down": "下跌减仓",
     "neutral": "中性结构",
 }
-
 
 def _safe_float(value: Any) -> float | None:
     try:
@@ -120,11 +123,413 @@ def _sentiment_period(timeframe: str) -> str:
     return "1h"
 
 
+def _trend_interval_ms(timeframe: str) -> int:
+    resolved = str(timeframe or "1H").upper()
+    if resolved == "4H":
+        return 4 * 60 * 60 * 1000
+    if resolved == "1D":
+        return 24 * 60 * 60 * 1000
+    return 60 * 60 * 1000
+
+
+def _safe_timestamp_ms(value: Any) -> int | None:
+    if value is None or value == "":
+        return None
+    if isinstance(value, (int, float)):
+        return int(value)
+    raw = str(value).strip()
+    if not raw:
+        return None
+    if raw.isdigit():
+        return int(raw)
+    try:
+        return int(float(raw))
+    except Exception:
+        pass
+    try:
+        parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        return int(parsed.timestamp() * 1000)
+    except Exception:
+        return None
+
+
+def _language_variants(language: str) -> list[str]:
+    normalized = _normalize_language(language)
+    if normalized == "zh-CN":
+        return ["zh-CN", "zh", "cn"]
+    return ["en-US", "en"]
+
+
 def _article_text(item: dict[str, Any]) -> str:
     return " ".join(
         str(item.get(key) or "")
         for key in ("title", "summary", "excerpt", "content")
     ).lower()
+
+
+def _search_terms(*values: str | None) -> list[str]:
+    return build_search_terms(*values)
+
+
+def _matches_terms(item: dict[str, Any], terms: list[str]) -> bool:
+    return item_matches_terms(item, terms)
+
+
+def _matches_terms_in_fields(item: dict[str, Any], terms: list[str], *, text_keys: tuple[str, ...]) -> bool:
+    return item_matches_terms(item, terms, text_keys=text_keys)
+
+
+def _normalize_internal_news_item(item: Any) -> dict[str, Any]:
+    content = getattr(item, "content", None)
+    excerpt = (content or "")[:280]
+    published_at = _safe_timestamp_ms(getattr(item, "published_at", None))
+    if published_at is None:
+        created_at = getattr(item, "created_at", None)
+        if created_at is not None:
+            try:
+                published_at = int(created_at.timestamp() * 1000)
+            except Exception:
+                published_at = None
+    return {
+        "id": getattr(item, "external_id", None) or getattr(item, "id", None),
+        "title": getattr(item, "title", "") or "Untitled",
+        "summary": excerpt or None,
+        "excerpt": excerpt or None,
+        "content": content,
+        "source_url": normalize_news_source_url(getattr(item, "url", None), source=getattr(item, "source", "internal") or "internal"),
+        "platforms": [getattr(item, "source", "internal") or "internal"],
+        "coins": [],
+        "importance": getattr(item, "importance", "normal") or "normal",
+        "sentiment": getattr(item, "sentiment", "neutral") or "neutral",
+        "published_at": published_at,
+        "source": getattr(item, "source", "internal") or "internal",
+    }
+
+
+def _is_important_news(item: dict[str, Any]) -> bool:
+    return str(item.get("importance") or "").strip().lower() in {"important", "high"}
+
+
+def _prioritize_important_news(
+    items: list[dict[str, Any]],
+    *,
+    symbol_terms: list[str],
+    keyword_terms: list[str],
+    limit: int,
+) -> list[dict[str, Any]]:
+    important_items = [item for item in items if _is_important_news(item)]
+    if not important_items:
+        return []
+
+    symbol_term_set = set(symbol_terms)
+    query_terms = [term for term in keyword_terms if term not in symbol_term_set]
+
+    def symbol_strength(item: dict[str, Any], terms: list[str]) -> tuple[int, int, int]:
+        item_symbols = {str(value or "").upper() for value in item.get("coins") or [] if str(value or "").strip()}
+        coin_match = 1 if any(str(term or "").upper() in item_symbols for term in terms) else 0
+        title_match = 1 if _matches_terms_in_fields(item, terms, text_keys=("title",)) else 0
+        text_match = 1 if _matches_terms(item, terms) else 0
+        return coin_match, title_match, text_match
+
+    def rank(item: dict[str, Any]) -> tuple[int, int, int]:
+        symbol_match = symbol_strength(item, symbol_terms)
+        query_match = symbol_strength(item, query_terms) if query_terms else (0, 0, 0)
+        return (
+            symbol_match,
+            query_match,
+            _safe_timestamp_ms(item.get("published_at")) or 0,
+        )
+
+    ranked = sorted(important_items, key=rank, reverse=True)
+    deduped: list[dict[str, Any]] = []
+    seen_ids: set[str] = set()
+    for item in ranked:
+        item_id = str(item.get("id") or "")
+        if item_id and item_id in seen_ids:
+            continue
+        if item_id:
+            seen_ids.add(item_id)
+        deduped.append(item)
+    return deduped[: max(limit, 1)]
+
+
+async def _load_internal_news_fallback(
+    *,
+    base_symbol: str,
+    query: str,
+    language: str,
+    important_limit: int,
+    news_limit: int,
+    search_limit: int,
+    window_news_limit: int,
+) -> dict[str, Any]:
+    try:
+        from sqlalchemy import desc, select
+
+        from app.common.database import async_session, db_available
+        from app.common.models import NewsItem
+    except Exception:
+        return {
+            "important_news": [],
+            "coin_news": [],
+            "keyword_articles": [],
+            "recent_coin_news": [],
+            "previous_coin_news": [],
+            "sentiment_item": None,
+            "ranking_items": [],
+            "platforms": [],
+        }
+
+    if not db_available():
+        return {
+            "important_news": [],
+            "coin_news": [],
+            "keyword_articles": [],
+            "recent_coin_news": [],
+            "previous_coin_news": [],
+            "sentiment_item": None,
+            "ranking_items": [],
+            "platforms": [],
+        }
+
+    async with async_session() as session:
+        stmt = (
+            select(NewsItem)
+            .where(NewsItem.language.in_(_language_variants(language)))
+            .order_by(desc(NewsItem.created_at))
+            .limit(180)
+        )
+        rows = list((await session.execute(stmt)).scalars().all())
+
+    items = [_normalize_internal_news_item(row) for row in rows]
+    symbol_terms = _search_terms(base_symbol)
+    keyword_terms = _search_terms(query, base_symbol)
+
+    important_news = _prioritize_important_news(
+        items,
+        symbol_terms=symbol_terms,
+        keyword_terms=keyword_terms,
+        limit=important_limit,
+    )
+    coin_news = [item for item in items if _matches_terms(item, symbol_terms)][: max(news_limit, 1)]
+    keyword_articles = [item for item in items if _matches_terms(item, keyword_terms)][: max(search_limit, 1)]
+    coin_window = [item for item in items if _matches_terms(item, symbol_terms)][: max(window_news_limit * 2, 12)]
+    recent_coin_news = coin_window[:window_news_limit]
+    previous_coin_news = coin_window[window_news_limit: window_news_limit * 2]
+
+    sentiment_item = None
+    if coin_news:
+        sentiment = _sentiment_distribution(coin_news[:12])
+        if sentiment["total"] > 0:
+            sentiment_item = {
+                "symbol": base_symbol,
+                "label": "bullish" if sentiment["bullish_ratio"] > sentiment["bearish_ratio"] else "bearish" if sentiment["bearish_ratio"] > sentiment["bullish_ratio"] else "neutral",
+                "bullish_ratio": sentiment["bullish_ratio"],
+                "bearish_ratio": sentiment["bearish_ratio"],
+                "mention_count": len(coin_news[:12]),
+                "trend": [],
+            }
+
+    return {
+        "important_news": important_news,
+        "coin_news": coin_news,
+        "keyword_articles": keyword_articles,
+        "recent_coin_news": recent_coin_news,
+        "previous_coin_news": previous_coin_news,
+        "sentiment_item": sentiment_item,
+        "ranking_items": [],
+        "platforms": sorted({platform for item in items[:40] for platform in item.get("platforms", []) if platform}),
+    }
+
+
+def _analysis_card(
+    *,
+    title: str,
+    summary: str,
+    coins: list[str],
+    sentiment: str = "neutral",
+    importance: str = "normal",
+    published_at: int | None = None,
+) -> dict[str, Any]:
+    return {
+        "id": f"analysis-{abs(hash((title, summary, tuple(coins))))}",
+        "title": title,
+        "summary": summary,
+        "excerpt": summary,
+        "content": summary,
+        "source_url": None,
+        "platforms": ["bitinfo"],
+        "coins": coins,
+        "importance": importance,
+        "sentiment": sentiment,
+        "published_at": published_at,
+        "source": "bitinfo_intel",
+    }
+
+
+def _build_synthetic_news_sets(
+    *,
+    base_symbol: str,
+    query: str,
+    summary: str,
+    takeaways: list[str],
+    technicals: dict[str, Any],
+    alerts: dict[str, Any],
+    now_ms: int,
+) -> dict[str, list[dict[str, Any]]]:
+    sentiment = technicals.get("bias") or "neutral"
+    important_cards: list[dict[str, Any]] = []
+    coin_cards: list[dict[str, Any]] = []
+    research_cards: list[dict[str, Any]] = []
+
+    top_alert = next(iter(alerts.get("items") or []), None)
+    if isinstance(top_alert, dict):
+        important_cards.append(_analysis_card(
+            title=top_alert.get("title") or "当前异动提醒",
+            summary=top_alert.get("summary") or "当前没有额外异动说明。",
+            coins=[base_symbol],
+            sentiment=sentiment,
+            importance="important",
+            published_at=now_ms,
+        ))
+
+    important_cards.append(_analysis_card(
+        title=f"{base_symbol} 结构摘要",
+        summary=summary,
+        coins=[base_symbol],
+        sentiment=sentiment,
+        importance="important",
+        published_at=now_ms,
+    ))
+    important_cards.append(_analysis_card(
+        title="新闻样本状态",
+        summary="当前外部新闻样本不足，页面已自动切换为结构情报卡，先用盘口、Funding、OI 和技术确认保持连续判断。",
+        coins=[base_symbol],
+        sentiment="neutral",
+        published_at=now_ms,
+    ))
+
+    if takeaways:
+        coin_cards.append(_analysis_card(
+            title=f"{base_symbol} 当前观察重点",
+            summary=" ".join(takeaways[:3]),
+            coins=[base_symbol],
+            sentiment=sentiment,
+            published_at=now_ms,
+        ))
+
+    coin_cards.append(_analysis_card(
+        title=f"{base_symbol} 技术确认",
+        summary=(
+            f"当前技术验证评分 {technicals.get('score', '—')}，"
+            f"偏向 {technicals.get('bias_label', '中性')}，"
+            f"价格/OI 结构 {technicals.get('price_oi_regime_label', '中性结构')}。"
+        ),
+        coins=[base_symbol],
+        sentiment=sentiment,
+        published_at=now_ms,
+    ))
+
+    research_cards.append(_analysis_card(
+        title=f"关键词 {query} 研究结论",
+        summary=f"外部新闻样本不足，先用当前结构和已有标签做初步判断。{summary}",
+        coins=[base_symbol],
+        sentiment=sentiment,
+        published_at=now_ms,
+    ))
+    research_cards.append(_analysis_card(
+        title=f"{query} 当前观察路径",
+        summary="先看 Daily Brief 的结构结论，再看 Alerts 和技术确认，最后等真实新闻样本补齐后复核关键词叙事。",
+        coins=[base_symbol],
+        sentiment="neutral",
+        published_at=now_ms,
+    ))
+
+    return {
+        "important_news": important_cards[:2],
+        "coin_news": coin_cards[:2],
+        "keyword_articles": research_cards[:2],
+    }
+
+
+def _build_synthetic_sentiment(
+    *,
+    base_symbol: str,
+    technicals: dict[str, Any],
+) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    bias = str(technicals.get("bias") or "neutral").lower()
+    if bias == "bullish":
+        bullish_ratio, bearish_ratio = 0.62, 0.18
+    elif bias == "bearish":
+        bullish_ratio, bearish_ratio = 0.18, 0.62
+    else:
+        bullish_ratio, bearish_ratio = 0.34, 0.31
+    sentiment_item = {
+        "symbol": base_symbol,
+        "label": bias if bias in {"bullish", "bearish", "neutral"} else "neutral",
+        "bullish_ratio": bullish_ratio,
+        "bearish_ratio": bearish_ratio,
+        "mention_count": 0,
+        "trend": [],
+    }
+    return sentiment_item, [sentiment_item]
+
+
+def _build_sentiment_trend(
+    items: list[dict[str, Any]],
+    *,
+    trend_points: int = 12,
+) -> list[dict[str, Any]]:
+    if trend_points <= 0 or not items:
+        return []
+    ordered = sorted(
+        items,
+        key=lambda item: _safe_timestamp_ms(item.get("published_at")) or 0,
+        reverse=True,
+    )
+    bucket_size = max(1, math.ceil(len(ordered) / trend_points))
+    trend: list[dict[str, Any]] = []
+    for start in range(0, len(ordered), bucket_size):
+        bucket = ordered[start:start + bucket_size]
+        if not bucket:
+            continue
+        distribution = _sentiment_distribution(bucket)
+        trend.append({
+            "ts": _safe_timestamp_ms(bucket[0].get("published_at")),
+            "bullish_ratio": distribution["bullish_ratio"],
+            "bearish_ratio": distribution["bearish_ratio"],
+            "mention_count": distribution["total"],
+        })
+    return trend[:trend_points]
+
+
+def _build_snapshot_trend(
+    sentiment_item: dict[str, Any],
+    *,
+    timeframe: str,
+    now_ms: int,
+    points: int = 6,
+) -> list[dict[str, Any]]:
+    interval_ms = _trend_interval_ms(timeframe)
+    bullish_ratio = _safe_float(sentiment_item.get("bullish_ratio")) or 0.0
+    bearish_ratio = _safe_float(sentiment_item.get("bearish_ratio")) or 0.0
+    mention_count = int(sentiment_item.get("mention_count") or 0)
+    return [
+        {
+            "ts": now_ms - idx * interval_ms,
+            "bullish_ratio": bullish_ratio,
+            "bearish_ratio": bearish_ratio,
+            "mention_count": mention_count,
+        }
+        for idx in range(points)
+    ]
+
+
+def _select_trend_source(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [
+        item for item in items
+        if not str(item.get("id") or "").startswith("analysis-")
+    ]
 
 
 def _topic_counts(items: list[dict[str, Any]]) -> tuple[Counter[str], dict[str, list[str]]]:
@@ -702,6 +1107,36 @@ async def build_market_intel_master(
     ranking_items = list(sentiment_ranking.get("items") or [])
     keyword_articles = list(keyword_research_raw.get("items") or [])
 
+    fallback_news = await _load_internal_news_fallback(
+        base_symbol=base_symbol,
+        query=query,
+        language=resolved_language,
+        important_limit=important_limit,
+        news_limit=news_limit,
+        search_limit=search_limit,
+        window_news_limit=min(max(news_limit * 2, 12), 50),
+    )
+
+    if not important_news_items:
+        important_news_items = list(fallback_news.get("important_news") or [])
+    if not coin_news_items:
+        coin_news_items = list(fallback_news.get("coin_news") or [])
+    if not recent_coin_news:
+        recent_coin_news = list(fallback_news.get("recent_coin_news") or [])
+    if not previous_coin_news:
+        previous_coin_news = list(fallback_news.get("previous_coin_news") or [])
+    if sentiment_item is None:
+        sentiment_item = fallback_news.get("sentiment_item")
+    if not ranking_items:
+        ranking_items = list(fallback_news.get("ranking_items") or [])
+    if not keyword_articles:
+        keyword_articles = list(fallback_news.get("keyword_articles") or [])
+    if not platform_list.get("items"):
+        platform_list = {
+            "items": list(fallback_news.get("platforms") or []),
+            "count": len(list(fallback_news.get("platforms") or [])),
+        }
+
     topic_board = _compare_topics(recent_coin_news or coin_news_items, previous_coin_news)
     technicals = _technical_validation(market if isinstance(market, dict) else {}, sentiment_item)
     focus_pairs = await _build_focus_pairs(
@@ -718,9 +1153,6 @@ async def build_market_intel_master(
         important_news_items,
         topic_board,
     )
-    keyword_topics = _compare_topics(keyword_articles, [])
-    keyword_sentiment = _sentiment_distribution(keyword_articles)
-    related_coins = _associated_coins(keyword_articles, fallback=base_symbol)
     daily_takeaways = _daily_takeaways(
         market if isinstance(market, dict) else {},
         sentiment_item,
@@ -741,6 +1173,46 @@ async def build_market_intel_master(
         f"当前 {news_line}，{alert_line}，适合先看结构，再看叙事。"
     )
 
+    synthetic_news = _build_synthetic_news_sets(
+        base_symbol=base_symbol,
+        query=query,
+        summary=summary,
+        takeaways=daily_takeaways,
+        technicals=technicals,
+        alerts=alerts,
+        now_ms=now_ms,
+    )
+    if not important_news_items:
+        important_news_items = list(synthetic_news["important_news"])
+    if not coin_news_items:
+        coin_news_items = list(synthetic_news["coin_news"])
+    if not keyword_articles:
+        keyword_articles = list(synthetic_news["keyword_articles"])
+    if sentiment_item is None:
+        sentiment_item, ranking_items = _build_synthetic_sentiment(
+            base_symbol=base_symbol,
+            technicals=technicals,
+        )
+    elif not ranking_items:
+        ranking_items = [{**sentiment_item}]
+
+    if isinstance(sentiment_item, dict) and not list(sentiment_item.get("trend") or []):
+        trend_source = _select_trend_source(recent_coin_news or coin_news_items)
+        sentiment_item = {
+            **sentiment_item,
+            "trend": _build_sentiment_trend(trend_source, trend_points=12)
+            if trend_source
+            else _build_snapshot_trend(
+                sentiment_item,
+                timeframe=resolved_timeframe,
+                now_ms=now_ms,
+            ),
+        }
+
+    keyword_topics = _compare_topics(keyword_articles, [])
+    keyword_sentiment = _sentiment_distribution(keyword_articles)
+    related_coins = _associated_coins(keyword_articles, fallback=base_symbol)
+
     return {
         "skill": "market-intel",
         "version": "1.0",
@@ -755,6 +1227,17 @@ async def build_market_intel_master(
         "available_platforms": list(platform_list.get("items") or []),
         "status": "partial" if errors else "ok",
         "errors": errors,
+        "coin_sentiment": {
+            "period": _sentiment_period(resolved_timeframe),
+            "items": [sentiment_item] if isinstance(sentiment_item, dict) else [],
+            "count": 1 if isinstance(sentiment_item, dict) else 0,
+        },
+        "sentiment_ranking": {
+            "period": _sentiment_period(resolved_timeframe),
+            "sort_by": "hot",
+            "items": ranking_items,
+            "count": len(ranking_items),
+        },
         "daily_brief": {
             "pulse_score": pulse_score,
             "bias": technicals.get("bias"),
