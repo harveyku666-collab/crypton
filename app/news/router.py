@@ -16,6 +16,7 @@ from app.news.okx_fallback import (
     get_fallback_platforms_payload,
     get_fallback_sentiment_ranking_payload,
 )
+from app.news.translation import localize_article_for_language
 from app.news.fetcher import (
     NEWS_CATEGORIES,
     SUPPORTED_LANGUAGES,
@@ -577,7 +578,12 @@ async def okx_news_detail(
                 reason=str(payload.get("warning") or "OKX news detail returned no item"),
             )
             if fallback.get("item") is not None:
-                return fallback
+                payload = fallback
+        if isinstance(payload.get("item"), dict):
+            localized = await localize_article_for_language(payload["item"], language=language)
+            if localized is not payload["item"]:
+                payload = dict(payload)
+                payload["item"] = localized
         return payload
     except Exception as exc:
         fallback = await get_fallback_detail_payload(
@@ -586,6 +592,10 @@ async def okx_news_detail(
             reason=f"Failed to fetch OKX news detail: {exc}",
         )
         if fallback.get("item") is not None:
+            localized = await localize_article_for_language(fallback["item"], language=language)
+            if localized is not fallback["item"]:
+                fallback = dict(fallback)
+                fallback["item"] = localized
             return fallback
         return {"item": None, "error": f"Failed to fetch OKX news detail: {exc}"}
 

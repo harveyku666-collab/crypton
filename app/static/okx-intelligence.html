@@ -431,6 +431,16 @@ tbody tr:last-child{border-bottom:none}
 }
 .detail-title{font-size:24px;font-weight:700;line-height:1.4}
 .detail-meta{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap}
+.detail-note{
+  margin-top:12px;
+  border-left:3px solid rgba(97,217,255,.55);
+  border-radius:0 14px 14px 0;
+  background:rgba(97,217,255,.08);
+  color:#dff8ff;
+  padding:10px 12px;
+  font-size:13px;
+  line-height:1.7;
+}
 .detail-text{
   margin-top:16px;
   color:#d7e4ef;
@@ -1239,15 +1249,42 @@ function findLoadedArticle(articleId){
   return collectLoadedArticles().find(item => String(item?.id || '') === String(articleId)) || null;
 }
 
+function hasCjk(text){
+  return /[\u3400-\u9fff]/.test(String(text || ''));
+}
+
+function getArticleDisplayTitle(item){
+  if(state.language === 'zh-CN'){
+    return item?.translated_title || item?.title || 'Untitled';
+  }
+  return item?.title || item?.translated_title || 'Untitled';
+}
+
+function getArticleDisplayBody(item){
+  if(state.language === 'zh-CN'){
+    return item?.translated_content || item?.translated_summary || item?.content || item?.summary || item?.excerpt || '暂无摘要';
+  }
+  return item?.content || item?.summary || item?.excerpt || item?.translated_content || item?.translated_summary || '暂无摘要';
+}
+
+function hasChineseArticleDisplay(item){
+  if(!item) return false;
+  if(item.translated_title || item.translated_summary || item.translated_content) return true;
+  return hasCjk([item.title, item.content, item.summary, item.excerpt].filter(Boolean).join(' '));
+}
+
 function renderArticleDetail(item){
   if(!item){
     $('detail-panel').innerHTML = '<div class="detail-empty">当前没有可展示的文章详情</div>';
     return;
   }
   state.activeArticle = item;
+  const displayTitle = getArticleDisplayTitle(item);
+  const displayBody = getArticleDisplayBody(item);
+  const hasZhTranslation = state.language === 'zh-CN' && Boolean(item.translated_title || item.translated_summary || item.translated_content);
   $('detail-panel').innerHTML = `
     <div class="detail-box">
-      <div class="detail-title">${escapeHtml(item.title || 'Untitled')}</div>
+      <div class="detail-title">${escapeHtml(displayTitle)}</div>
       <div class="detail-meta">
         <span class="badge">${escapeHtml(item.importance || 'normal')}</span>
         <span class="badge">${escapeHtml(item.sentiment || 'neutral')}</span>
@@ -1258,19 +1295,26 @@ function renderArticleDetail(item){
         <span class="badge">${escapeHtml((item.platforms || []).slice(0, 2).join(' / ') || 'okx_orbit')}</span>
         ${item.source_url ? `<a class="badge" href="${escapeHtml(item.source_url)}" target="_blank" rel="noopener noreferrer">原文 ↗</a>` : ''}
       </div>
-      <div class="detail-text">${escapeHtml(item.content || item.summary || item.excerpt || '暂无摘要')}</div>
+      ${hasZhTranslation ? '<div class="detail-note">已优先显示中文要点，原文可通过“原文 ↗”查看。</div>' : ''}
+      <div class="detail-text">${escapeHtml(displayBody)}</div>
     </div>
   `;
 }
 
 function articleHasReadableBody(item){
-  return Boolean(item && (item.content || item.summary || item.excerpt));
+  return Boolean(item && (item.translated_content || item.translated_summary || item.content || item.summary || item.excerpt));
+}
+
+function shouldWaitForChineseDetail(item){
+  if(state.language !== 'zh-CN' || !item) return false;
+  if(hasChineseArticleDisplay(item)) return false;
+  return articleHasReadableBody(item);
 }
 
 async function openArticle(articleId){
   if(!articleId) return;
   const localItem = findLoadedArticle(articleId);
-  if(localItem && articleHasReadableBody(localItem)){
+  if(localItem && articleHasReadableBody(localItem) && !shouldWaitForChineseDetail(localItem)){
     renderArticleDetail(localItem);
   }else{
     $('detail-panel').innerHTML = '<div class="loading">正在拉取文章详情...</div>';
@@ -1302,6 +1346,10 @@ async function openArticle(articleId){
       published_at: item.published_at || localItem?.published_at,
       importance: item.importance || localItem?.importance,
       source_url: item.source_url || localItem?.source_url,
+      translated_title: item.translated_title || localItem?.translated_title,
+      translated_summary: item.translated_summary || localItem?.translated_summary,
+      translated_content: item.translated_content || localItem?.translated_content,
+      translation_mode: item.translation_mode || localItem?.translation_mode,
     });
   }catch(error){
     if(localItem){

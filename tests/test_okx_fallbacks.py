@@ -5,6 +5,7 @@ from app.main import app
 from app.analysis.okx_market_intel import _prioritize_important_news, build_market_intel_master
 from app.market.sources import okx
 from app.market.sources.okx import _normalize_orderbook, _normalize_trade_rows
+from app.news import translation as news_translation
 
 
 @pytest.mark.anyio
@@ -697,3 +698,71 @@ def test_okx_normalizers_drop_zero_sized_levels_and_trades():
     assert [level["size"] for level in orderbook["asks"]] == [0.95, 0.0008]
     assert [trade["tradeId"] for trade in trades] == ["2", "3"]
     assert trades[0]["sz"] == pytest.approx(0.004)
+
+
+@pytest.mark.anyio
+async def test_localize_article_for_language_adds_zh_fields(monkeypatch):
+    async def fake_ai_chat(*args, **kwargs):
+        return (
+            '{"title":"比特币 ETF 再现资金流入",'
+            '"summary":"美国现货比特币 ETF 再次录得净流入。",'
+            '"content":"美国现货比特币 ETF 出现新增资金流入。\\n\\n市场将此视为机构需求回暖的信号。"}'
+        )
+
+    monkeypatch.setattr(news_translation.settings, "openai_api_key", "test-key")
+    monkeypatch.setattr(news_translation, "ai_chat", fake_ai_chat)
+
+    localized = await news_translation.localize_article_for_language(
+        {
+            "id": "detail-1",
+            "title": "Bitcoin ETF sees fresh inflows",
+            "summary": "US spot ETFs posted another day of net inflows.",
+            "content": "US spot Bitcoin ETFs posted another day of net inflows as institutional demand improved.",
+        },
+        language="zh-CN",
+    )
+
+    assert localized["translated_title"] == "比特币 ETF 再现资金流入"
+    assert localized["translated_summary"] == "美国现货比特币 ETF 再次录得净流入。"
+    assert "机构需求回暖" in localized["translated_content"]
+    assert localized["translation_mode"] == "zh_key_points"
+
+
+@pytest.mark.anyio
+async def test_okx_news_detail_returns_translated_fields_for_zh(monkeypatch):
+    async def fake_get_news_detail(*args, **kwargs):
+        return {
+            "item": {
+                "id": "detail-2",
+                "title": "Ethereum treasury firm adds more ETH",
+                "summary": "SharpLink expanded its ETH reserves.",
+                "content": "SharpLink added more ETH to its treasury and reiterated its long-term staking plan.",
+                "platforms": ["blockbeats"],
+                "coins": ["ETH"],
+                "importance": "high",
+                "sentiment": "bullish",
+                "published_at": 1776804859000,
+            },
+            "backend": "okx_cli",
+        }
+
+    async def fake_localize_article(item, *, language):
+        return {
+            **item,
+            "translated_title": "以太坊财库公司继续增持 ETH",
+            "translated_summary": "SharpLink 扩大 ETH 储备。",
+            "translated_content": "SharpLink 再次增持 ETH，并重申长期质押计划。",
+            "translation_mode": "zh_key_points",
+        }
+
+    monkeypatch.setattr("app.news.router.okx_orbit.get_news_detail", fake_get_news_detail)
+    monkeypatch.setattr("app.news.router.localize_article_for_language", fake_localize_article)
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        resp = await client.get("/api/v1/news/okx/detail/detail-2", params={"language": "zh-CN"})
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["item"]["translated_title"] == "以太坊财库公司继续增持 ETH"
+    assert data["item"]["translated_content"] == "SharpLink 再次增持 ETH，并重申长期质押计划。"
