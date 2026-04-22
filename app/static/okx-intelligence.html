@@ -941,12 +941,13 @@ function renderMarketPanel(payload){
     $('market-panel').innerHTML = `<div class="empty">${escapeHtml(market?.error || '市场数据暂时不可用')}</div>`;
     return;
   }
+  const tradeDisplayLimit = 20;
   const snapshot = market.snapshot || {};
   const candles = Array.isArray(market.candles) ? market.candles : [];
   const closes = candles.slice().reverse().map(item => item?.close).filter(v => v != null);
   const indicators = market.indicator_summary || {};
   const orderbook = market.orderbook || {};
-  const trades = Array.isArray(market.recent_trades) ? market.recent_trades.slice(0, 7) : [];
+  const trades = Array.isArray(market.recent_trades) ? market.recent_trades.slice(0, tradeDisplayLimit) : [];
   const bidNotional = Number(orderbook.bid_depth_notional_top5 || 0);
   const askNotional = Number(orderbook.ask_depth_notional_top5 || 0);
   const totalDepth = bidNotional + askNotional || 1;
@@ -1284,6 +1285,7 @@ async function loadDashboard({silent=false} = {}){
     inst_id: instId,
     candle_bar: state.timeframe,
     oi_bar: state.timeframe,
+    trade_limit: '20',
     language: state.language,
     detail_lvl: 'summary',
     news_limit: '6',
