@@ -1253,18 +1253,50 @@ function hasCjk(text){
   return /[\u3400-\u9fff]/.test(String(text || ''));
 }
 
+function firstNonEmptyText(values){
+  return values.map(value => String(value || '').trim()).find(Boolean) || '';
+}
+
+function pickChinesePreferredText(...values){
+  const normalized = values.map(value => String(value || '').trim()).filter(Boolean);
+  if(!normalized.length) return '';
+  return normalized.find(hasCjk) || normalized[0];
+}
+
+function mergeLocalizedText(primary, secondary){
+  const primaryText = String(primary || '').trim();
+  const secondaryText = String(secondary || '').trim();
+  if(state.language === 'zh-CN'){
+    if(hasCjk(primaryText)) return primaryText;
+    if(hasCjk(secondaryText)) return secondaryText;
+  }
+  return primaryText || secondaryText;
+}
+
 function getArticleDisplayTitle(item){
   if(state.language === 'zh-CN'){
-    return item?.translated_title || item?.title || 'Untitled';
+    return pickChinesePreferredText(item?.translated_title, item?.title) || 'Untitled';
   }
-  return item?.title || item?.translated_title || 'Untitled';
+  return firstNonEmptyText([item?.title, item?.translated_title]) || 'Untitled';
 }
 
 function getArticleDisplayBody(item){
   if(state.language === 'zh-CN'){
-    return item?.translated_content || item?.translated_summary || item?.content || item?.summary || item?.excerpt || '暂无摘要';
+    return pickChinesePreferredText(
+      item?.translated_content,
+      item?.translated_summary,
+      item?.content,
+      item?.summary,
+      item?.excerpt,
+    ) || '暂无摘要';
   }
-  return item?.content || item?.summary || item?.excerpt || item?.translated_content || item?.translated_summary || '暂无摘要';
+  return firstNonEmptyText([
+    item?.content,
+    item?.summary,
+    item?.excerpt,
+    item?.translated_content,
+    item?.translated_summary,
+  ]) || '暂无摘要';
 }
 
 function hasChineseArticleDisplay(item){
@@ -1337,10 +1369,10 @@ async function openArticle(articleId){
     renderArticleDetail({
       ...(localItem || {}),
       ...item,
-      title: item.title || localItem?.title,
-      summary: item.summary || localItem?.summary,
-      excerpt: item.excerpt || localItem?.excerpt,
-      content: item.content || localItem?.content || localItem?.summary || localItem?.excerpt,
+      title: mergeLocalizedText(item.title, localItem?.title),
+      summary: mergeLocalizedText(item.summary, localItem?.summary),
+      excerpt: mergeLocalizedText(item.excerpt, localItem?.excerpt),
+      content: mergeLocalizedText(item.content, localItem?.content || localItem?.summary || localItem?.excerpt),
       platforms: item.platforms || localItem?.platforms,
       coins: item.coins || localItem?.coins,
       published_at: item.published_at || localItem?.published_at,
