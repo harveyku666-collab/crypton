@@ -147,6 +147,11 @@ async def test_okx_overview_uses_market_intel_fallback_sections(monkeypatch):
     assert data["sentiment_ranking"]["count"] == 1
     assert data["coin_news"]["warning"] == "OKX coin news fallback active"
     assert data["sentiment_ranking"]["items"][0]["symbol"] == "BTC"
+    assert data["source_meta"]["page_mode"] == "extended_dashboard"
+    assert data["source_meta"]["strict_clone"] is False
+    assert data["source_meta"]["strict_clone_path"] == "/market-intel"
+    assert data["source_meta"]["uses_news_fallback"] is True
+    assert "OKX coin news fallback active" in data["source_meta"]["warnings"]
 
 
 @pytest.mark.anyio

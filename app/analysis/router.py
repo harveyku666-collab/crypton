@@ -299,9 +299,25 @@ async def okx_overview(
                     "warning": "OKX sentiment ranking fallback active",
                 }
 
+    source_warnings: list[str] = []
+    for section in (coin_news, important_news, coin_sentiment, ranking):
+        if isinstance(section, dict):
+            warning = str(section.get("warning") or "").strip()
+            if warning and warning not in source_warnings:
+                source_warnings.append(warning)
+
     return {
         "instId": inst_id,
         "coin": base_symbol,
+        "source_meta": {
+            "page_mode": "extended_dashboard",
+            "strict_clone": False,
+            "strict_clone_path": "/market-intel",
+            "market_data": "okx_public_market_v5",
+            "news_data": "okx_orbit_public_with_fallback" if source_warnings else "okx_orbit_public",
+            "uses_news_fallback": bool(source_warnings),
+            "warnings": source_warnings,
+        },
         "market": market,
         "coin_news": coin_news,
         "important_news": important_news,

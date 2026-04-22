@@ -438,6 +438,26 @@ tbody tr:last-child{border-bottom:none}
   white-space:pre-wrap;
 }
 .status-line{margin-top:10px;color:var(--muted);font-size:12px}
+.notice-bar{
+  margin-top:16px;
+  border-radius:22px;
+  border:1px solid rgba(255,205,118,.18);
+  background:linear-gradient(135deg, rgba(255,205,118,.08), rgba(97,217,255,.04));
+  box-shadow:var(--shadow);
+  padding:14px 18px;
+}
+.notice-title{
+  font-size:12px;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:var(--amber);
+}
+.notice-copy{
+  margin-top:6px;
+  color:var(--text);
+  font-size:13px;
+  line-height:1.75;
+}
 @media (max-width:1180px){
   .hero-grid,.main-grid,.bottom-grid{grid-template-columns:1fr}
   .toolbar{grid-template-columns:repeat(2,minmax(0,1fr))}
@@ -479,6 +499,11 @@ tbody tr:last-child{border-bottom:none}
         </div>
       </div>
     </div>
+  </section>
+
+  <section class="notice-bar" id="source-notice">
+    <div class="notice-title">Source Mode</div>
+    <div class="notice-copy">扩展工作台：市场数据来自 OKX 公共行情接口；新闻与情绪来自 Orbit 公共数据。严格复刻请使用 `/market-intel`。</div>
   </section>
 
   <section class="toolbar">
@@ -881,6 +906,22 @@ function renderHeroMeta(instId){
   $('hero-updated').textContent = state.lastUpdatedAt
     ? `最近更新 ${new Date(state.lastUpdatedAt).toLocaleTimeString('zh-CN', {hour12:false})}`
     : '等待首次加载';
+}
+
+function renderSourceNotice(payload){
+  const meta = payload?.source_meta || {};
+  const warnings = Array.isArray(meta.warnings) ? meta.warnings.filter(Boolean) : [];
+  const parts = [
+    '扩展工作台：市场数据对齐 OKX 公共行情接口；新闻与情绪来自 Orbit 公共数据。',
+  ];
+  if(warnings.length){
+    parts.push(`当前已进入回退模式：${warnings.join('；')}。`);
+  }
+  parts.push('如果你要看严格复刻，请使用 /market-intel。');
+  $('source-notice').innerHTML = `
+    <div class="notice-title">Source Mode</div>
+    <div class="notice-copy">${parts.map(escapeHtml).join(' ')}</div>
+  `;
 }
 
 function metricCard(label, value, sub, cls='neutral'){
@@ -1324,6 +1365,7 @@ async function loadDashboard({silent=false} = {}){
 
   state.lastUpdatedAt = Date.now();
   renderHeroMeta(instId);
+  renderSourceNotice(state.payload);
   renderSummary(state.payload);
   renderMarketPanel(state.payload);
   renderNewsPanel(state.payload);
