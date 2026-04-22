@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import html
 import json
 import logging
 import re
@@ -22,6 +23,7 @@ _APP_STATE_RE = re.compile(
     r'<script[^>]+data-id="__app_data_for_ssr__"[^>]+id="appState"[^>]*>(.*?)</script>',
     re.IGNORECASE | re.DOTALL,
 )
+_HTML_TAG_RE = re.compile(r"<[^>]+>")
 
 
 def _normalize_language(language: str | None) -> str:
@@ -33,6 +35,19 @@ def _normalize_language(language: str | None) -> str:
 
 def _clean_text(value: Any) -> str:
     return str(value or "").strip()
+
+
+def _clean_rich_text(value: Any) -> str:
+    text = _clean_text(value)
+    if not text:
+        return ""
+    text = re.sub(r"(?i)<br\s*/?>", "\n", text)
+    text = re.sub(r"(?i)</p\s*>", "\n\n", text)
+    text = _HTML_TAG_RE.sub("", text)
+    text = html.unescape(text)
+    text = re.sub(r"[ \t]+\n", "\n", text)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip()
 
 
 def _needs_zh_translation(text: str) -> bool:
@@ -198,13 +213,13 @@ async def _load_public_feed_translation(source_url: str, *, language: str) -> di
         if not isinstance(row, dict):
             continue
         content = row.get("translatedContent") or row.get("content")
-        text = _clean_text(content)
+        text = _clean_rich_text(content)
         if text:
             content_parts.append(text)
 
     translated = {
-        "translated_title": _clean_text(detail.get("title") or detail.get("enTitle")),
-        "translated_summary": _clean_text(detail.get("summary")),
+        "translated_title": _clean_rich_text(detail.get("title") or detail.get("enTitle")),
+        "translated_summary": _clean_rich_text(detail.get("summary")),
         "translated_content": "\n\n".join(part for part in content_parts if part).strip(),
     }
     translated = {key: value for key, value in translated.items() if value}

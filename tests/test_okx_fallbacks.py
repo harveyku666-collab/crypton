@@ -768,6 +768,7 @@ async def test_localize_article_for_language_uses_okx_public_feed_translation(mo
     assert localized["translated_title"] == "特朗普称伊朗财政正在崩溃"
     assert localized["translated_summary"] == "特朗普称伊朗急需资金。"
     assert "每天损失 5 亿美元" in localized["translated_content"]
+    assert "<p>" not in localized["translated_content"]
     assert localized["translation_mode"] == "okx_public_feed"
 
 
