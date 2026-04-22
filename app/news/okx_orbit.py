@@ -12,7 +12,6 @@ import json
 import logging
 import shutil
 from pathlib import Path
-import tomllib
 from typing import Any
 
 from app.config import settings
@@ -20,6 +19,11 @@ from app.config import settings
 from app.common.cache import cached
 from app.common.http_client import fetch_json
 from app.news.url_utils import normalize_news_source_url
+
+try:
+    import tomllib  # type: ignore[attr-defined]
+except ModuleNotFoundError:  # pragma: no cover - Python < 3.11 fallback
+    tomllib = None
 
 BASE = "https://www.okx.com/api/v5/orbit"
 HEADERS = {"User-Agent": "Mozilla/5.0", "Accept": "application/json"}
@@ -88,7 +92,7 @@ def _find_okx() -> str:
 
 def _load_okx_cli_config() -> dict[str, Any]:
     path = Path.home() / ".okx" / "config.toml"
-    if not path.exists():
+    if not path.exists() or tomllib is None:
         return {}
     try:
         with path.open("rb") as fh:
