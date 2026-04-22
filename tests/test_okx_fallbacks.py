@@ -155,6 +155,98 @@ async def test_okx_overview_uses_market_intel_fallback_sections(monkeypatch):
 
 
 @pytest.mark.anyio
+async def test_okx_overview_reports_cli_news_source(monkeypatch):
+    async def fake_market_intelligence(*args, **kwargs):
+        return {
+            "snapshot": {"last": 100000.0, "price_change_pct_24h": 2.5},
+            "diagnosis": {"price_oi_regime": "price_up_oi_up"},
+            "indicator_summary": {},
+            "orderbook": {"bids": [], "asks": []},
+            "recent_trades": [],
+        }
+
+    def cli_news_payload(kind: str) -> dict:
+        return {
+            "kind": kind,
+            "language": "en-US",
+            "items": [
+                {
+                    "id": f"{kind}-1",
+                    "title": f"{kind} cli article",
+                    "summary": "Official CLI source.",
+                    "excerpt": "Official CLI source.",
+                    "content": "Official CLI source.",
+                    "platforms": ["blockbeats"],
+                    "coins": ["BTC"],
+                    "importance": "high",
+                    "sentiment": "bullish",
+                    "published_at": 1776600000000,
+                    "source": "okx_cli_news",
+                }
+            ],
+            "count": 1,
+            "backend": "okx_cli",
+        }
+
+    async def coin_news(*args, **kwargs):
+        return cli_news_payload("coin")
+
+    async def latest_news(*args, **kwargs):
+        return cli_news_payload("latest")
+
+    async def coin_sentiment(*args, **kwargs):
+        return {
+            "period": "1h",
+            "items": [
+                {
+                    "symbol": "BTC",
+                    "label": "bullish",
+                    "bullish_ratio": 0.67,
+                    "bearish_ratio": 0.12,
+                    "mention_count": 9,
+                    "trend": [],
+                }
+            ],
+            "count": 1,
+            "backend": "okx_cli",
+        }
+
+    async def sentiment_ranking(*args, **kwargs):
+        return {
+            "period": "1h",
+            "sort_by": "hot",
+            "items": [
+                {
+                    "symbol": "BTC",
+                    "label": "bullish",
+                    "bullish_ratio": 0.67,
+                    "bearish_ratio": 0.12,
+                    "mention_count": 9,
+                    "trend": [],
+                }
+            ],
+            "count": 1,
+            "backend": "okx_cli",
+        }
+
+    monkeypatch.setattr("app.analysis.router.okx.build_market_intelligence", fake_market_intelligence)
+    monkeypatch.setattr("app.analysis.router.okx_orbit.get_news_by_coin", coin_news)
+    monkeypatch.setattr("app.analysis.router.okx_orbit.get_latest_news", latest_news)
+    monkeypatch.setattr("app.analysis.router.okx_orbit.get_coin_sentiment", coin_sentiment)
+    monkeypatch.setattr("app.analysis.router.okx_orbit.get_sentiment_ranking", sentiment_ranking)
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        resp = await client.get("/api/v1/analysis/okx/overview", params={"inst_id": "BTC-USDT-SWAP", "language": "en-US"})
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["source_meta"]["news_data"] == "okx_cli_private"
+    assert data["source_meta"]["uses_news_fallback"] is False
+    assert "okx_cli" in data["source_meta"]["news_backends"]
+
+
+@pytest.mark.anyio
 async def test_okx_oi_history_uses_legacy_fallback(monkeypatch):
     async def fail_public_post(*args, **kwargs):
         raise RuntimeError("connection reset")

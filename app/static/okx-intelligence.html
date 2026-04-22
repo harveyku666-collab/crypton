@@ -911,9 +911,13 @@ function renderHeroMeta(instId){
 function renderSourceNotice(payload){
   const meta = payload?.source_meta || {};
   const warnings = Array.isArray(meta.warnings) ? meta.warnings.filter(Boolean) : [];
-  const parts = [
-    '扩展工作台：市场数据对齐 OKX 公共行情接口；新闻与情绪来自 Orbit 公共数据。',
-  ];
+  const newsData = String(meta.news_data || '').trim();
+  const parts = [];
+  if(newsData === 'okx_cli_private'){
+    parts.push('扩展工作台：市场数据对齐 OKX 公共行情接口；新闻与情绪当前来自已安装的 OKX CLI 官方源。');
+  }else{
+    parts.push('扩展工作台：市场数据对齐 OKX 公共行情接口；新闻与情绪来自 Orbit 公共数据。');
+  }
   if(warnings.length){
     parts.push(`当前已进入回退模式：${warnings.join('；')}。`);
   }

@@ -300,11 +300,22 @@ async def okx_overview(
                 }
 
     source_warnings: list[str] = []
+    news_backends: list[str] = []
     for section in (coin_news, important_news, coin_sentiment, ranking):
         if isinstance(section, dict):
             warning = str(section.get("warning") or "").strip()
             if warning and warning not in source_warnings:
                 source_warnings.append(warning)
+            backend = str(section.get("backend") or "").strip()
+            if backend and backend not in news_backends:
+                news_backends.append(backend)
+
+    if "okx_cli" in news_backends:
+        news_data_source = "okx_cli_private"
+    elif source_warnings:
+        news_data_source = "okx_orbit_public_with_fallback"
+    else:
+        news_data_source = "okx_orbit_public"
 
     return {
         "instId": inst_id,
@@ -314,8 +325,9 @@ async def okx_overview(
             "strict_clone": False,
             "strict_clone_path": "/market-intel",
             "market_data": "okx_public_market_v5",
-            "news_data": "okx_orbit_public_with_fallback" if source_warnings else "okx_orbit_public",
+            "news_data": news_data_source,
             "uses_news_fallback": bool(source_warnings),
+            "news_backends": news_backends,
             "warnings": source_warnings,
         },
         "market": market,

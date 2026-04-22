@@ -14,6 +14,9 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+asyncpg://bitinfo:bitinfo@localhost:5432/bitinfo"
     redis_url: str = "redis://localhost:6379/0"
     proxy_url: str = ""
+    okx_news_source: str = "auto"
+    okx_cli_profile: str = ""
+    okx_cli_live: bool = False
 
     openai_api_key: str = ""
     openai_base_url: str = "https://api.openai.com/v1"

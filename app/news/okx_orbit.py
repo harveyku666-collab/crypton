@@ -7,7 +7,15 @@ actions and only expose data that is useful for analysis pages.
 
 from __future__ import annotations
 
+import asyncio
+import json
+import logging
+import shutil
+from pathlib import Path
+import tomllib
 from typing import Any
+
+from app.config import settings
 
 from app.common.cache import cached
 from app.common.http_client import fetch_json
@@ -20,6 +28,10 @@ NEWS_SENTIMENT = {"bullish", "bearish", "neutral"}
 NEWS_SORT = {"latest", "relevant"}
 SENTIMENT_PERIODS = {"1h", "4h", "24h"}
 DETAIL_LEVELS = {"brief", "summary", "full"}
+OKX_NEWS_SOURCES = {"auto", "orbit", "cli"}
+
+logger = logging.getLogger("bitinfo.okx.news")
+_OKX_BIN: str | None = None
 
 
 def _compact(payload: dict[str, Any]) -> dict[str, Any]:
@@ -56,6 +68,89 @@ def _lang_headers(language: str | None) -> dict[str, str]:
         **HEADERS,
         "Accept-Language": _normalize_language(language),
     }
+
+
+def _resolve_news_source() -> str:
+    raw = str(getattr(settings, "okx_news_source", "auto") or "auto").strip().lower()
+    return raw if raw in OKX_NEWS_SOURCES else "auto"
+
+
+def _find_okx() -> str:
+    global _OKX_BIN
+    if _OKX_BIN:
+        return _OKX_BIN
+    candidate = shutil.which("okx")
+    if candidate:
+        _OKX_BIN = candidate
+        return candidate
+    raise FileNotFoundError("okx CLI not found")
+
+
+def _load_okx_cli_config() -> dict[str, Any]:
+    path = Path.home() / ".okx" / "config.toml"
+    if not path.exists():
+        return {}
+    try:
+        with path.open("rb") as fh:
+            data = tomllib.load(fh)
+            return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+def _resolve_okx_cli_profile() -> tuple[str | None, bool | None]:
+    configured = str(getattr(settings, "okx_cli_profile", "") or "").strip()
+    config = _load_okx_cli_config()
+    if configured:
+        section = config.get(configured)
+        demo = bool(section.get("demo")) if isinstance(section, dict) else None
+        return configured, demo
+    default_profile = config.get("default_profile")
+    if isinstance(default_profile, str) and default_profile.strip():
+        section = config.get(default_profile)
+        demo = bool(section.get("demo")) if isinstance(section, dict) else None
+        return default_profile.strip(), demo
+    return None, None
+
+
+def _should_try_cli_news() -> bool:
+    source = _resolve_news_source()
+    if source == "orbit":
+        return False
+    profile, demo = _resolve_okx_cli_profile()
+    force_live = bool(getattr(settings, "okx_cli_live", False))
+    if source == "cli":
+        return True
+    if profile and demo is False:
+        return True
+    if profile and force_live:
+        return True
+    return False
+
+
+async def _run_okx_cli_json(*args: str, timeout: float = 20.0) -> Any:
+    cmd = [_find_okx()]
+    profile, _demo = _resolve_okx_cli_profile()
+    if profile:
+        cmd.extend(["--profile", profile])
+    if bool(getattr(settings, "okx_cli_live", False)):
+        cmd.append("--live")
+    cmd.extend(args)
+    cmd.append("--json")
+    logger.debug("okx cli cmd: %s", " ".join(cmd))
+    proc = await asyncio.create_subprocess_exec(
+        *cmd,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
+    raw_stdout = stdout.decode().strip() if stdout else ""
+    raw_stderr = stderr.decode().strip() if stderr else ""
+    if proc.returncode != 0:
+        raise RuntimeError(raw_stderr or raw_stdout or f"okx cli exited {proc.returncode}")
+    if not raw_stdout:
+        return None
+    return json.loads(raw_stdout)
 
 
 async def _orbit_get(
@@ -116,6 +211,23 @@ def _normalize_article(item: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _cli_page(data: Any) -> dict[str, Any]:
+    if isinstance(data, dict):
+        return data
+    if isinstance(data, list) and data and isinstance(data[0], dict):
+        return data[0]
+    return {}
+
+
+def _normalize_cli_article(item: dict[str, Any]) -> dict[str, Any]:
+    normalized = _normalize_article(item)
+    platforms = item.get("platformList") if isinstance(item.get("platformList"), list) else []
+    primary_source = str(platforms[0] or "okx").strip().lower() if platforms else "okx"
+    normalized["source_url"] = normalize_news_source_url(item.get("sourceUrl"), source=primary_source)
+    normalized["source"] = "okx_cli_news"
+    return normalized
+
+
 def _normalize_news_page(
     data: Any,
     *,
@@ -135,6 +247,7 @@ def _normalize_news_page(
         "warning": warning,
         "code": code,
         "msg": msg,
+        "backend": "okx_orbit_public",
     }
 
 
@@ -160,6 +273,60 @@ def _normalize_sentiment_item(item: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _normalize_cli_news_page(
+    data: Any,
+    *,
+    language: str,
+    kind: str,
+) -> dict[str, Any]:
+    page = _cli_page(data)
+    details = page.get("details") if isinstance(page.get("details"), list) else []
+    return {
+        "kind": kind,
+        "language": _normalize_language(language),
+        "items": [_normalize_cli_article(item) for item in details if isinstance(item, dict)],
+        "count": len(details),
+        "next_cursor": page.get("nextCursor"),
+        "warning": None,
+        "code": "0",
+        "msg": "",
+        "backend": "okx_cli",
+    }
+
+
+def _normalize_cli_sentiment_page(data: Any, *, period: str, sort_by: str | None = None) -> dict[str, Any]:
+    page = _cli_page(data)
+    details = page.get("details") if isinstance(page.get("details"), list) else []
+    payload = {
+        "period": period,
+        "items": [_normalize_sentiment_item(item) for item in details if isinstance(item, dict)],
+        "count": len(details),
+        "code": "0",
+        "msg": "",
+        "warning": None,
+        "backend": "okx_cli",
+    }
+    if sort_by is not None:
+        payload["sort_by"] = sort_by
+    return payload
+
+
+def _normalize_cli_detail_payload(data: Any) -> dict[str, Any]:
+    if isinstance(data, dict):
+        article = data if isinstance(data.get("id"), (str, int)) else None
+    elif isinstance(data, list) and data and isinstance(data[0], dict):
+        article = data[0]
+    else:
+        article = None
+    return {
+        "item": _normalize_cli_article(article) if isinstance(article, dict) else None,
+        "code": "0",
+        "msg": "",
+        "warning": None,
+        "backend": "okx_cli",
+    }
+
+
 @cached(ttl=90, prefix="okx_news_latest")
 async def get_latest_news(
     *,
@@ -175,6 +342,24 @@ async def get_latest_news(
 ) -> dict[str, Any]:
     resolved_importance = importance if importance in NEWS_IMPORTANCE else None
     resolved_detail = detail_lvl if detail_lvl in DETAIL_LEVELS else "summary"
+    if _should_try_cli_news():
+        try:
+            payload = await _run_okx_cli_json(
+                "news",
+                "latest",
+                *(["--coins", coins] if coins else []),
+                *(["--importance", resolved_importance] if resolved_importance else []),
+                *(["--platform", platform] if platform else []),
+                *(["--begin", str(begin)] if begin is not None else []),
+                *(["--end", str(end)] if end is not None else []),
+                "--lang", _normalize_language(language),
+                "--detail-lvl", resolved_detail,
+                "--limit", str(min(max(limit, 1), 50)),
+                *(["--after", after] if after else []),
+            )
+            return _normalize_cli_news_page(payload, language=language, kind="latest")
+        except Exception as exc:
+            logger.warning("okx cli latest news failed, falling back to public orbit: %s", exc)
     data = await _orbit_get(
         "/news-search",
         _compact({
@@ -207,6 +392,23 @@ async def get_news_by_coin(
 ) -> dict[str, Any]:
     resolved_importance = importance if importance in NEWS_IMPORTANCE else None
     resolved_detail = detail_lvl if detail_lvl in DETAIL_LEVELS else "summary"
+    if _should_try_cli_news():
+        try:
+            payload = await _run_okx_cli_json(
+                "news",
+                "by-coin",
+                "--coins", coins.upper(),
+                *(["--importance", resolved_importance] if resolved_importance else []),
+                *(["--platform", platform] if platform else []),
+                *(["--begin", str(begin)] if begin is not None else []),
+                *(["--end", str(end)] if end is not None else []),
+                "--lang", _normalize_language(language),
+                "--detail-lvl", resolved_detail,
+                "--limit", str(min(max(limit, 1), 50)),
+            )
+            return _normalize_cli_news_page(payload, language=language, kind="coin")
+        except Exception as exc:
+            logger.warning("okx cli coin news failed, falling back to public orbit: %s", exc)
     data = await _orbit_get(
         "/news-search",
         _compact({
@@ -244,6 +446,27 @@ async def search_news(
     resolved_sentiment = sentiment if sentiment in NEWS_SENTIMENT else None
     resolved_sort = sort_by if sort_by in NEWS_SORT else "relevant"
     resolved_detail = detail_lvl if detail_lvl in DETAIL_LEVELS else "summary"
+    if _should_try_cli_news():
+        try:
+            payload = await _run_okx_cli_json(
+                "news",
+                "search",
+                *(["--keyword", keyword] if keyword else []),
+                *(["--coins", coins.upper()] if isinstance(coins, str) and coins else []),
+                *(["--importance", resolved_importance] if resolved_importance else []),
+                *(["--platform", platform] if platform else []),
+                *(["--sentiment", resolved_sentiment] if resolved_sentiment else []),
+                *(["--sort-by", resolved_sort] if resolved_sort else []),
+                *(["--begin", str(begin)] if begin is not None else []),
+                *(["--end", str(end)] if end is not None else []),
+                "--lang", _normalize_language(language),
+                "--detail-lvl", resolved_detail,
+                "--limit", str(min(max(limit, 1), 50)),
+                *(["--after", after] if after else []),
+            )
+            return _normalize_cli_news_page(payload, language=language, kind="search")
+        except Exception as exc:
+            logger.warning("okx cli news search failed, falling back to public orbit: %s", exc)
     data = await _orbit_get(
         "/news-search",
         _compact({
@@ -270,6 +493,17 @@ async def get_news_detail(
     *,
     language: str = "zh-CN",
 ) -> dict[str, Any]:
+    if _should_try_cli_news():
+        try:
+            payload = await _run_okx_cli_json(
+                "news",
+                "detail",
+                article_id,
+                "--lang", _normalize_language(language),
+            )
+            return _normalize_cli_detail_payload(payload)
+        except Exception as exc:
+            logger.warning("okx cli news detail failed, falling back to public orbit: %s", exc)
     data = await _orbit_get("/news-detail", {"id": article_id}, language=language)
     code, msg, warning = _response_status(data)
     page = _unwrap_page(data)
@@ -284,11 +518,26 @@ async def get_news_detail(
         "code": code,
         "msg": msg,
         "warning": warning,
+        "backend": "okx_orbit_public",
     }
 
 
 @cached(ttl=1800, prefix="okx_news_platforms")
 async def get_news_platforms() -> dict[str, Any]:
+    if _should_try_cli_news():
+        try:
+            payload = await _run_okx_cli_json("news", "platforms")
+            items = payload if isinstance(payload, list) else []
+            return {
+                "items": [str(item) for item in items if item],
+                "count": len(items),
+                "code": "0",
+                "msg": "",
+                "warning": None,
+                "backend": "okx_cli",
+            }
+        except Exception as exc:
+            logger.warning("okx cli news platforms failed, falling back to public orbit: %s", exc)
     data = await _orbit_get("/news-platform")
     code, msg, warning = _response_status(data)
     page = _unwrap_page(data)
@@ -299,6 +548,7 @@ async def get_news_platforms() -> dict[str, Any]:
         "code": code,
         "msg": msg,
         "warning": warning,
+        "backend": "okx_orbit_public",
     }
 
 
@@ -311,6 +561,19 @@ async def get_coin_sentiment(
 ) -> dict[str, Any]:
     resolved_period = period if period in SENTIMENT_PERIODS else "24h"
     include_trend = isinstance(trend_points, int) and trend_points > 0
+    if _should_try_cli_news():
+        try:
+            action = "coin-trend" if include_trend else "coin-sentiment"
+            payload = await _run_okx_cli_json(
+                "news",
+                action,
+                *(["--coins", coins.upper()] if action == "coin-trend" else ["--coins", coins.upper()]),
+                "--period", "1h" if include_trend and resolved_period == "24h" else resolved_period,
+                *(["--points", str(min(max(trend_points or 0, 1), 48))] if include_trend else []),
+            )
+            return _normalize_cli_sentiment_page(payload, period=resolved_period)
+        except Exception as exc:
+            logger.warning("okx cli coin sentiment failed, falling back to public orbit: %s", exc)
     data = await _orbit_get(
         "/currency-sentiment-query",
         _compact({
@@ -330,6 +593,7 @@ async def get_coin_sentiment(
         "code": code,
         "msg": msg,
         "warning": warning,
+        "backend": "okx_orbit_public",
     }
 
 
@@ -342,6 +606,19 @@ async def get_sentiment_ranking(
 ) -> dict[str, Any]:
     resolved_period = period if period in SENTIMENT_PERIODS else "24h"
     resolved_sort = sort_by if sort_by in {"hot", "bullish", "bearish"} else "hot"
+    if _should_try_cli_news():
+        try:
+            cli_sort = {"hot": "0", "bullish": "1", "bearish": "2"}.get(resolved_sort, "0")
+            payload = await _run_okx_cli_json(
+                "news",
+                "sentiment-rank",
+                "--period", resolved_period,
+                "--sort-by", cli_sort,
+                "--limit", str(min(max(limit, 1), 50)),
+            )
+            return _normalize_cli_sentiment_page(payload, period=resolved_period, sort_by=resolved_sort)
+        except Exception as exc:
+            logger.warning("okx cli sentiment ranking failed, falling back to public orbit: %s", exc)
     data = await _orbit_get(
         "/currency-sentiment-ranking",
         {
@@ -361,4 +638,5 @@ async def get_sentiment_ranking(
         "code": code,
         "msg": msg,
         "warning": warning,
+        "backend": "okx_orbit_public",
     }
