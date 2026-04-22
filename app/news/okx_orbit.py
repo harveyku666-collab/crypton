@@ -612,12 +612,11 @@ async def get_sentiment_ranking(
     resolved_sort = sort_by if sort_by in {"hot", "bullish", "bearish"} else "hot"
     if _should_try_cli_news():
         try:
-            cli_sort = {"hot": "0", "bullish": "1", "bearish": "2"}.get(resolved_sort, "0")
             payload = await _run_okx_cli_json(
                 "news",
                 "sentiment-rank",
                 "--period", resolved_period,
-                "--sort-by", cli_sort,
+                "--sort-by", resolved_sort,
                 "--limit", str(min(max(limit, 1), 50)),
             )
             return _normalize_cli_sentiment_page(payload, period=resolved_period, sort_by=resolved_sort)

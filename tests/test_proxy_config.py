@@ -121,3 +121,34 @@ async def test_okx_cli_coin_trend_normalizes_payload(monkeypatch):
     assert payload["items"][0]["symbol"] == "BTC"
     assert payload["items"][0]["mention_count"] == 6
     assert len(payload["items"][0]["trend"]) == 2
+
+
+@pytest.mark.anyio
+async def test_okx_cli_sentiment_ranking_normalizes_payload(monkeypatch):
+    async def fake_run_okx_cli_json(*args, **kwargs):
+        return [
+            {
+                "details": [
+                    {
+                        "ccy": "BTC",
+                        "mentionCnt": "1576",
+                        "sentiment": {
+                            "label": "neutral",
+                            "bullishRatio": "0.42",
+                            "bearishRatio": "0.11",
+                        },
+                    }
+                ]
+            }
+        ]
+
+    monkeypatch.setattr(okx_orbit.settings, "okx_news_source", "cli")
+    monkeypatch.setattr(okx_orbit, "_run_okx_cli_json", fake_run_okx_cli_json)
+
+    payload = await okx_orbit.get_sentiment_ranking(period="24h", sort_by="hot", limit=5)
+
+    assert payload["backend"] == "okx_cli"
+    assert payload["count"] == 1
+    assert payload["sort_by"] == "hot"
+    assert payload["items"][0]["symbol"] == "BTC"
+    assert payload["items"][0]["bullish_ratio"] == 0.42
