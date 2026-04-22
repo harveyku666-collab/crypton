@@ -729,6 +729,49 @@ async def test_localize_article_for_language_adds_zh_fields(monkeypatch):
 
 
 @pytest.mark.anyio
+async def test_localize_article_for_language_uses_okx_public_feed_translation(monkeypatch):
+    async def fake_fetch_bytes(*args, **kwargs):
+        html = """
+        <script data-id="__app_data_for_ssr__" id="appState" type="application/json">
+        {
+          "appContext": {
+            "initialProps": {
+              "contentDetail": {
+                "title": "特朗普称伊朗财政正在崩溃",
+                "summary": "特朗普称伊朗急需资金。",
+                "contentList": [
+                  {"translatedContent": "特朗普表示伊朗每天损失 5 亿美元。"},
+                  {"translatedContent": "他称军警都在抱怨拿不到工资。"}
+                ]
+              }
+            }
+          }
+        }
+        </script>
+        """
+        return html.encode("utf-8"), {}
+
+    monkeypatch.setattr(news_translation, "fetch_bytes", fake_fetch_bytes)
+    monkeypatch.setattr(news_translation.settings, "openai_api_key", "")
+
+    localized = await news_translation.localize_article_for_language(
+        {
+            "id": "74508611016992",
+            "title": "Trump: Iran's finances are collapsing",
+            "summary": "Main takeaway: Trump says Iran's finances are collapsing.",
+            "content": "",
+            "source_url": "https://www.okx.com/zh-hans/feed/post/74508611016992",
+        },
+        language="zh-CN",
+    )
+
+    assert localized["translated_title"] == "特朗普称伊朗财政正在崩溃"
+    assert localized["translated_summary"] == "特朗普称伊朗急需资金。"
+    assert "每天损失 5 亿美元" in localized["translated_content"]
+    assert localized["translation_mode"] == "okx_public_feed"
+
+
+@pytest.mark.anyio
 async def test_okx_news_detail_returns_translated_fields_for_zh(monkeypatch):
     async def fake_get_news_detail(*args, **kwargs):
         return {

@@ -10,12 +10,18 @@ from typing import Any
 
 from app.common.ai_client import ai_chat
 from app.common.cache import cache_get, cache_set
+from app.common.http_client import fetch_bytes
 from app.config import settings
 
 logger = logging.getLogger("bitinfo.news.translation")
 
 _CJK_RE = re.compile(r"[\u3400-\u9fff]")
 _LATIN_RE = re.compile(r"[A-Za-z]")
+_PUBLIC_FEED_RE = re.compile(r"^https://www\.okx\.com/[a-z]{2}(?:-[a-z]{2,8})?/feed/post/\d+$", re.IGNORECASE)
+_APP_STATE_RE = re.compile(
+    r'<script[^>]+data-id="__app_data_for_ssr__"[^>]+id="appState"[^>]*>(.*?)</script>',
+    re.IGNORECASE | re.DOTALL,
+)
 
 
 def _normalize_language(language: str | None) -> str:
@@ -139,6 +145,80 @@ async def _translate_article_brief_to_zh(
     return translated
 
 
+async def _load_public_feed_translation(source_url: str, *, language: str) -> dict[str, str]:
+    if not source_url or not _PUBLIC_FEED_RE.match(source_url):
+        return {}
+
+    cache_key = f"okx_public_feed_translation:{_normalize_language(language)}:{sha1(source_url.encode('utf-8')).hexdigest()}"
+    try:
+        cached = await cache_get(cache_key)
+        if isinstance(cached, dict):
+            return {key: str(value).strip() for key, value in cached.items() if str(value or "").strip()}
+    except Exception:
+        logger.debug("public feed translation cache read failed for %s", cache_key, exc_info=True)
+
+    preferred_url = source_url
+    if _normalize_language(language) == "zh-CN":
+        preferred_url = re.sub(
+            r"/[a-z]{2}(?:-[a-z]{2,8})?/feed/post/",
+            "/zh-hans/feed/post/",
+            source_url,
+            count=1,
+            flags=re.IGNORECASE,
+        )
+    try:
+        body, _ = await fetch_bytes(
+            preferred_url,
+            headers={"User-Agent": "Mozilla/5.0", "Accept-Language": _normalize_language(language)},
+        )
+        html_text = body.decode("utf-8", errors="ignore")
+    except Exception:
+        logger.debug("failed to load public feed translation for %s", preferred_url, exc_info=True)
+        return {}
+
+    match = _APP_STATE_RE.search(html_text)
+    if not match:
+        return {}
+    try:
+        payload = json.loads(match.group(1))
+    except Exception:
+        return {}
+
+    detail = (
+        (((payload.get("appContext") or {}).get("initialProps") or {}).get("contentDetail"))
+        if isinstance(payload, dict)
+        else None
+    )
+    if not isinstance(detail, dict):
+        return {}
+
+    content_list = detail.get("contentList") if isinstance(detail.get("contentList"), list) else []
+    content_parts: list[str] = []
+    for row in content_list:
+        if not isinstance(row, dict):
+            continue
+        content = row.get("translatedContent") or row.get("content")
+        text = _clean_text(content)
+        if text:
+            content_parts.append(text)
+
+    translated = {
+        "translated_title": _clean_text(detail.get("title") or detail.get("enTitle")),
+        "translated_summary": _clean_text(detail.get("summary")),
+        "translated_content": "\n\n".join(part for part in content_parts if part).strip(),
+    }
+    translated = {key: value for key, value in translated.items() if value}
+    if not translated:
+        return {}
+
+    translated["translation_mode"] = "okx_public_feed"
+    try:
+        await cache_set(cache_key, translated, ttl=86400)
+    except Exception:
+        logger.debug("public feed translation cache write failed for %s", cache_key, exc_info=True)
+    return translated
+
+
 async def localize_article_for_language(item: dict[str, Any], *, language: str | None) -> dict[str, Any]:
     if not isinstance(item, dict):
         return item
@@ -150,6 +230,13 @@ async def localize_article_for_language(item: dict[str, Any], *, language: str |
     content = _clean_text(item.get("content") or summary)
     if not _needs_zh_translation(title) and not _needs_zh_translation(content or summary):
         return item
+
+    source_url = _clean_text(item.get("source_url"))
+    public_feed_translation = await _load_public_feed_translation(source_url, language=language or "zh-CN")
+    if public_feed_translation:
+        localized = dict(item)
+        localized.update(public_feed_translation)
+        return localized
 
     translated = await _translate_article_brief_to_zh(
         article_id=_clean_text(item.get("id")),
