@@ -95,7 +95,7 @@ def _translation_cache_key(*, article_id: str, title: str, summary: str, content
             sort_keys=True,
         ).encode("utf-8")
     ).hexdigest()
-    return f"okx_news_translate_zh:{article_id or 'unknown'}:{digest}"
+    return f"okx_news_translate_zh:v2:{article_id or 'unknown'}:{digest}"
 
 
 async def _translate_article_brief_to_zh(
@@ -164,7 +164,7 @@ async def _load_public_feed_translation(source_url: str, *, language: str) -> di
     if not source_url or not _PUBLIC_FEED_RE.match(source_url):
         return {}
 
-    cache_key = f"okx_public_feed_translation:{_normalize_language(language)}:{sha1(source_url.encode('utf-8')).hexdigest()}"
+    cache_key = f"okx_public_feed_translation:v2:{_normalize_language(language)}:{sha1(source_url.encode('utf-8')).hexdigest()}"
     try:
         cached = await cache_get(cache_key)
         if isinstance(cached, dict):
